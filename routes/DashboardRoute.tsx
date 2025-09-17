@@ -20,6 +20,12 @@ export const DashboardMenu: MenuItemType[] = [
   },
   {
     id: uuid(),
+    title: "Đặt lịch",
+    link: "/dat-lich",
+    icon: <IconShoppingBag size={20} strokeWidth={1.5} />,
+  },
+  {
+    id: uuid(),
     title: "Ecommerce",
     link: "/ecommerce",
     icon: <IconShoppingBag size={20} strokeWidth={1.5} />,

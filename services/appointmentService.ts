@@ -7,23 +7,49 @@ export enum AppointmentStatus {
   KHONG_DEN = 'KHONG_DEN'
 }
 
-// Interfaces cho Appointment data
+// Interfaces cho Appointment data - Updated to match backend response
 export interface Appointment {
   id: number;
-  patientId: number;
-  doctorId: number;
-  departmentId: number;
-  appointmentDate: string;
-  appointmentTime: string;
-  status: AppointmentStatus;
+  // Patient info
+  fullName: string;
+  phone: string;
+  gender?: string | null;
+  birth: string;
+  email?: string;
+  address?: string;
+  // Appointment details
+  date: string; // appointmentDate mapped to date
+  time: string; // appointmentTime mapped to time  
   symptoms?: string;
-  notes?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  // Backend nested objects
+  healthPlanResponse?: {
+    id: number;
+    name: string;
+    price: number;
+  } | null;
+  doctorResponse?: {
+    id: number;
+    position: string; // This is doctor name
+    available: boolean;
+  } | null;
+  departmentResponse?: {
+    id: number;
+    name: string;
+  } | null;
+  // Legacy fields for backward compatibility
+  status?: AppointmentStatus | string;
+  patientId?: number;
+  doctorId?: number;
+  departmentId?: number;
+  appointmentDate?: string;
+  appointmentTime?: string;
   patientName?: string;
   patientPhone?: string;
   doctorName?: string;
   departmentName?: string;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface AppointmentCreateData {
