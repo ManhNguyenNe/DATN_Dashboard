@@ -1,0 +1,42 @@
+// 
+// user.scss
+// Use this to write your custom SCSS
+//
+
+// Navigation loading states
+.nav-link {
+    transition: opacity 0.2s ease-in-out;
+
+    &.loading {
+        opacity: 0.7;
+    }
+}
+
+// Smooth loading transitions
+.loading-transition {
+    transition: opacity 0.3s ease-in-out;
+}
+
+// Enhanced loading spinner
+.loading-spinner {
+    .spinner-border {
+        animation-duration: 0.8s;
+    }
+}
+
+// Page transition loading
+.page-loading {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
