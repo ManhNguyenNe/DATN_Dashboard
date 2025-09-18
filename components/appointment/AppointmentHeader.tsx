@@ -6,12 +6,12 @@ import { IconPlus } from "@tabler/icons-react";
 
 interface AppointmentHeaderProps {
   onNewAppointment?: () => void;
-  searchPhone?: string; 
+  searchPhone?: string;
 }
 
-const AppointmentHeader: React.FC<AppointmentHeaderProps> = ({ 
-  onNewAppointment, 
-  searchPhone 
+const AppointmentHeader: React.FC<AppointmentHeaderProps> = ({
+  onNewAppointment,
+  searchPhone
 }) => {
   return (
     <div className="pb-4">
@@ -25,7 +25,7 @@ const AppointmentHeader: React.FC<AppointmentHeaderProps> = ({
                 Quản lý lịch hẹn khám bệnh của bệnh nhân
               </p>
             </div>
-            <div className="d-flex">
+            {/* <div className="d-flex">
               <Button 
                 variant="primary" 
                 onClick={onNewAppointment}
@@ -34,7 +34,7 @@ const AppointmentHeader: React.FC<AppointmentHeaderProps> = ({
                 <IconPlus size={16} className="me-1" />
                 Đặt lịch mới
               </Button>
-            </div>
+            </div> */}
           </div>
         </Col>
       </Row>

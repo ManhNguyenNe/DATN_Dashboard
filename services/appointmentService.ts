@@ -3,7 +3,7 @@ import apiClient, { ApiResponse } from './api';
 // Enums cho Appointment
 export enum AppointmentStatus {
   CHO_XAC_NHAN = 'CHO_XAC_NHAN',
-  DA_XAC_NHAN = 'DA_XAC_NHAN', 
+  DA_XAC_NHAN = 'DA_XAC_NHAN',
   KHONG_DEN = 'KHONG_DEN'
 }
 
@@ -67,12 +67,51 @@ export interface AppointmentConfirmData {
   status: AppointmentStatus;
 }
 
+export interface AppointmentFilter {
+  phone?: string;
+  date?: string; // Format: YYYY-MM-DD
+  status?: AppointmentStatus | string;
+}
+
 /**
  * Service để quản lý các API liên quan đến appointments
  */
 const appointmentService = {
   /**
-   * Lấy danh sách lịch khám theo số điện thoại
+   * Lấy danh sách lịch khám với các bộ lọc
+   * @param filters - Các bộ lọc cho tìm kiếm lịch khám
+   * @returns Promise với response từ API
+   */
+  getAppointments: async (filters: AppointmentFilter): Promise<ApiResponse<Appointment[]>> => {
+    try {
+      // Build query parameters
+      const params: Record<string, string> = {};
+
+      if (filters.phone && filters.phone.trim()) {
+        params.phone = filters.phone.trim();
+      }
+
+      if (filters.date) {
+        params.date = filters.date;
+      }
+
+      if (filters.status) {
+        params.status = filters.status;
+      }
+
+      const response = await apiClient.get<ApiResponse<Appointment[]>>(`/api/appointments`, {
+        params
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching appointments:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Lấy danh sách lịch khám theo số điện thoại (backward compatibility)
    * @param phone - Số điện thoại cần tìm kiếm
    * @returns Promise với response từ API
    */
@@ -82,13 +121,7 @@ const appointmentService = {
         throw new Error('Số điện thoại không được để trống');
       }
 
-      const response = await apiClient.get<ApiResponse<Appointment[]>>(`/api/appointments/phone`, {
-        params: {
-          phone: phone.trim()
-        }
-      });
-
-      return response.data;
+      return await appointmentService.getAppointments({ phone: phone.trim() });
     } catch (error) {
       console.error('Error fetching appointments by phone:', error);
       throw error;
@@ -122,7 +155,7 @@ const appointmentService = {
         id: appointmentId,
         status: status // Sử dụng enum string như backend mong đợi
       };
-      
+
       const response = await apiClient.put<ApiResponse<Appointment>>('/api/appointments/confirm', confirmData);
       return response.data;
     } catch (error) {

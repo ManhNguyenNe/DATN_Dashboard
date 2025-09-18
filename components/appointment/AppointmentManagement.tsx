@@ -10,16 +10,16 @@ import AppointmentSearch from "./AppointmentSearch";
 import MedicalRecordForm from "./MedicalRecordForm";
 
 //import services
-import { appointmentService, AppointmentStatus, type Appointment } from "../../services";
+import { appointmentService, AppointmentStatus, type Appointment, type AppointmentFilter } from "../../services";
 
 interface AppointmentManagementProps {
-  onPhoneSearch?: (phone: string) => void;
+  onSearch?: (filters: AppointmentFilter) => void;
   activeTab?: string;
   onTabChange?: (tab: string) => void;
 }
 
 const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
-  onPhoneSearch,
+  onSearch,
   activeTab: externalActiveTab,
   onTabChange
 }) => {
@@ -27,30 +27,23 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [searchPhone, setSearchPhone] = useState<string>("");
+  const [currentFilters, setCurrentFilters] = useState<AppointmentFilter>({});
 
   // Use external or internal active tab
   const activeTab = externalActiveTab || internalActiveTab;
   const setActiveTab = onTabChange || setInternalActiveTab;
 
-  // Load appointments by phone
-  const handleSearchByPhone = async (phone: string) => {
-    if (!phone.trim()) {
-      setAppointments([]);
-      setSearchPhone("");
-      onPhoneSearch?.("");
-      return;
-    }
-
+  // Load appointments with filters
+  const handleSearch = async (filters: AppointmentFilter) => {
     setLoading(true);
     setError(null);
-    
+
     try {
-      const response = await appointmentService.getAppointmentsByPhone(phone);
+      const response = await appointmentService.getAppointments(filters);
       console.log('API Response:', response); // Debug log
-      
+
       let appointmentsData: Appointment[] = [];
-      
+
       // Handle different response structures
       if (response.data && Array.isArray(response.data)) {
         appointmentsData = response.data;
@@ -65,8 +58,8 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
 
       console.log('Processed appointments:', appointmentsData); // Debug log
       setAppointments(appointmentsData);
-      setSearchPhone(phone);
-      onPhoneSearch?.(phone);
+      setCurrentFilters(filters);
+      onSearch?.(filters);
     } catch (err: any) {
       console.error('Error fetching appointments:', err);
       setError(err.message || "Lỗi khi tải danh sách lịch khám");
@@ -76,6 +69,18 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
     }
   };
 
+  // Load appointments by phone (backward compatibility)
+  const handleSearchByPhone = async (phone: string) => {
+    if (!phone.trim()) {
+      setAppointments([]);
+      setCurrentFilters({});
+      onSearch?.({});
+      return;
+    }
+
+    await handleSearch({ phone: phone.trim() });
+  };
+
   // Handle appointment confirmation
   const handleConfirmAppointment = async (appointmentId: number, status: AppointmentStatus) => {
     setLoading(true);
@@ -83,12 +88,12 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
 
     try {
       await appointmentService.confirmAppointment(appointmentId, status);
-      
+
       // Refresh appointments list after confirmation
-      if (searchPhone) {
-        await handleSearchByPhone(searchPhone);
+      if (Object.keys(currentFilters).length > 0) {
+        await handleSearch(currentFilters);
       }
-      
+
       // Show success message (you can add toast here)
       console.log("Appointment confirmed successfully");
     } catch (err: any) {
@@ -121,24 +126,24 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
                       {error}
                     </Alert>
                   )}
-                  
-                  <AppointmentSearch 
-                    onSearch={handleSearchByPhone}
+
+                  <AppointmentSearch
+                    onSearch={handleSearch}
                     loading={loading}
                   />
-                  
-                  <AppointmentList 
+
+                  <AppointmentList
                     appointments={appointments}
                     loading={loading}
                     onConfirm={handleConfirmAppointment}
-                    onRefresh={() => searchPhone && handleSearchByPhone(searchPhone)}
+                    onRefresh={() => Object.keys(currentFilters).length > 0 && handleSearch(currentFilters)}
                   />
                 </div>
               </Tab>
 
               <Tab eventKey="medical-record" title="Phiếu khám bệnh">
                 <div className="pt-4">
-                  <MedicalRecordForm 
+                  <MedicalRecordForm
                     onSuccess={handleMedicalRecordCreated}
                     onCancel={() => setActiveTab("list")}
                   />

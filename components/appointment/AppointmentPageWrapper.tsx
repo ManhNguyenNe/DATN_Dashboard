@@ -3,17 +3,18 @@
 //import node module libraries
 import { useState } from "react";
 import { Fragment } from "react";
+import { AppointmentFilter } from "../../services";
 
 //import custom components
 import AppointmentHeader from "./AppointmentHeader";
 import AppointmentManagement from "./AppointmentManagement";
 
 const AppointmentPageWrapper = () => {
-  const [searchPhone, setSearchPhone] = useState<string>("");
+  const [currentFilters, setCurrentFilters] = useState<AppointmentFilter>({});
   const [activeTab, setActiveTab] = useState<string>("list");
 
-  const handlePhoneSearch = (phone: string) => {
-    setSearchPhone(phone);
+  const handleSearch = (filters: AppointmentFilter) => {
+    setCurrentFilters(filters);
   };
 
   const handleNewAppointment = () => {
@@ -22,12 +23,12 @@ const AppointmentPageWrapper = () => {
 
   return (
     <Fragment>
-      <AppointmentHeader 
+      <AppointmentHeader
         onNewAppointment={handleNewAppointment}
-        searchPhone={searchPhone}
+        searchPhone={currentFilters.phone || ""}
       />
-      <AppointmentManagement 
-        onPhoneSearch={handlePhoneSearch}
+      <AppointmentManagement
+        onSearch={handleSearch}
         activeTab={activeTab}
         onTabChange={setActiveTab}
       />
