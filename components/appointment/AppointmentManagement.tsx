@@ -6,7 +6,6 @@ import { Row, Col, Card, Tab, Tabs, Alert } from "react-bootstrap";
 
 //import custom components
 import AppointmentList from "./AppointmentList";
-import AppointmentForm from "./AppointmentForm";
 import AppointmentSearch from "./AppointmentSearch";
 import MedicalRecordForm from "./MedicalRecordForm";
 
@@ -99,20 +98,6 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
     }
   };
 
-  // Handle new appointment creation
-  const handleNewAppointment = () => {
-    setActiveTab("create");
-  };
-
-  // Handle appointment created successfully
-  const handleAppointmentCreated = async () => {
-    setActiveTab("list");
-    // Refresh list if there's a search
-    if (searchPhone) {
-      await handleSearchByPhone(searchPhone);
-    }
-  };
-
   // Handle medical record created successfully
   const handleMedicalRecordCreated = async () => {
     setActiveTab("list");
@@ -140,7 +125,6 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
                   <AppointmentSearch 
                     onSearch={handleSearchByPhone}
                     loading={loading}
-                    onNewAppointment={handleNewAppointment}
                   />
                   
                   <AppointmentList 
@@ -148,15 +132,6 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
                     loading={loading}
                     onConfirm={handleConfirmAppointment}
                     onRefresh={() => searchPhone && handleSearchByPhone(searchPhone)}
-                  />
-                </div>
-              </Tab>
-              
-              <Tab eventKey="create" title="Đặt lịch mới">
-                <div className="pt-4">
-                  <AppointmentForm 
-                    onSuccess={handleAppointmentCreated}
-                    onCancel={() => setActiveTab("list")}
                   />
                 </div>
               </Tab>
