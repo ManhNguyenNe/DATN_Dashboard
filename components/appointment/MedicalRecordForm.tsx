@@ -1,9 +1,26 @@
 "use client";
 
 //import node module libraries
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Row, Col, Form, Button, Card, Alert } from "react-bootstrap";
 import { IconUser, IconPhone, IconMail, IconCalendar, IconMapPin, IconId, IconStethoscope } from "@tabler/icons-react";
+
+//import services
+import { 
+  departmentService, 
+  doctorService,
+  healthPlanService,
+  type Department,
+  type Doctor,
+  type HealthPlan
+} from "../../services";
+
+// Extended interface để handle response structure thực tế
+interface DoctorResponse extends Doctor {
+  fullName?: string;
+  position?: string;
+  available?: boolean;
+}
 
 interface MedicalRecordFormData {
   fullName: string;
@@ -13,7 +30,7 @@ interface MedicalRecordFormData {
   gender: string;
   address: string;
   citizenId: string;
-  examinationType: string;
+  examinationType: string; // 'package' | 'department' | 'doctor'
   serviceDoctor: string;
 }
 
@@ -36,13 +53,185 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
     serviceDoctor: ''
   });
 
+  // Data state
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [doctors, setDoctors] = useState<DoctorResponse[]>([]);
+  const [healthPlans, setHealthPlans] = useState<HealthPlan[]>([]);
+  
   // UI state
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  // Load initial data
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  // Handle examination type change
+  useEffect(() => {
+    if (formData.examinationType) {
+      loadServiceDoctorOptions(formData.examinationType);
+      // Reset service/doctor selection when examination type changes
+      setFormData(prev => ({ ...prev, serviceDoctor: '' }));
+    }
+  }, [formData.examinationType]);
+
+  const loadInitialData = async () => {
+    try {
+      // Load departments and health plans
+      const [deptResponse, healthPlanResponse] = await Promise.all([
+        departmentService.getAllDepartments(),
+        healthPlanService.getAllHealthPlans()
+      ]);
+      
+      console.log('Departments Response:', deptResponse); // Debug log
+      console.log('Health Plans Response:', healthPlanResponse); // Debug log
+      
+      // Handle departments response structure
+      let departmentsData: Department[] = [];
+      if (deptResponse.data && Array.isArray(deptResponse.data)) {
+        departmentsData = deptResponse.data;
+      } else if (deptResponse && Array.isArray(deptResponse)) {
+        departmentsData = deptResponse as Department[];
+      } else {
+        console.warn('Unexpected departments response structure:', deptResponse);
+        departmentsData = [];
+      }
+      
+      // Handle health plans response structure
+      let healthPlansData: HealthPlan[] = [];
+      if (healthPlanResponse.data && Array.isArray(healthPlanResponse.data)) {
+        healthPlansData = healthPlanResponse.data;
+      } else if (healthPlanResponse && Array.isArray(healthPlanResponse)) {
+        healthPlansData = healthPlanResponse as HealthPlan[];
+      } else {
+        console.warn('Unexpected health plans response structure:', healthPlanResponse);
+        healthPlansData = [];
+      }
+      
+      console.log('Processed departments:', departmentsData); // Debug log
+      console.log('Processed health plans:', healthPlansData); // Debug log
+      
+      setDepartments(departmentsData);
+      setHealthPlans(healthPlansData);
+    } catch (err: any) {
+      console.error('Error loading initial data:', err);
+      setError('Lỗi khi tải dữ liệu khởi tạo');
+    }
+  };
+
+  const loadServiceDoctorOptions = async (examinationType: string) => {
+    try {
+      setLoading(true);
+      
+      if (examinationType === 'package') {
+        // Health plans already loaded
+        return;
+      } else if (examinationType.startsWith('department-')) {
+        // Load doctors for specific department
+        const departmentId = parseInt(examinationType.replace('department-', ''));
+        if (!isNaN(departmentId)) {
+          const response = await doctorService.getDoctorsByDepartment(departmentId);
+          console.log('Doctors Response:', response); // Debug log
+          
+          // Handle doctors response structure
+          let doctorsData: DoctorResponse[] = [];
+          if (response.data && Array.isArray(response.data)) {
+            doctorsData = response.data as DoctorResponse[];
+          } else if (response && Array.isArray(response)) {
+            doctorsData = response as DoctorResponse[];
+          } else {
+            console.warn('Unexpected doctors response structure:', response);
+            doctorsData = [];
+          }
+          
+          // Debug: Log doctor structure for single department
+          if (doctorsData.length > 0) {
+            console.log('Sample doctor object from department:', doctorsData[0]);
+            console.log('Available fields:', Object.keys(doctorsData[0]));
+          }
+          
+          console.log('Processed doctors:', doctorsData); // Debug log
+          setDoctors(doctorsData);
+        }
+      } else if (examinationType === 'doctor') {
+        // Load all doctors from all departments
+        console.log('Loading all doctors, departments available:', departments.length);
+        
+        if (departments.length === 0) {
+          console.warn('No departments loaded yet, cannot load doctors');
+          setError('Chưa tải được danh sách khoa. Vui lòng thử lại.');
+          return;
+        }
+        
+        const allDoctors: DoctorResponse[] = [];
+        for (const dept of departments) {
+          try {
+            console.log(`Loading doctors for department: ${dept.name} (ID: ${dept.id})`);
+            const response = await doctorService.getDoctorsByDepartment(dept.id);
+            console.log(`Doctors for department ${dept.id}:`, response); // Debug log
+            
+            // Handle doctors response structure
+            let doctorsData: DoctorResponse[] = [];
+            if (response.data && Array.isArray(response.data)) {
+              doctorsData = response.data as DoctorResponse[];
+            } else if (response && Array.isArray(response)) {
+              doctorsData = response as DoctorResponse[];
+            } else {
+              console.warn('Unexpected doctors response structure:', response);
+              doctorsData = [];
+            }
+            
+            // Debug: Log doctor structure
+            if (doctorsData.length > 0) {
+              console.log('Sample doctor object structure:', doctorsData[0]);
+              console.log('Available fields:', Object.keys(doctorsData[0]));
+            }
+            
+            // Add department name to doctors
+            doctorsData = doctorsData.map(doctor => {
+              console.log('Processing doctor:', doctor);
+              return {
+                ...doctor,
+                departmentName: doctor.departmentName || dept.name
+              };
+            });
+            
+            if (doctorsData.length > 0) {
+              allDoctors.push(...doctorsData);
+            }
+          } catch (err) {
+            console.warn(`Failed to load doctors for department ${dept.id}`, err);
+          }
+        }
+        
+        console.log('All processed doctors:', allDoctors); // Debug log
+        setDoctors(allDoctors);
+      }
+    } catch (err: any) {
+      console.error('Error loading service/doctor options:', err);
+      setError('Lỗi khi tải danh sách dịch vụ/bác sĩ');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleInputChange = (field: keyof MedicalRecordFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleExaminationTypeChange = (value: string) => {
+    setFormData(prev => ({ 
+      ...prev, 
+      examinationType: value,
+      serviceDoctor: '' // Reset service/doctor selection
+    }));
+  };
+
+  const handleServiceDoctorChange = async (value: string) => {
+    setFormData(prev => ({ ...prev, serviceDoctor: value }));
+    // Logic xử lý đã được chuyển vào loadServiceDoctorOptions
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -101,22 +290,49 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
     { value: 'Khác', label: 'Khác' }
   ];
 
-  const examinationTypes = [
-    { value: '', label: 'Chọn loại khám' },
-    { value: 'Khám tổng quát', label: 'Khám tổng quát' },
-    { value: 'Khám chuyên khoa', label: 'Khám chuyên khoa' },
-    { value: 'Khám định kỳ', label: 'Khám định kỳ' },
-    { value: 'Khám theo yêu cầu', label: 'Khám theo yêu cầu' }
-  ];
 
-  const serviceDoctorOptions = [
-    { value: '', label: 'Chọn dịch vụ/bác sĩ' },
-    { value: 'BS. Nguyễn Văn A - Tim mạch', label: 'BS. Nguyễn Văn A - Tim mạch' },
-    { value: 'BS. Trần Thị B - Nội khoa', label: 'BS. Trần Thị B - Nội khoa' },
-    { value: 'BS. Lê Văn C - Ngoại khoa', label: 'BS. Lê Văn C - Ngoại khoa' },
-    { value: 'BS. Phạm Thị D - Sản phụ khoa', label: 'BS. Phạm Thị D - Sản phụ khoa' },
-    { value: 'BS. Hoàng Văn E - Nhi khoa', label: 'BS. Hoàng Văn E - Nhi khoa' }
-  ];
+
+  // Get service/doctor options based on examination type
+  const getServiceDoctorOptions = () => {
+    const baseOption = { value: '', label: 'Chọn dịch vụ/bác sĩ' };
+    
+    console.log('getServiceDoctorOptions called with examinationType:', formData.examinationType);
+    console.log('Current doctors array:', doctors);
+    
+    if (formData.examinationType === 'package') {
+      // Gói khám -> hiển thị các gói khám
+      console.log('Returning health plans options:', healthPlans);
+      return [
+        baseOption,
+        ...healthPlans.map(plan => ({
+          value: plan.id.toString(),
+          label: `${plan.name} - ${plan.price?.toLocaleString()}đ`
+        }))
+      ];
+    } else if (formData.examinationType.startsWith('department-')) {
+      // Chuyên khoa cụ thể -> hiển thị bác sĩ trong khoa đó
+      console.log('Returning department doctors options:', doctors);
+      return [
+        { value: '', label: 'Chọn bác sĩ trong khoa' },
+        ...doctors.map(doctor => ({
+          value: doctor.id.toString(),
+          label: (doctor as any).fullName || (doctor as any).position || doctor.name || `Bác sĩ #${doctor.id}`
+        }))
+      ];
+    } else if (formData.examinationType === 'doctor') {
+      // Tất cả bác sĩ -> hiển thị tất cả bác sĩ kèm tên khoa
+      console.log('Returning all doctors options:', doctors);
+      return [
+        { value: '', label: 'Chọn bác sĩ' },
+        ...doctors.map(doctor => ({
+          value: doctor.id.toString(),
+          label: `${(doctor as any).fullName || (doctor as any).position || doctor.name || `Bác sĩ #${doctor.id}`}${doctor.departmentName ? ` - ${doctor.departmentName}` : ''}`
+        }))
+      ];
+    }
+    
+    return [baseOption];
+  };
 
   return (
     <Card>
@@ -279,14 +495,29 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
                   <Form.Label>Loại khám *</Form.Label>
                   <Form.Select
                     value={formData.examinationType}
-                    onChange={(e) => handleInputChange('examinationType', e.target.value)}
+                    onChange={(e) => handleExaminationTypeChange(e.target.value)}
                     required
                   >
-                    {examinationTypes.map(option => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
+                    <option value="">Chọn loại khám</option>
+                    
+                    {/* Gói khám */}
+                    <optgroup label="Gói khám">
+                      <option value="package">Gói khám</option>
+                    </optgroup>
+                    
+                    {/* Chuyên khoa */}
+                    <optgroup label="Chuyên khoa">
+                      {departments.map(dept => (
+                        <option key={`dept-${dept.id}`} value={`department-${dept.id}`}>
+                          {dept.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                    
+                    {/* Bác sĩ */}
+                    <optgroup label="Bác sĩ">
+                      <option value="doctor">Tất cả bác sĩ</option>
+                    </optgroup>
                   </Form.Select>
                 </Form.Group>
               </Col>
@@ -295,13 +526,18 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
                   <Form.Label>Dịch vụ/Bác sĩ</Form.Label>
                   <Form.Select
                     value={formData.serviceDoctor}
-                    onChange={(e) => handleInputChange('serviceDoctor', e.target.value)}
+                    onChange={(e) => handleServiceDoctorChange(e.target.value)}
+                    disabled={!formData.examinationType || loading}
                   >
-                    {serviceDoctorOptions.map(option => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
+                    {loading && (formData.examinationType === 'doctor' || formData.examinationType.startsWith('department-')) ? (
+                      <option value="">Đang tải danh sách bác sĩ...</option>
+                    ) : (
+                      getServiceDoctorOptions().map(option => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))
+                    )}
                   </Form.Select>
                 </Form.Group>
               </Col>
