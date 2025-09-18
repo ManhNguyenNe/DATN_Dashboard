@@ -19,12 +19,12 @@ const DashboardLayout: React.FC<DashboardProps> = ({ children }) => {
             {children}
           </Suspense>
         </div>
-        <div className='custom-container'>
+        {/* <div className='custom-container'>
           <span className='me-1'>Theme distributed by - </span>
           <a href='https://www.themewagon.com/' target='_blank' rel='noopener '>
             ThemeWagon
           </a>
-        </div>
+        </div> */}
       </div>
     </div>
   );

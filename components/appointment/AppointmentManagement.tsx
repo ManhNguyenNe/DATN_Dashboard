@@ -8,6 +8,7 @@ import { Row, Col, Card, Tab, Tabs, Alert } from "react-bootstrap";
 import AppointmentList from "./AppointmentList";
 import AppointmentForm from "./AppointmentForm";
 import AppointmentSearch from "./AppointmentSearch";
+import MedicalRecordForm from "./MedicalRecordForm";
 
 //import services
 import { appointmentService, AppointmentStatus, type Appointment } from "../../services";
@@ -112,6 +113,12 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
     }
   };
 
+  // Handle medical record created successfully
+  const handleMedicalRecordCreated = async () => {
+    setActiveTab("list");
+    // Optionally refresh data or show success message
+  };
+
   return (
     <Row>
       <Col xl={12} lg={12} md={12} sm={12}>
@@ -149,6 +156,15 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
                 <div className="pt-4">
                   <AppointmentForm 
                     onSuccess={handleAppointmentCreated}
+                    onCancel={() => setActiveTab("list")}
+                  />
+                </div>
+              </Tab>
+
+              <Tab eventKey="medical-record" title="Phiếu khám bệnh">
+                <div className="pt-4">
+                  <MedicalRecordForm 
+                    onSuccess={handleMedicalRecordCreated}
                     onCancel={() => setActiveTab("list")}
                   />
                 </div>
