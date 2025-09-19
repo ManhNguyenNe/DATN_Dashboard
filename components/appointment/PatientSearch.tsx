@@ -1,12 +1,13 @@
 "use client";
 
 //import node module libraries
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Row, Col, Form, Button, InputGroup } from "react-bootstrap";
-import { IconSearch, IconX, IconUserPlus } from "@tabler/icons-react";
+import { IconX, IconUserPlus, IconSearch } from "@tabler/icons-react";
 
 interface PatientSearchProps {
     onSearch: (keyword: string) => void;
+    onKeywordChange?: (keyword: string) => void; // Callback để update keyword realtime
     onAddPatient?: () => void;
     loading?: boolean;
     placeholder?: string;
@@ -14,11 +15,35 @@ interface PatientSearchProps {
 
 const PatientSearch: React.FC<PatientSearchProps> = ({
     onSearch,
+    onKeywordChange,
     onAddPatient,
     loading = false,
     placeholder = "Nhập CCCD, tên, hoặc số điện thoại để tìm kiếm..."
 }) => {
     const [keyword, setKeyword] = useState<string>("");
+    const isInitialMount = useRef<boolean>(true);
+
+    // Auto search khi keyword thay đổi với debounce
+    useEffect(() => {
+        // Bỏ qua lần render đầu tiên (khi component mount)
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+            return;
+        }
+
+        // Debounce: chỉ search sau 600ms kể từ lần thay đổi cuối và tối thiểu 2 ký tự
+        const timeoutId = setTimeout(() => {
+            const trimmedKeyword = keyword.trim();
+            // Chỉ search khi có ít nhất 2 ký tự hoặc khi xóa hết (để clear results)
+            if (trimmedKeyword.length >= 2 || trimmedKeyword.length === 0) {
+                onSearch(trimmedKeyword);
+            }
+        }, 600);
+
+        // Cleanup function để clear timeout khi component re-render
+        return () => clearTimeout(timeoutId);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [keyword]); // Bỏ onSearch khỏi dependency array để tránh infinite loop
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -31,7 +56,10 @@ const PatientSearch: React.FC<PatientSearchProps> = ({
     };
 
     const handleKeywordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setKeyword(e.target.value);
+        const newKeyword = e.target.value;
+        setKeyword(newKeyword);
+        // Update keyword realtime cho parent component
+        onKeywordChange?.(newKeyword);
     };
 
     return (
@@ -65,39 +93,19 @@ const PatientSearch: React.FC<PatientSearchProps> = ({
                                 </InputGroup>
                             </Form.Group>
                         </Col>
-                        <Col md={6} className="d-flex align-items-end">
-                            <div className="d-flex gap-2 w-100">
+                        <Col md={6} className="d-flex align-items-end justify-content-end">
+                            {onAddPatient && (
                                 <Button
-                                    variant="primary"
-                                    type="submit"
-                                    disabled={loading || !keyword.trim()}
-                                    className="flex-grow-1"
+                                    variant="success"
+                                    type="button"
+                                    onClick={onAddPatient}
+                                    disabled={loading}
+                                    style={{ minWidth: '150px' }}
                                 >
-                                    {loading ? (
-                                        <>
-                                            <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                            Đang tìm...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <IconSearch size={16} className="me-2" />
-                                            Tìm kiếm
-                                        </>
-                                    )}
+                                    <IconUserPlus size={16} className="me-2" />
+                                    Thêm bệnh nhân
                                 </Button>
-                                {onAddPatient && (
-                                    <Button
-                                        variant="success"
-                                        type="button"
-                                        onClick={onAddPatient}
-                                        disabled={loading}
-                                        className="flex-shrink-0"
-                                    >
-                                        <IconUserPlus size={16} className="me-2" />
-                                        Thêm bệnh nhân
-                                    </Button>
-                                )}
-                            </div>
+                            )}
                         </Col>
                     </Row>
                 </Form>

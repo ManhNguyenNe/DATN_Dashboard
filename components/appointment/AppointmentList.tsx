@@ -3,7 +3,7 @@
 //import node module libraries
 import { useState } from "react";
 import { Table, Badge, Button, Card, Alert } from "react-bootstrap";
-import { IconCheck, IconX, IconClock, IconRefresh, IconChevronDown, IconChevronUp, IconPhone } from "@tabler/icons-react";
+import { IconCheck, IconX, IconRefresh, IconChevronDown, IconChevronUp, IconPhone } from "@tabler/icons-react";
 
 //import services  
 import { type Appointment, AppointmentStatus } from "../../services";
@@ -97,17 +97,6 @@ const AppointmentList: React.FC<AppointmentListProps> = ({
       return 'Lỗi định dạng ngày';
     }
   };
-
-  if (loading) {
-    return (
-      <Card>
-        <Card.Body className="text-center py-5">
-          <IconClock size={48} className="text-muted mb-2" />
-          <p className="text-muted">Đang tải danh sách lịch khám...</p>
-        </Card.Body>
-      </Card>
-    );
-  }
 
   if (appointments.length === 0) {
     return (

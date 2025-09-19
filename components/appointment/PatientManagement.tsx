@@ -22,22 +22,27 @@ const PatientManagement: React.FC<PatientManagementProps> = ({
 }) => {
     const [patients, setPatients] = useState<PatientSearchResult[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
+    const [searchLoading, setSearchLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [searchPerformed, setSearchPerformed] = useState<boolean>(false);
     const [showAddPatientForm, setShowAddPatientForm] = useState<boolean>(false);
     const [formLoading, setFormLoading] = useState<boolean>(false);
     const [showSuccessToast, setShowSuccessToast] = useState<boolean>(false);
     const [successMessage, setSuccessMessage] = useState<string>("");
+    const [currentKeyword, setCurrentKeyword] = useState<string>("");
+    const [displayKeyword, setDisplayKeyword] = useState<string>(""); // Keyword real-time cho display
 
     // Handle patient search
     const handleSearch = async (keyword: string) => {
+        setCurrentKeyword(keyword);
+
         if (!keyword.trim()) {
             setPatients([]);
             setSearchPerformed(false);
             return;
         }
 
-        setLoading(true);
+        setSearchLoading(true);
         setError(null);
         setSearchPerformed(true);
 
@@ -53,7 +58,7 @@ const PatientManagement: React.FC<PatientManagementProps> = ({
             setError(err.message || "Lỗi khi tìm kiếm bệnh nhân");
             setPatients([]);
         } finally {
-            setLoading(false);
+            setSearchLoading(false);
         }
     };
 
@@ -160,18 +165,18 @@ const PatientManagement: React.FC<PatientManagementProps> = ({
 
             <PatientSearch
                 onSearch={handleSearch}
+                onKeywordChange={setDisplayKeyword}
                 onAddPatient={handleShowAddPatientForm}
-                loading={loading || formLoading}
+                loading={false}
             />
 
-            {searchPerformed && (
-                <PatientList
-                    patients={patients}
-                    loading={loading}
-                    onEdit={handleEditPatient}
-                    onFillToMedicalRecord={handleFillToMedicalRecord}
-                />
-            )}
+            <PatientList
+                patients={patients}
+                loading={searchLoading}
+                currentKeyword={displayKeyword}
+                onEdit={handleEditPatient}
+                onFillToMedicalRecord={handleFillToMedicalRecord}
+            />
 
             <AddPatientForm
                 show={showAddPatientForm}

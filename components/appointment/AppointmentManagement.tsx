@@ -27,6 +27,7 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
   const [internalActiveTab, setInternalActiveTab] = useState<string>("list");
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
+  const [searchLoading, setSearchLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [currentFilters, setCurrentFilters] = useState<AppointmentFilter>({});
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
@@ -39,7 +40,7 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
 
   // Load appointments with filters
   const handleSearch = async (filters: AppointmentFilter) => {
-    setLoading(true);
+    setSearchLoading(true);
     setError(null);
 
     try {
@@ -69,7 +70,7 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
       setError(err.message || "Lỗi khi tải danh sách lịch khám");
       setAppointments([]);
     } finally {
-      setLoading(false);
+      setSearchLoading(false);
     }
   };
 
@@ -173,12 +174,12 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
 
                   <AppointmentSearch
                     onSearch={handleSearch}
-                    loading={loading}
+                    loading={false}
                   />
 
                   <AppointmentList
                     appointments={appointments}
-                    loading={loading}
+                    loading={searchLoading}
                     updatingAppointments={updatingAppointments}
                     onConfirm={handleConfirmAppointment}
                     onRefresh={() => handleSearch(currentFilters)}

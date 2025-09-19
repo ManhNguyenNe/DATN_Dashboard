@@ -11,6 +11,7 @@ import { type PatientSearchResult } from "../../services";
 interface PatientListProps {
     patients: PatientSearchResult[];
     loading?: boolean;
+    currentKeyword?: string;
     onEdit?: (patient: PatientSearchResult) => void;
     onFillToMedicalRecord?: (patient: PatientSearchResult) => void;
 }
@@ -18,6 +19,7 @@ interface PatientListProps {
 const PatientList: React.FC<PatientListProps> = ({
     patients,
     loading = false,
+    currentKeyword = "",
     onEdit,
     onFillToMedicalRecord
 }) => {
@@ -73,31 +75,34 @@ const PatientList: React.FC<PatientListProps> = ({
         }
     };
 
-    if (loading) {
-        return (
-            <Card>
-                <Card.Body className="text-center py-5">
-                    <div className="spinner-border text-primary" role="status">
-                        <span className="visually-hidden">Đang tải...</span>
-                    </div>
-                    <p className="mt-3 mb-0">Đang tìm kiếm bệnh nhân...</p>
-                </Card.Body>
-            </Card>
-        );
-    }
-
-    if (patients.length === 0) {
+    if (patients.length === 0 && currentKeyword.length >= 2) {
         return (
             <Card>
                 <Card.Body>
                     <Alert variant="info" className="mb-0">
-                        <strong>Không tìm thấy bệnh nhân nào</strong>
+                        <strong>Không tìm thấy bệnh nhân nào với từ khóa "{currentKeyword}"</strong>
                         <br />
                         Hãy thử tìm kiếm với từ khóa khác.
                     </Alert>
                 </Card.Body>
             </Card>
         );
+    }
+
+    // Hiển thị placeholder khi chưa đủ ký tự để tránh nhấp nháy
+    if (patients.length === 0 && currentKeyword.length > 0 && currentKeyword.length < 2) {
+        return (
+            <Card>
+                <Card.Body className="text-center py-4 text-muted">
+                    <p className="mb-0">Nhập ít nhất 2 ký tự để bắt đầu tìm kiếm...</p>
+                </Card.Body>
+            </Card>
+        );
+    }
+
+    // Không hiển thị gì khi chưa có keyword
+    if (patients.length === 0) {
+        return null;
     }
 
     return (
