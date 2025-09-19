@@ -187,6 +187,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
 
         setFormData(prev => ({
           ...prev,
+          selectedPatientId: patientId, // Set the patient ID for API call
           fullName: patientDetail.fullName || '',
           phoneNumber: patientDetail.phone || '',
           email: appointmentData.email || '', // Use appointment email if available
@@ -262,6 +263,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
 
     setFormData(prev => ({
       ...prev,
+      selectedPatientId: appointmentData.patientId || prev.selectedPatientId, // Set patient ID if available
       fullName: appointmentData.fullName || '',
       phoneNumber: appointmentData.phone || '',
       email: appointmentData.email || '',
