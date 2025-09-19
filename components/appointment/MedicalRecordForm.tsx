@@ -275,6 +275,8 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
   // Pre-fill form with patient search data
   useEffect(() => {
     if (patientData) {
+      console.log('Auto-filling form with patient search data:', patientData);
+
       setFormData(prev => ({
         ...prev,
         fullName: patientData.fullName || '',
@@ -285,8 +287,18 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
         gender: patientData.gender === 'NAM' ? 'Nam' : patientData.gender === 'NU' ? 'Nữ' : 'Khác',
         address: patientData.address || '',
         citizenId: patientData.cccd || '',
-        phoneNumber: patientData.phone || ''
+        phoneNumber: patientData.phone || '',
+        // Fill medical information from patient search data
+        bloodType: patientData.bloodType || '',
+        weight: patientData.weight?.toString() || '',
+        height: patientData.height?.toString() || ''
       }));
+
+      console.log('Filled medical info from patient search:', {
+        bloodType: patientData.bloodType || 'Không có',
+        weight: patientData.weight ? `${patientData.weight} kg` : 'Chưa nhập',
+        height: patientData.height ? `${patientData.height} cm` : 'Chưa nhập'
+      });
 
       // Don't load linked patients for direct patient selection
       setLinkedPatients([]);
@@ -539,6 +551,8 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
     const selectedPatient = linkedPatients.find(p => p.id.toString() === patientId);
 
     if (selectedPatient) {
+      console.log('Auto-filling form with linked patient data:', selectedPatient);
+
       setFormData(prev => ({
         ...prev,
         selectedPatientId: selectedPatient.id,
@@ -547,8 +561,18 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
         gender: selectedPatient.gender === 'NAM' ? 'Nam' : selectedPatient.gender === 'NU' ? 'Nữ' : 'Khác',
         address: selectedPatient.address,
         citizenId: selectedPatient.cccd, // Map CCCD to citizenId
+        // Fill medical information from linked patient data
+        bloodType: selectedPatient.bloodType || '',
+        weight: selectedPatient.weight?.toString() || '',
+        height: selectedPatient.height?.toString() || '',
         // Keep existing phoneNumber as it's used for the search
       }));
+
+      console.log('Filled medical info from linked patient:', {
+        bloodType: selectedPatient.bloodType || 'Không có',
+        weight: selectedPatient.weight ? `${selectedPatient.weight} kg` : 'Chưa nhập',
+        height: selectedPatient.height ? `${selectedPatient.height} cm` : 'Chưa nhập'
+      });
     } else if (patientId === '') {
       // Reset to appointment data if available, or empty
       if (appointmentData) {
@@ -560,6 +584,10 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
           gender: appointmentData.gender || '',
           address: appointmentData.address || '',
           citizenId: '', // Clear CCCD when not selecting a patient
+          // Clear medical info when deselecting
+          bloodType: '',
+          weight: '',
+          height: '',
         }));
       }
     }
