@@ -38,6 +38,10 @@ const AddPatientForm: React.FC<AddPatientFormProps> = ({
         phoneLink: null
     });
 
+    // Separate state for string inputs to avoid the "0" prefix issue
+    const [weightInput, setWeightInput] = useState<string>('');
+    const [heightInput, setHeightInput] = useState<string>('');
+
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
@@ -135,6 +139,9 @@ const AddPatientForm: React.FC<AddPatientFormProps> = ({
             profileImage: null,
             phoneLink: null
         });
+        // Reset the input states
+        setWeightInput('');
+        setHeightInput('');
         setError(null);
         setSuccess(null);
         setLoading(false);
@@ -328,8 +335,14 @@ const AddPatientForm: React.FC<AddPatientFormProps> = ({
                                         type="number"
                                         step="0.1"
                                         min="0"
-                                        value={formData.weight}
-                                        onChange={(e) => handleChange('weight', parseFloat(e.target.value) || 0)}
+                                        value={weightInput}
+                                        onChange={(e) => {
+                                            const value = e.target.value;
+                                            setWeightInput(value);
+                                            // Update formData with parsed number
+                                            const numValue = parseFloat(value) || 0;
+                                            handleChange('weight', numValue);
+                                        }}
                                         placeholder="Nhập cân nặng"
                                         disabled={loading}
                                     />
@@ -344,8 +357,14 @@ const AddPatientForm: React.FC<AddPatientFormProps> = ({
                                         type="number"
                                         step="0.1"
                                         min="0"
-                                        value={formData.height}
-                                        onChange={(e) => handleChange('height', parseFloat(e.target.value) || 0)}
+                                        value={heightInput}
+                                        onChange={(e) => {
+                                            const value = e.target.value;
+                                            setHeightInput(value);
+                                            // Update formData with parsed number
+                                            const numValue = parseFloat(value) || 0;
+                                            handleChange('height', numValue);
+                                        }}
                                         placeholder="Nhập chiều cao"
                                         disabled={loading}
                                     />

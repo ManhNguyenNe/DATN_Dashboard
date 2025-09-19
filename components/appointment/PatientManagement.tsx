@@ -11,7 +11,7 @@ import PatientList from "./PatientList";
 import AddPatientForm from "./AddPatientForm";
 
 //import services
-import { patientService, type PatientSearchResult } from "../../services";
+import { patientService, type PatientSearchResult, type PatientUpdateData } from "../../services";
 
 interface PatientManagementProps {
     onFillToMedicalRecord?: (patient: PatientSearchResult) => void;
@@ -61,14 +61,51 @@ const PatientManagement: React.FC<PatientManagementProps> = ({
     const handleEditPatient = async (patient: PatientSearchResult) => {
         try {
             setLoading(true);
-            // TODO: Call API to update patient
-            console.log('Updating patient:', patient);
+            setError(null);
 
-            // Update local state
-            setPatients(prev => prev.map(p => p.id === patient.id ? patient : p));
+            // Prepare data for update API
+            const updateData: PatientUpdateData = {
+                id: patient.id,
+                phone: patient.phone,
+                email: null, // PatientSearchResult doesn't have email field, so set to null
+                fullName: patient.fullName,
+                address: patient.address,
+                cccd: patient.cccd,
+                birth: patient.birth,
+                gender: patient.gender,
+                bloodType: patient.bloodType,
+                weight: patient.weight,
+                height: patient.height,
+                profileImage: patient.profileImage
+            };
 
-            // Show success message (you can add toast here)
-            console.log('Patient updated successfully');
+            // Call API to update patient
+            const response = await patientService.updatePatient(updateData);
+            console.log('Patient updated successfully:', response);
+
+            // Update local state with the response data
+            const updatedPatient: PatientSearchResult = {
+                id: response.data.id,
+                code: response.data.code,
+                bloodType: response.data.bloodType || patient.bloodType,
+                weight: response.data.weight || patient.weight,
+                height: response.data.height || patient.height,
+                registrationDate: response.data.registrationDate,
+                phone: response.data.phone,
+                fullName: response.data.fullName,
+                address: response.data.address,
+                cccd: String(response.data.cccd),
+                birth: response.data.birth,
+                gender: response.data.gender,
+                profileImage: patient.profileImage, // Keep original profileImage as it's not in response
+                relationship: patient.relationship // Keep original relationship as it's not in response
+            };
+
+            setPatients(prev => prev.map(p => p.id === patient.id ? updatedPatient : p));
+
+            // Show success toast
+            handleSuccess("Cập nhật thông tin bệnh nhân thành công!");
+
         } catch (err: any) {
             console.error('Error updating patient:', err);
             setError(err.message || "Lỗi khi cập nhật thông tin bệnh nhân");

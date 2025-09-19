@@ -9,6 +9,7 @@ export type {
   PatientsDto,
   PatientCreateData,
   NewPatientCreateData,
+  PatientUpdateData,
   PatientsResponse,
   LinkedPatient,
   LinkedPatientsResponse,

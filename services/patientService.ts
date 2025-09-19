@@ -112,6 +112,22 @@ export interface NewPatientCreateData {
   phoneLink: string | null;
 }
 
+// Interface for updating patient data
+export interface PatientUpdateData {
+  id: number;
+  phone: string | number;
+  email: string | null;
+  fullName: string;
+  address: string;
+  cccd: string;
+  birth: string;
+  gender: 'NAM' | 'NU';
+  bloodType: string;
+  weight: number;
+  height: number;
+  profileImage: string | null;
+}
+
 export interface PatientsResponse extends ApiResponse<Patient[]> {
   ownerId?: number | null;
 }
@@ -257,6 +273,25 @@ const patientService = {
       return response.data;
     } catch (error) {
       console.error('Error searching patients:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Cập nhật thông tin bệnh nhân
+   * @param patientData - Dữ liệu bệnh nhân cần cập nhật
+   * @returns Promise với response từ API
+   */
+  updatePatient: async (patientData: PatientUpdateData): Promise<ApiResponse<PatientDetail>> => {
+    try {
+      if (!patientData.id || patientData.id <= 0) {
+        throw new Error('ID bệnh nhân không hợp lệ');
+      }
+
+      const response = await apiClient.put<ApiResponse<PatientDetail>>('/api/patients', patientData);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating patient:', error);
       throw error;
     }
   }

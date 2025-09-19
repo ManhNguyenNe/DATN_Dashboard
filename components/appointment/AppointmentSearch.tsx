@@ -22,11 +22,15 @@ const AppointmentSearch: React.FC<AppointmentSearchProps> = ({
   const [date, setDate] = useState<string>("");
   const [status, setStatus] = useState<string>("");
 
-  // Set default date to today on mount
+  // Set default date to today on mount and trigger initial search
   useEffect(() => {
     const today = getTodayDate();
     setDate(today);
-  }, []);
+
+    // Auto-search with today's date on component mount
+    onSearch({ date: today });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Intentionally empty - we only want this to run once on mount
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
