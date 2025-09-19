@@ -3,7 +3,7 @@
 //import node module libraries
 import { useState, useEffect } from "react";
 import { Row, Col, Form, Button, Card, Alert } from "react-bootstrap";
-import { IconUser, IconPhone, IconMail, IconCalendar, IconMapPin, IconId, IconStethoscope } from "@tabler/icons-react";
+import { IconUser, IconPhone, IconMail, IconCalendar, IconMapPin, IconId, IconStethoscope, IconTrash } from "@tabler/icons-react";
 
 //import services
 import {
@@ -38,6 +38,7 @@ interface MedicalRecordFormData {
   height: string;
   examinationType: string; // 'package' | 'department' | 'doctor'
   serviceDoctor: string;
+  symptoms: string; // Triệu chứng
   selectedPatientId?: number; // ID of selected linked patient
 }
 
@@ -63,6 +64,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
     height: '',
     examinationType: '',
     serviceDoctor: '',
+    symptoms: '',
     selectedPatientId: undefined
   });
 
@@ -194,6 +196,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
           height: patientDetail.height?.toString() || '',
           examinationType: examinationType,
           serviceDoctor: serviceDoctor,
+          symptoms: appointmentData.symptoms || '', // Fill symptoms from appointment
         }));
       }
     } catch (error: any) {
@@ -264,6 +267,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
       address: appointmentData.address || '',
       examinationType: examinationType,
       serviceDoctor: serviceDoctor,
+      symptoms: appointmentData.symptoms || '', // Fill symptoms from appointment
       // Keep existing values for new fields if any
       bloodType: prev.bloodType,
       weight: prev.weight,
@@ -291,7 +295,8 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
         // Fill medical information from patient search data
         bloodType: patientData.bloodType || '',
         weight: patientData.weight?.toString() || '',
-        height: patientData.height?.toString() || ''
+        height: patientData.height?.toString() || '',
+        symptoms: '', // Clear symptoms as patient data doesn't have this
       }));
 
       console.log('Filled medical info from patient search:', {
@@ -483,6 +488,39 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
     // Logic xử lý đã được chuyển vào loadServiceDoctorOptions
   };
 
+  const handleClearForm = () => {
+    // Simple confirmation
+    if (window.confirm('Bạn có chắc chắn muốn xóa tất cả thông tin đã nhập không?')) {
+      setFormData({
+        fullName: '',
+        phoneNumber: '',
+        email: '',
+        dateOfBirth: '',
+        gender: '',
+        address: '',
+        citizenId: '',
+        bloodType: '',
+        weight: '',
+        height: '',
+        examinationType: '',
+        serviceDoctor: '',
+        symptoms: '',
+        selectedPatientId: undefined
+      });
+
+      // Clear any error or success messages
+      setError(null);
+      setSuccess(null);
+
+      // Clear linked patients if any
+      setLinkedPatients([]);
+      setShowLinkedPatients(false);
+
+      // Clear doctors and reset to initial state
+      setDoctors([]);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -510,7 +548,8 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
         medicalInfo: {
           bloodType: formData.bloodType || 'Không xác định',
           weight: formData.weight ? `${formData.weight} kg` : 'Chưa nhập',
-          height: formData.height ? `${formData.height} cm` : 'Chưa nhập'
+          height: formData.height ? `${formData.height} cm` : 'Chưa nhập',
+          symptoms: formData.symptoms || 'Không có triệu chứng'
         }
       });
 
@@ -533,7 +572,8 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
           weight: '',
           height: '',
           examinationType: '',
-          serviceDoctor: ''
+          serviceDoctor: '',
+          symptoms: ''
         });
         setSuccess(null);
         onSuccess?.();
@@ -565,6 +605,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
         bloodType: selectedPatient.bloodType || '',
         weight: selectedPatient.weight?.toString() || '',
         height: selectedPatient.height?.toString() || '',
+        symptoms: '', // Clear symptoms as linked patient data doesn't have this
         // Keep existing phoneNumber as it's used for the search
       }));
 
@@ -588,6 +629,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
           bloodType: '',
           weight: '',
           height: '',
+          symptoms: appointmentData.symptoms || '', // Restore symptoms from appointment if available
         }));
       }
     }
@@ -933,6 +975,22 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
                 </Form.Group>
               </Col>
             </Row>
+
+            {/* Symptoms field */}
+            <Row className="mb-3">
+              <Col md={12}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Triệu chứng</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={3}
+                    value={formData.symptoms}
+                    onChange={(e) => handleInputChange('symptoms', e.target.value)}
+                    placeholder="Mô tả triệu chứng và lý do khám bệnh..."
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
           </div>
 
           {/* Action Buttons */}
@@ -951,6 +1009,16 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
               ) : (
                 'Tạo phiếu khám'
               )}
+            </Button>
+            <Button
+              type="button"
+              variant="outline-warning"
+              onClick={handleClearForm}
+              disabled={loading}
+              className="d-flex align-items-center"
+            >
+              <IconTrash size={16} className="me-2" />
+              Xóa thông tin
             </Button>
             <Button
               variant="outline-secondary"
