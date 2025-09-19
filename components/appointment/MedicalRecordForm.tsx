@@ -16,7 +16,8 @@ import {
   type HealthPlan,
   type LinkedPatient,
   type Appointment,
-  type PatientSearchResult
+  type PatientSearchResult,
+  type PatientDetail
 } from "../../services";// Extended interface để handle response structure thực tế
 interface DoctorResponse extends Doctor {
   fullName?: string;
@@ -32,6 +33,9 @@ interface MedicalRecordFormData {
   gender: string;
   address: string;
   citizenId: string;
+  bloodType: string;
+  weight: string;
+  height: string;
   examinationType: string; // 'package' | 'department' | 'doctor'
   serviceDoctor: string;
   selectedPatientId?: number; // ID of selected linked patient
@@ -54,6 +58,9 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
     gender: '',
     address: '',
     citizenId: '',
+    bloodType: '',
+    weight: '',
+    height: '',
     examinationType: '',
     serviceDoctor: '',
     selectedPatientId: undefined
@@ -80,25 +87,37 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
   useEffect(() => {
     if (formData.examinationType) {
       loadServiceDoctorOptions(formData.examinationType);
-      // Reset service/doctor selection when examination type changes
-      setFormData(prev => ({ ...prev, serviceDoctor: '' }));
+      // Only reset service/doctor selection if it's not already set (to preserve auto-fill from appointment data)
+      if (!formData.serviceDoctor) {
+        setFormData(prev => ({ ...prev, serviceDoctor: '' }));
+      }
     }
   }, [formData.examinationType]);
+
+  // Special effect to load service/doctor options when form data is auto-filled from appointment
+  useEffect(() => {
+    if (appointmentData && formData.examinationType && formData.serviceDoctor) {
+      console.log('Auto-fill detected: Loading service/doctor options for auto-filled data', {
+        examinationType: formData.examinationType,
+        serviceDoctor: formData.serviceDoctor
+      });
+      // Auto-filled data detected, make sure the options are loaded
+      loadServiceDoctorOptions(formData.examinationType);
+    }
+  }, [appointmentData, formData.examinationType, formData.serviceDoctor]);
 
   // Pre-fill form with appointment data
   useEffect(() => {
     if (appointmentData) {
-      setFormData(prev => ({
-        ...prev,
-        fullName: appointmentData.fullName || '',
-        phoneNumber: appointmentData.phone || '',
-        email: appointmentData.email || '',
-        dateOfBirth: appointmentData.birth || '',
-        gender: appointmentData.gender || '',
-        address: appointmentData.address || '',
-        // Note: citizenId and CCCD might be the same, but we don't have it in appointment data
-        // Let user fill it manually or get from selected patient
-      }));
+      console.log('Auto-filling form with appointment data:', appointmentData);
+
+      // Check if we have patientId to get detailed patient information
+      if (appointmentData.patientId) {
+        loadPatientDetail(appointmentData.patientId);
+      } else {
+        // Use appointment data directly if no patientId
+        fillFormWithAppointmentData(appointmentData);
+      }
 
       // Load linked patients if we have a phone number
       if (appointmentData.phone) {
@@ -106,6 +125,152 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
       }
     }
   }, [appointmentData]);
+
+  // Function to load patient detail by ID
+  const loadPatientDetail = async (patientId: number) => {
+    try {
+      setLoading(true);
+      console.log('Loading patient detail by ID:', patientId);
+
+      const response = await patientService.getPatientById(patientId);
+      console.log('Patient detail response:', response);
+
+      if (response.data && appointmentData) {
+        const patientDetail = response.data;
+
+        // Determine examination type and service/doctor from appointment data
+        let examinationType = '';
+        let serviceDoctor = '';
+
+        if (appointmentData.healthPlanResponse) {
+          examinationType = 'package';
+          serviceDoctor = appointmentData.healthPlanResponse.id.toString();
+          console.log('Auto-filled: Health plan detected', {
+            planId: appointmentData.healthPlanResponse.id,
+            planName: appointmentData.healthPlanResponse.name
+          });
+        } else if (appointmentData.departmentResponse) {
+          examinationType = `department-${appointmentData.departmentResponse.id}`;
+          if (appointmentData.doctorResponse) {
+            serviceDoctor = appointmentData.doctorResponse.id.toString();
+            console.log('Auto-filled: Department + doctor detected', {
+              departmentId: appointmentData.departmentResponse.id,
+              departmentName: appointmentData.departmentResponse.name,
+              doctorId: appointmentData.doctorResponse.id,
+              doctorName: appointmentData.doctorResponse.position
+            });
+          } else {
+            console.log('Auto-filled: Department only detected', {
+              departmentId: appointmentData.departmentResponse.id,
+              departmentName: appointmentData.departmentResponse.name
+            });
+          }
+        } else if (appointmentData.doctorResponse) {
+          examinationType = 'doctor';
+          serviceDoctor = appointmentData.doctorResponse.id.toString();
+          console.log('Auto-filled: Doctor only detected', {
+            doctorId: appointmentData.doctorResponse.id,
+            doctorName: appointmentData.doctorResponse.position
+          });
+        }
+
+        console.log('Setting form data with detailed patient information:', {
+          examinationType,
+          serviceDoctor,
+          patientDetail
+        });
+
+        setFormData(prev => ({
+          ...prev,
+          fullName: patientDetail.fullName || '',
+          phoneNumber: patientDetail.phone || '',
+          email: appointmentData.email || '', // Use appointment email if available
+          dateOfBirth: patientDetail.birth || '',
+          gender: patientDetail.gender === 'NAM' ? 'Nam' : patientDetail.gender === 'NU' ? 'Nữ' : 'Khác',
+          address: patientDetail.address || '',
+          citizenId: patientDetail.cccd?.toString() || '',
+          bloodType: patientDetail.bloodType || '',
+          weight: patientDetail.weight?.toString() || '',
+          height: patientDetail.height?.toString() || '',
+          examinationType: examinationType,
+          serviceDoctor: serviceDoctor,
+        }));
+      }
+    } catch (error: any) {
+      console.error('Error loading patient detail:', error);
+      // Fallback to appointment data if patient detail fails
+      if (appointmentData) {
+        fillFormWithAppointmentData(appointmentData);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Function to fill form with appointment data only
+  const fillFormWithAppointmentData = (appointmentData: Appointment) => {
+    // Determine examination type and service/doctor from appointment data
+    let examinationType = '';
+    let serviceDoctor = '';
+
+    if (appointmentData.healthPlanResponse) {
+      // Appointment has health plan - set as package examination
+      examinationType = 'package';
+      serviceDoctor = appointmentData.healthPlanResponse.id.toString();
+      console.log('Auto-filled: Health plan detected, setting package examination', {
+        planId: appointmentData.healthPlanResponse.id,
+        planName: appointmentData.healthPlanResponse.name
+      });
+    } else if (appointmentData.departmentResponse) {
+      // Appointment has department - set as department examination
+      examinationType = `department-${appointmentData.departmentResponse.id}`;
+      if (appointmentData.doctorResponse) {
+        // Also has specific doctor in that department
+        serviceDoctor = appointmentData.doctorResponse.id.toString();
+        console.log('Auto-filled: Department + doctor detected', {
+          departmentId: appointmentData.departmentResponse.id,
+          departmentName: appointmentData.departmentResponse.name,
+          doctorId: appointmentData.doctorResponse.id,
+          doctorName: appointmentData.doctorResponse.position
+        });
+      } else {
+        console.log('Auto-filled: Department only detected', {
+          departmentId: appointmentData.departmentResponse.id,
+          departmentName: appointmentData.departmentResponse.name
+        });
+      }
+    } else if (appointmentData.doctorResponse) {
+      // Appointment has doctor only - set as doctor examination
+      examinationType = 'doctor';
+      serviceDoctor = appointmentData.doctorResponse.id.toString();
+      console.log('Auto-filled: Doctor only detected', {
+        doctorId: appointmentData.doctorResponse.id,
+        doctorName: appointmentData.doctorResponse.position
+      });
+    }
+
+    console.log('Setting form data with appointment values:', {
+      examinationType,
+      serviceDoctor
+    });
+
+    setFormData(prev => ({
+      ...prev,
+      fullName: appointmentData.fullName || '',
+      phoneNumber: appointmentData.phone || '',
+      email: appointmentData.email || '',
+      dateOfBirth: appointmentData.birth || '',
+      gender: appointmentData.gender || '',
+      address: appointmentData.address || '',
+      examinationType: examinationType,
+      serviceDoctor: serviceDoctor,
+      // Keep existing values for new fields if any
+      bloodType: prev.bloodType,
+      weight: prev.weight,
+      height: prev.height,
+      citizenId: prev.citizenId,
+    }));
+  };
 
   // Pre-fill form with patient search data
   useEffect(() => {
@@ -297,7 +462,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
     setFormData(prev => ({
       ...prev,
       examinationType: value,
-      serviceDoctor: '' // Reset service/doctor selection
+      serviceDoctor: '' // Reset service/doctor selection when manually changed
     }));
   };
 
@@ -327,7 +492,15 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
 
     try {
       // TODO: Call API to create medical record
-      console.log('Medical Record Data:', formData);
+      console.log('Medical Record Data:', {
+        ...formData,
+        // Highlight new fields
+        medicalInfo: {
+          bloodType: formData.bloodType || 'Không xác định',
+          weight: formData.weight ? `${formData.weight} kg` : 'Chưa nhập',
+          height: formData.height ? `${formData.height} cm` : 'Chưa nhập'
+        }
+      });
 
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -344,6 +517,9 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
           gender: '',
           address: '',
           citizenId: '',
+          bloodType: '',
+          weight: '',
+          height: '',
           examinationType: '',
           serviceDoctor: ''
         });
@@ -612,6 +788,61 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
                 />
               </div>
             </Form.Group>
+
+            {/* Additional medical info */}
+            <Row className="mb-3">
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Nhóm máu</Form.Label>
+                  <Form.Select
+                    value={formData.bloodType}
+                    onChange={(e) => handleInputChange('bloodType', e.target.value)}
+                  >
+                    <option value="">Chọn nhóm máu</option>
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="AB">AB</option>
+                    <option value="O">O</option>
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Cân nặng (kg)</Form.Label>
+                  <Form.Control
+                    type="number"
+                    min="0"
+                    max="300"
+                    step="0.1"
+                    value={formData.weight}
+                    onChange={(e) => handleInputChange('weight', e.target.value)}
+                    placeholder="Nhập cân nặng"
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Chiều cao (cm)</Form.Label>
+                  <Form.Control
+                    type="number"
+                    min="0"
+                    max="250"
+                    step="0.1"
+                    value={formData.height}
+                    onChange={(e) => handleInputChange('height', e.target.value)}
+                    placeholder="Nhập chiều cao"
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
           </div>
 
           {/* Medical Information */}

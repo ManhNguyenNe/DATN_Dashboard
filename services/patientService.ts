@@ -38,6 +38,27 @@ export interface LinkedPatientsResponse {
   message: string;
 }
 
+// Interface for patient detail response (from /api/patients/:id)
+export interface PatientDetail {
+  id: number;
+  code: string;
+  bloodType: string | null;
+  weight: number | null;
+  height: number | null;
+  registrationDate: string;
+  fullName: string;
+  phone: string;
+  address: string;
+  cccd: string | number;
+  birth: string;
+  gender: 'NAM' | 'NU';
+}
+
+export interface PatientDetailResponse {
+  data: PatientDetail;
+  message: string;
+}
+
 // Interface for patient search results  
 export interface PatientSearchResult {
   id: number;
@@ -159,6 +180,25 @@ const patientService = {
       return response.data;
     } catch (error) {
       console.error('Error fetching linked patients by phone:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Lấy thông tin chi tiết bệnh nhân theo ID
+   * @param patientId - ID của bệnh nhân
+   * @returns Promise với response từ API
+   */
+  getPatientById: async (patientId: number): Promise<PatientDetailResponse> => {
+    try {
+      if (!patientId || patientId <= 0) {
+        throw new Error('ID bệnh nhân không hợp lệ');
+      }
+
+      const response = await apiClient.get<PatientDetailResponse>(`/api/patients/${patientId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching patient by ID:', error);
       throw error;
     }
   },

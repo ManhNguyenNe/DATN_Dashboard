@@ -12,7 +12,9 @@ export type {
   LinkedPatient,
   LinkedPatientsResponse,
   PatientSearchResult,
-  PatientSearchResponse
+  PatientSearchResponse,
+  PatientDetail,
+  PatientDetailResponse
 } from './patientService';
 
 // Appointment Service  
