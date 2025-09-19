@@ -3,7 +3,7 @@
 //import node module libraries
 import { useState } from "react";
 import { Table, Badge, Button, Card, Alert } from "react-bootstrap";
-import { IconCheck, IconX, IconClock, IconRefresh, IconChevronDown, IconChevronUp } from "@tabler/icons-react";
+import { IconCheck, IconX, IconClock, IconRefresh, IconChevronDown, IconChevronUp, IconPhone } from "@tabler/icons-react";
 
 //import services  
 import { type Appointment, AppointmentStatus } from "../../services";
@@ -11,6 +11,7 @@ import { type Appointment, AppointmentStatus } from "../../services";
 interface AppointmentListProps {
   appointments: Appointment[];
   loading?: boolean;
+  updatingAppointments?: Set<number>;
   onConfirm: (appointmentId: number, status: AppointmentStatus) => void;
   onRefresh?: () => void;
 }
@@ -18,6 +19,7 @@ interface AppointmentListProps {
 const AppointmentList: React.FC<AppointmentListProps> = ({
   appointments,
   loading = false,
+  updatingAppointments = new Set(),
   onConfirm,
   onRefresh
 }) => {
@@ -40,6 +42,9 @@ const AppointmentList: React.FC<AppointmentListProps> = ({
       case AppointmentStatus.DA_XAC_NHAN:
       case 'DA_XAC_NHAN':
         return <Badge bg="success">Đã xác nhận</Badge>;
+      case AppointmentStatus.DA_DEN:
+      case 'DA_DEN':
+        return <Badge bg="primary">Đã đến</Badge>;
       case AppointmentStatus.KHONG_DEN:
       case 'KHONG_DEN':
         return <Badge bg="danger">Không đến</Badge>;
@@ -196,15 +201,42 @@ const AppointmentList: React.FC<AppointmentListProps> = ({
                 <td>{getStatusBadge(appointment.status || 'CHUA_XAC_DINH')}</td>
                 <td>
                   <div className="d-flex gap-1">
+                    {/* Trạng thái CHỜ XÁC NHẬN: Hiển thị nút điện thoại (xác nhận) và nút X (không đến) */}
                     {((appointment.status as string) === AppointmentStatus.CHO_XAC_NHAN ||
                       (appointment.status as string) === 'CHO_XAC_NHAN' ||
                       !appointment.status) && (
                         <>
                           <Button
                             size="sm"
-                            variant="success"
+                            variant="info"
                             onClick={() => onConfirm(appointment.id, AppointmentStatus.DA_XAC_NHAN)}
-                            title="Xác nhận"
+                            title="Gọi điện xác nhận"
+                            disabled={updatingAppointments.has(appointment.id)}
+                          >
+                            <IconPhone size={14} />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            onClick={() => onConfirm(appointment.id, AppointmentStatus.KHONG_DEN)}
+                            title="Không đến"
+                            disabled={updatingAppointments.has(appointment.id)}
+                          >
+                            <IconX size={14} />
+                          </Button>
+                        </>
+                      )}
+
+                    {/* Trạng thái ĐÃ XÁC NHẬN: Hiển thị nút tích (đã đến) và nút X (không đến) */}
+                    {((appointment.status as string) === AppointmentStatus.DA_XAC_NHAN ||
+                      (appointment.status as string) === 'DA_XAC_NHAN') && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="success"
+                            onClick={() => onConfirm(appointment.id, AppointmentStatus.DA_DEN)}
+                            title="Đánh dấu đã đến"
+                            disabled={updatingAppointments.has(appointment.id)}
                           >
                             <IconCheck size={14} />
                           </Button>
@@ -213,22 +245,15 @@ const AppointmentList: React.FC<AppointmentListProps> = ({
                             variant="danger"
                             onClick={() => onConfirm(appointment.id, AppointmentStatus.KHONG_DEN)}
                             title="Không đến"
+                            disabled={updatingAppointments.has(appointment.id)}
                           >
                             <IconX size={14} />
                           </Button>
                         </>
                       )}
-                    {((appointment.status as string) === AppointmentStatus.DA_XAC_NHAN ||
-                      (appointment.status as string) === 'DA_XAC_NHAN') && (
-                        <Button
-                          size="sm"
-                          variant="warning"
-                          onClick={() => onConfirm(appointment.id, AppointmentStatus.KHONG_DEN)}
-                          title="Đánh dấu không đến"
-                        >
-                          <IconX size={14} />
-                        </Button>
-                      )}
+
+                    {/* Trạng thái ĐÃ ĐẾN: Không hiển thị nút nào */}
+                    {/* Trạng thái KHÔNG ĐẾN: Không hiển thị nút nào */}
                   </div>
                 </td>
               </tr>

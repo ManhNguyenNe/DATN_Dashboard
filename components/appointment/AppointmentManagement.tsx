@@ -31,6 +31,7 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
   const [currentFilters, setCurrentFilters] = useState<AppointmentFilter>({});
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<PatientSearchResult | null>(null);
+  const [updatingAppointments, setUpdatingAppointments] = useState<Set<number>>(new Set());
 
   // Use external or internal active tab
   const activeTab = externalActiveTab || internalActiveTab;
@@ -86,32 +87,47 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
 
   // Handle appointment confirmation
   const handleConfirmAppointment = async (appointmentId: number, status: AppointmentStatus) => {
-    setLoading(true);
+    // Chỉ set loading cho appointment cụ thể
+    setUpdatingAppointments(prev => new Set(prev).add(appointmentId));
     setError(null);
 
     try {
       await appointmentService.confirmAppointment(appointmentId, status);
 
-      // Find the confirmed appointment
-      const confirmedAppointment = appointments.find(apt => apt.id === appointmentId);
+      // Tìm appointment hiện tại trước khi cập nhật
+      const currentAppointment = appointments.find(apt => apt.id === appointmentId);
 
-      // If confirmed successfully, switch to medical record form with appointment data
-      if (status === AppointmentStatus.DA_XAC_NHAN && confirmedAppointment) {
-        setSelectedAppointment(confirmedAppointment);
+      // Tạo appointment với trạng thái mới
+      const updatedAppointment = currentAppointment ? { ...currentAppointment, status: status as string } : null;
+
+      // Cập nhật chỉ bản ghi được thay đổi trong state local (không reload toàn bộ danh sách)
+      setAppointments(prevAppointments =>
+        prevAppointments.map(apt =>
+          apt.id === appointmentId
+            ? { ...apt, status: status as string }
+            : apt
+        )
+      );
+
+      // Chỉ chuyển sang medical record form khi trạng thái là DA_DEN (đã đến)
+      if (status === AppointmentStatus.DA_DEN && updatedAppointment) {
+        setSelectedAppointment(updatedAppointment);
         setActiveTab("medical-record");
       }
 
-      // Refresh appointments list after confirmation
-      if (Object.keys(currentFilters).length > 0) {
-        await handleSearch(currentFilters);
-      }
-
       // Show success message (you can add toast here)
-      console.log("Appointment confirmed successfully");
+      console.log("Appointment status updated successfully");
     } catch (err: any) {
-      setError(err.message || "Lỗi khi xác nhận lịch khám");
+      setError(err.message || "Lỗi khi cập nhật trạng thái lịch khám");
+      // Chỉ khi có lỗi mới reload để đảm bảo data đúng
+      await handleSearch(currentFilters);
     } finally {
-      setLoading(false);
+      // Remove từ updating state
+      setUpdatingAppointments(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(appointmentId);
+        return newSet;
+      });
     }
   };
 
@@ -163,8 +179,9 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
                   <AppointmentList
                     appointments={appointments}
                     loading={loading}
+                    updatingAppointments={updatingAppointments}
                     onConfirm={handleConfirmAppointment}
-                    onRefresh={() => Object.keys(currentFilters).length > 0 && handleSearch(currentFilters)}
+                    onRefresh={() => handleSearch(currentFilters)}
                   />
                 </div>
               </Tab>

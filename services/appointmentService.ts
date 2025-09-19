@@ -4,6 +4,7 @@ import apiClient, { ApiResponse } from './api';
 export enum AppointmentStatus {
   CHO_XAC_NHAN = 'CHO_XAC_NHAN',
   DA_XAC_NHAN = 'DA_XAC_NHAN',
+  DA_DEN = 'DA_DEN',
   KHONG_DEN = 'KHONG_DEN'
 }
 
