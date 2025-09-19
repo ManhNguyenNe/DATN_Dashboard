@@ -2,7 +2,8 @@
 
 //import node module libraries
 import { useState } from "react";
-import { Alert } from "react-bootstrap";
+import { Alert, Toast, ToastContainer } from "react-bootstrap";
+import { IconCheck } from "@tabler/icons-react";
 
 //import custom components
 import PatientSearch from "./PatientSearch";
@@ -24,6 +25,9 @@ const PatientManagement: React.FC<PatientManagementProps> = ({
     const [error, setError] = useState<string | null>(null);
     const [searchPerformed, setSearchPerformed] = useState<boolean>(false);
     const [showAddPatientForm, setShowAddPatientForm] = useState<boolean>(false);
+    const [formLoading, setFormLoading] = useState<boolean>(false);
+    const [showSuccessToast, setShowSuccessToast] = useState<boolean>(false);
+    const [successMessage, setSuccessMessage] = useState<string>("");
 
     // Handle patient search
     const handleSearch = async (keyword: string) => {
@@ -98,6 +102,17 @@ const PatientManagement: React.FC<PatientManagementProps> = ({
         // You might want to refresh the search here or show a success message
     };
 
+    // Handle form loading state change
+    const handleFormLoadingChange = (loading: boolean) => {
+        setFormLoading(loading);
+    };
+
+    // Handle success message from form
+    const handleSuccess = (message: string) => {
+        setSuccessMessage(message);
+        setShowSuccessToast(true);
+    };
+
     return (
         <div>
             {error && (
@@ -109,7 +124,7 @@ const PatientManagement: React.FC<PatientManagementProps> = ({
             <PatientSearch
                 onSearch={handleSearch}
                 onAddPatient={handleShowAddPatientForm}
-                loading={loading}
+                loading={loading || formLoading}
             />
 
             {searchPerformed && (
@@ -125,7 +140,38 @@ const PatientManagement: React.FC<PatientManagementProps> = ({
                 show={showAddPatientForm}
                 onHide={handleHideAddPatientForm}
                 onPatientAdded={handlePatientAdded}
+                onLoadingChange={handleFormLoadingChange}
+                onSuccess={handleSuccess}
             />
+
+            {/* Toast Container positioned at screen level */}
+            <ToastContainer
+                className="p-3"
+                position="top-end"
+                style={{
+                    position: 'fixed',
+                    zIndex: 9999,
+                    top: '20px',
+                    right: '20px'
+                }}
+            >
+                <Toast
+                    show={showSuccessToast}
+                    onClose={() => setShowSuccessToast(false)}
+                    delay={4000}
+                    autohide
+                    bg="success"
+                    className="text-white"
+                >
+                    <Toast.Header closeButton={false} className="bg-success text-white border-0">
+                        <IconCheck size={20} className="me-2" />
+                        <strong className="me-auto">Thành công!</strong>
+                    </Toast.Header>
+                    <Toast.Body>
+                        {successMessage}
+                    </Toast.Body>
+                </Toast>
+            </ToastContainer>
         </div>
     );
 };
