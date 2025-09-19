@@ -26,6 +26,7 @@ interface DoctorResponse extends Doctor {
   fullName?: string;
   position?: string;
   available?: boolean;
+  examinationFee?: number;
 }
 
 interface MedicalRecordFormData {
@@ -43,6 +44,7 @@ interface MedicalRecordFormData {
   serviceDoctor: string;
   symptoms: string; // Triệu chứng
   selectedPatientId?: number; // ID of selected linked patient
+  examinationFee: number; // Chi phí khám bệnh
 }
 
 interface MedicalRecordFormProps {
@@ -68,7 +70,8 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
     examinationType: '',
     serviceDoctor: '',
     symptoms: '',
-    selectedPatientId: undefined
+    selectedPatientId: undefined,
+    examinationFee: 0
   });
 
   // Data state
@@ -131,6 +134,27 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
     }
   }, [appointmentData]);
 
+  // Recalculate examination fee when doctor/health plan data becomes available
+  useEffect(() => {
+    if (formData.examinationType && formData.serviceDoctor) {
+      const newFee = calculateExaminationFee(formData.examinationType, formData.serviceDoctor);
+      if (newFee > 0 && newFee !== formData.examinationFee) {
+        console.log('Recalculating examination fee after data load:', {
+          examinationType: formData.examinationType,
+          serviceDoctor: formData.serviceDoctor,
+          oldFee: formData.examinationFee,
+          newFee: newFee,
+          doctorsCount: doctors.length,
+          healthPlansCount: healthPlans.length
+        });
+        setFormData(prev => ({
+          ...prev,
+          examinationFee: newFee
+        }));
+      }
+    }
+  }, [doctors, healthPlans, formData.examinationType, formData.serviceDoctor]);
+
   // Function to load patient detail by ID
   const loadPatientDetail = async (patientId: number) => {
     try {
@@ -185,6 +209,8 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
           patientDetail
         });
 
+        const fee = calculateExaminationFee(examinationType, serviceDoctor);
+
         setFormData(prev => ({
           ...prev,
           selectedPatientId: patientId, // Set the patient ID for API call
@@ -201,6 +227,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
           examinationType: examinationType,
           serviceDoctor: serviceDoctor,
           symptoms: appointmentData.symptoms || '', // Fill symptoms from appointment
+          examinationFee: fee
         }));
       }
     } catch (error: any) {
@@ -261,6 +288,8 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
       serviceDoctor
     });
 
+    const fee = calculateExaminationFee(examinationType, serviceDoctor);
+
     setFormData(prev => ({
       ...prev,
       selectedPatientId: appointmentData.patientId || prev.selectedPatientId, // Set patient ID if available
@@ -278,6 +307,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
       weight: prev.weight,
       height: prev.height,
       citizenId: prev.citizenId,
+      examinationFee: fee
     }));
   };
 
@@ -303,6 +333,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
         weight: patientData.weight?.toString() || '',
         height: patientData.height?.toString() || '',
         symptoms: '', // Clear symptoms as patient data doesn't have this
+        examinationFee: 0 // Reset examination fee for new patient selection
       }));
 
       console.log('Filled medical info from patient search:', {
@@ -336,6 +367,42 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
     } finally {
       setLoading(false);
     }
+  };
+
+  // Function to calculate examination fee based on selection
+  const calculateExaminationFee = (examinationType: string, serviceDoctorId: string): number => {
+    if (!examinationType || !serviceDoctorId) {
+      return 0;
+    }
+
+    try {
+      if (examinationType === 'package') {
+        // Health plan examination
+        const healthPlan = healthPlans.find(plan => plan.id.toString() === serviceDoctorId);
+        const fee = healthPlan?.price || 0;
+        console.log('Calculated health plan fee:', { healthPlanId: serviceDoctorId, fee, healthPlan });
+        return fee;
+      } else if (examinationType === 'doctor' || examinationType.startsWith('department-')) {
+        // Doctor examination (either from all doctors or department doctors)
+        const doctor = doctors.find(doc => doc.id.toString() === serviceDoctorId);
+        const fee = doctor?.examinationFee || 0;
+        console.log('Calculated doctor fee:', { doctorId: serviceDoctorId, fee, doctor });
+        return fee;
+      }
+    } catch (error) {
+      console.error('Error calculating examination fee:', error);
+    }
+
+    console.log('No fee calculated for:', { examinationType, serviceDoctorId });
+    return 0;
+  };
+
+  // Function to format currency in VND
+  const formatCurrency = (amount: number): string => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
+    }).format(amount);
   };
 
   const loadInitialData = async () => {
@@ -486,13 +553,18 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
     setFormData(prev => ({
       ...prev,
       examinationType: value,
-      serviceDoctor: '' // Reset service/doctor selection when manually changed
+      serviceDoctor: '', // Reset service/doctor selection when manually changed
+      examinationFee: 0 // Reset examination fee
     }));
   };
 
   const handleServiceDoctorChange = async (value: string) => {
-    setFormData(prev => ({ ...prev, serviceDoctor: value }));
-    // Logic xử lý đã được chuyển vào loadServiceDoctorOptions
+    const fee = calculateExaminationFee(formData.examinationType, value);
+    setFormData(prev => ({
+      ...prev,
+      serviceDoctor: value,
+      examinationFee: fee
+    }));
   };
 
   const handleClearForm = () => {
@@ -512,7 +584,8 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
         examinationType: '',
         serviceDoctor: '',
         symptoms: '',
-        selectedPatientId: undefined
+        selectedPatientId: undefined,
+        examinationFee: 0
       });
 
       // Clear any error or success messages
@@ -589,7 +662,8 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
             examinationType: '',
             serviceDoctor: '',
             symptoms: '',
-            selectedPatientId: undefined
+            selectedPatientId: undefined,
+            examinationFee: 0
           });
           setSuccess(null);
           onSuccess?.();
@@ -1010,6 +1084,8 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
               </Col>
             </Row>
 
+
+
             {/* Symptoms field */}
             <Row className="mb-3">
               <Col md={12}>
@@ -1026,7 +1102,22 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
               </Col>
             </Row>
           </div>
-
+          {/* Examination Fee Display */}
+          {formData.serviceDoctor && formData.examinationFee > 0 && (
+            <Row className="mb-3">
+              <Col md={12}>
+                <div className="bg-light p-3 rounded">
+                  <h6 className="text-muted mb-2">Chi phí khám bệnh</h6>
+                  <div className="d-flex justify-content-between align-items-center">
+                    <span>Phí khám:</span>
+                    <strong className="text-primary fs-5">
+                      {formatCurrency(formData.examinationFee)}
+                    </strong>
+                  </div>
+                </div>
+              </Col>
+            </Row>
+          )}
           {/* Action Buttons */}
           <div className="d-flex gap-2 pt-3 border-top">
             <Button
