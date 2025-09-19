@@ -6,16 +6,18 @@ import { Row, Col, Form, Button, Card, Alert } from "react-bootstrap";
 import { IconUser, IconPhone, IconMail, IconCalendar, IconMapPin, IconId, IconStethoscope } from "@tabler/icons-react";
 
 //import services
-import { 
-  departmentService, 
+import {
+  departmentService,
   doctorService,
   healthPlanService,
+  patientService,
   type Department,
   type Doctor,
-  type HealthPlan
-} from "../../services";
-
-// Extended interface để handle response structure thực tế
+  type HealthPlan,
+  type LinkedPatient,
+  type Appointment,
+  type PatientSearchResult
+} from "../../services";// Extended interface để handle response structure thực tế
 interface DoctorResponse extends Doctor {
   fullName?: string;
   position?: string;
@@ -32,14 +34,17 @@ interface MedicalRecordFormData {
   citizenId: string;
   examinationType: string; // 'package' | 'department' | 'doctor'
   serviceDoctor: string;
+  selectedPatientId?: number; // ID of selected linked patient
 }
 
 interface MedicalRecordFormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
+  appointmentData?: Appointment; // Pre-fill data from appointment
+  patientData?: PatientSearchResult; // Pre-fill data from patient search
 }
 
-const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCancel }) => {
+const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCancel, appointmentData, patientData }) => {
   // Form state
   const [formData, setFormData] = useState<MedicalRecordFormData>({
     fullName: '',
@@ -50,18 +55,21 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
     address: '',
     citizenId: '',
     examinationType: '',
-    serviceDoctor: ''
+    serviceDoctor: '',
+    selectedPatientId: undefined
   });
 
   // Data state
   const [departments, setDepartments] = useState<Department[]>([]);
   const [doctors, setDoctors] = useState<DoctorResponse[]>([]);
   const [healthPlans, setHealthPlans] = useState<HealthPlan[]>([]);
-  
+  const [linkedPatients, setLinkedPatients] = useState<LinkedPatient[]>([]);
+
   // UI state
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showLinkedPatients, setShowLinkedPatients] = useState<boolean>(false);
 
   // Load initial data
   useEffect(() => {
@@ -77,6 +85,70 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
     }
   }, [formData.examinationType]);
 
+  // Pre-fill form with appointment data
+  useEffect(() => {
+    if (appointmentData) {
+      setFormData(prev => ({
+        ...prev,
+        fullName: appointmentData.fullName || '',
+        phoneNumber: appointmentData.phone || '',
+        email: appointmentData.email || '',
+        dateOfBirth: appointmentData.birth || '',
+        gender: appointmentData.gender || '',
+        address: appointmentData.address || '',
+        // Note: citizenId and CCCD might be the same, but we don't have it in appointment data
+        // Let user fill it manually or get from selected patient
+      }));
+
+      // Load linked patients if we have a phone number
+      if (appointmentData.phone) {
+        loadLinkedPatients(appointmentData.phone);
+      }
+    }
+  }, [appointmentData]);
+
+  // Pre-fill form with patient search data
+  useEffect(() => {
+    if (patientData) {
+      setFormData(prev => ({
+        ...prev,
+        fullName: patientData.fullName || '',
+        // Note: PatientSearchResult doesn't have phone in the API structure shown
+        // We'll keep existing phoneNumber if any
+        email: '', // PatientSearchResult doesn't have email
+        dateOfBirth: patientData.birth || '',
+        gender: patientData.gender === 'NAM' ? 'Nam' : patientData.gender === 'NU' ? 'Nữ' : 'Khác',
+        address: patientData.address || '',
+        citizenId: patientData.cccd || '',
+        phoneNumber: patientData.phone || ''
+      }));
+
+      // Don't load linked patients for direct patient selection
+      setLinkedPatients([]);
+      setShowLinkedPatients(false);
+    }
+  }, [patientData]);
+
+  // Load linked patients by phone number
+  const loadLinkedPatients = async (phone: string) => {
+    try {
+      setLoading(true);
+      const response = await patientService.getLinkedPatientsByPhone(phone);
+
+      if (response.data && response.data.patients) {
+        setLinkedPatients(response.data.patients);
+        setShowLinkedPatients(response.data.patients.length > 1); // Only show if there are multiple patients
+      }
+    } catch (err: any) {
+      console.error('Error loading linked patients:', err);
+      // Don't show error for linked patients, it's not critical
+      setLinkedPatients([]);
+      setShowLinkedPatients(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const loadInitialData = async () => {
     try {
       // Load departments and health plans
@@ -84,10 +156,10 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
         departmentService.getAllDepartments(),
         healthPlanService.getAllHealthPlans()
       ]);
-      
+
       console.log('Departments Response:', deptResponse); // Debug log
       console.log('Health Plans Response:', healthPlanResponse); // Debug log
-      
+
       // Handle departments response structure
       let departmentsData: Department[] = [];
       if (deptResponse.data && Array.isArray(deptResponse.data)) {
@@ -98,7 +170,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
         console.warn('Unexpected departments response structure:', deptResponse);
         departmentsData = [];
       }
-      
+
       // Handle health plans response structure
       let healthPlansData: HealthPlan[] = [];
       if (healthPlanResponse.data && Array.isArray(healthPlanResponse.data)) {
@@ -109,10 +181,10 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
         console.warn('Unexpected health plans response structure:', healthPlanResponse);
         healthPlansData = [];
       }
-      
+
       console.log('Processed departments:', departmentsData); // Debug log
       console.log('Processed health plans:', healthPlansData); // Debug log
-      
+
       setDepartments(departmentsData);
       setHealthPlans(healthPlansData);
     } catch (err: any) {
@@ -124,7 +196,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
   const loadServiceDoctorOptions = async (examinationType: string) => {
     try {
       setLoading(true);
-      
+
       if (examinationType === 'package') {
         // Health plans already loaded
         return;
@@ -134,7 +206,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
         if (!isNaN(departmentId)) {
           const response = await doctorService.getDoctorsByDepartment(departmentId);
           console.log('Doctors Response:', response); // Debug log
-          
+
           // Handle doctors response structure
           let doctorsData: DoctorResponse[] = [];
           if (response.data && Array.isArray(response.data)) {
@@ -145,33 +217,33 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
             console.warn('Unexpected doctors response structure:', response);
             doctorsData = [];
           }
-          
+
           // Debug: Log doctor structure for single department
           if (doctorsData.length > 0) {
             console.log('Sample doctor object from department:', doctorsData[0]);
             console.log('Available fields:', Object.keys(doctorsData[0]));
           }
-          
+
           console.log('Processed doctors:', doctorsData); // Debug log
           setDoctors(doctorsData);
         }
       } else if (examinationType === 'doctor') {
         // Load all doctors from all departments
         console.log('Loading all doctors, departments available:', departments.length);
-        
+
         if (departments.length === 0) {
           console.warn('No departments loaded yet, cannot load doctors');
           setError('Chưa tải được danh sách khoa. Vui lòng thử lại.');
           return;
         }
-        
+
         const allDoctors: DoctorResponse[] = [];
         for (const dept of departments) {
           try {
             console.log(`Loading doctors for department: ${dept.name} (ID: ${dept.id})`);
             const response = await doctorService.getDoctorsByDepartment(dept.id);
             console.log(`Doctors for department ${dept.id}:`, response); // Debug log
-            
+
             // Handle doctors response structure
             let doctorsData: DoctorResponse[] = [];
             if (response.data && Array.isArray(response.data)) {
@@ -182,13 +254,13 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
               console.warn('Unexpected doctors response structure:', response);
               doctorsData = [];
             }
-            
+
             // Debug: Log doctor structure
             if (doctorsData.length > 0) {
               console.log('Sample doctor object structure:', doctorsData[0]);
               console.log('Available fields:', Object.keys(doctorsData[0]));
             }
-            
+
             // Add department name to doctors
             doctorsData = doctorsData.map(doctor => {
               console.log('Processing doctor:', doctor);
@@ -197,7 +269,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
                 departmentName: doctor.departmentName || dept.name
               };
             });
-            
+
             if (doctorsData.length > 0) {
               allDoctors.push(...doctorsData);
             }
@@ -205,7 +277,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
             console.warn(`Failed to load doctors for department ${dept.id}`, err);
           }
         }
-        
+
         console.log('All processed doctors:', allDoctors); // Debug log
         setDoctors(allDoctors);
       }
@@ -222,8 +294,8 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
   };
 
   const handleExaminationTypeChange = (value: string) => {
-    setFormData(prev => ({ 
-      ...prev, 
+    setFormData(prev => ({
+      ...prev,
       examinationType: value,
       serviceDoctor: '' // Reset service/doctor selection
     }));
@@ -236,11 +308,14 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate required fields
     const requiredFields = ['fullName', 'phoneNumber', 'dateOfBirth', 'gender', 'citizenId', 'examinationType'];
-    const missingFields = requiredFields.filter(field => !formData[field as keyof MedicalRecordFormData].trim());
-    
+    const missingFields = requiredFields.filter(field => {
+      const value = formData[field as keyof MedicalRecordFormData];
+      return typeof value === 'string' ? !value.trim() : !value;
+    });
+
     if (missingFields.length > 0) {
       setError("Vui lòng điền đầy đủ thông tin bắt buộc");
       return;
@@ -253,12 +328,12 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
     try {
       // TODO: Call API to create medical record
       console.log('Medical Record Data:', formData);
-      
+
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       setSuccess("Tạo phiếu khám bệnh thành công!");
-      
+
       // Reset form after success
       setTimeout(() => {
         setFormData({
@@ -275,11 +350,42 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
         setSuccess(null);
         onSuccess?.();
       }, 2000);
-      
+
     } catch (err: any) {
       setError(err.message || "Lỗi khi tạo phiếu khám bệnh");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handle linked patient selection
+  const handleLinkedPatientSelect = (patientId: string) => {
+    const selectedPatient = linkedPatients.find(p => p.id.toString() === patientId);
+
+    if (selectedPatient) {
+      setFormData(prev => ({
+        ...prev,
+        selectedPatientId: selectedPatient.id,
+        fullName: selectedPatient.fullName,
+        dateOfBirth: selectedPatient.birth,
+        gender: selectedPatient.gender === 'NAM' ? 'Nam' : selectedPatient.gender === 'NU' ? 'Nữ' : 'Khác',
+        address: selectedPatient.address,
+        citizenId: selectedPatient.cccd, // Map CCCD to citizenId
+        // Keep existing phoneNumber as it's used for the search
+      }));
+    } else if (patientId === '') {
+      // Reset to appointment data if available, or empty
+      if (appointmentData) {
+        setFormData(prev => ({
+          ...prev,
+          selectedPatientId: undefined,
+          fullName: appointmentData.fullName || '',
+          dateOfBirth: appointmentData.birth || '',
+          gender: appointmentData.gender || '',
+          address: appointmentData.address || '',
+          citizenId: '', // Clear CCCD when not selecting a patient
+        }));
+      }
     }
   };
 
@@ -295,10 +401,10 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
   // Get service/doctor options based on examination type
   const getServiceDoctorOptions = () => {
     const baseOption = { value: '', label: 'Chọn dịch vụ/bác sĩ' };
-    
+
     console.log('getServiceDoctorOptions called with examinationType:', formData.examinationType);
     console.log('Current doctors array:', doctors);
-    
+
     if (formData.examinationType === 'package') {
       // Gói khám -> hiển thị các gói khám
       console.log('Returning health plans options:', healthPlans);
@@ -330,7 +436,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
         }))
       ];
     }
-    
+
     return [baseOption];
   };
 
@@ -360,7 +466,33 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
               <IconUser size={18} className="me-2" />
               Thông tin cá nhân
             </h6>
-            
+
+            {/* Linked Patient Selection */}
+            {showLinkedPatients && (
+              <Row className="mb-3">
+                <Col md={12}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Chọn bệnh nhân liên kết</Form.Label>
+                    <Form.Select
+                      value={formData.selectedPatientId?.toString() || ''}
+                      onChange={(e) => handleLinkedPatientSelect(e.target.value)}
+                    >
+                      <option value="">Chọn bệnh nhân (hoặc để trống để nhập thủ công)</option>
+                      {linkedPatients.map((patient) => (
+                        <option key={patient.id} value={patient.id.toString()}>
+                          {patient.fullName} - {patient.relationship}
+                          {patient.birth && ` (${new Date(patient.birth).toLocaleDateString('vi-VN')})`}
+                        </option>
+                      ))}
+                    </Form.Select>
+                    <Form.Text className="text-muted">
+                      Danh sách bệnh nhân liên kết với số điện thoại này
+                    </Form.Text>
+                  </Form.Group>
+                </Col>
+              </Row>
+            )}
+
             <Row className="mb-3">
               <Col md={6}>
                 <Form.Group className="mb-3">
@@ -488,7 +620,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
               <IconStethoscope size={18} className="me-2" />
               Thông tin khám bệnh
             </h6>
-            
+
             <Row className="mb-3">
               <Col md={6}>
                 <Form.Group className="mb-3">
@@ -499,12 +631,12 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
                     required
                   >
                     <option value="">Chọn loại khám</option>
-                    
+
                     {/* Gói khám */}
                     <optgroup label="Gói khám">
                       <option value="package">Gói khám</option>
                     </optgroup>
-                    
+
                     {/* Chuyên khoa */}
                     <optgroup label="Chuyên khoa">
                       {departments.map(dept => (
@@ -513,7 +645,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
                         </option>
                       ))}
                     </optgroup>
-                    
+
                     {/* Bác sĩ */}
                     <optgroup label="Bác sĩ">
                       <option value="doctor">Tất cả bác sĩ</option>
@@ -546,9 +678,9 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
 
           {/* Action Buttons */}
           <div className="d-flex gap-2 pt-3 border-top">
-            <Button 
-              type="submit" 
-              variant="primary" 
+            <Button
+              type="submit"
+              variant="primary"
               disabled={loading}
               className="d-flex align-items-center"
             >
@@ -561,9 +693,9 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
                 'Tạo phiếu khám'
               )}
             </Button>
-            <Button 
-              variant="outline-secondary" 
-              onClick={onCancel} 
+            <Button
+              variant="outline-secondary"
+              onClick={onCancel}
               disabled={loading}
             >
               Hủy bỏ

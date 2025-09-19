@@ -13,6 +13,54 @@ export interface Patient {
   updatedAt?: string;
 }
 
+// Interface for linked patients from new API structure
+export interface LinkedPatient {
+  id: number;
+  code: string;
+  bloodType: string;
+  weight: number;
+  height: number;
+  registrationDate: string;
+  fullName: string;
+  address: string;
+  cccd: string;
+  birth: string;
+  gender: 'NAM' | 'NU';
+  profileImage: string;
+  relationship: 'CHU TAI KHOAN' | 'ME' | 'CON' | 'VO' | string;
+}
+
+export interface LinkedPatientsResponse {
+  data: {
+    patients: LinkedPatient[];
+    ownerId: number;
+  };
+  message: string;
+}
+
+// Interface for patient search results  
+export interface PatientSearchResult {
+  id: number;
+  code: string;
+  bloodType: string;
+  weight: number;
+  height: number;
+  registrationDate: string;
+  phone: string;
+  fullName: string;
+  address: string;
+  cccd: string;
+  birth: string;
+  gender: 'NAM' | 'NU';
+  profileImage: string;
+  relationship: string | null;
+}
+
+export interface PatientSearchResponse {
+  data: PatientSearchResult[];
+  message: string;
+}
+
 export interface PatientsDto {
   patients: Patient[];
   ownerId: number | null;
@@ -55,7 +103,7 @@ const patientService = {
       // API mới trả về cấu trúc PatientsDto: {patients: Array, ownerId: Number}
       // Cần xử lý để tương thích với code cũ
       const responseData = response.data;
-      
+
       if (responseData && responseData.data) {
         const { patients = [], ownerId = null } = responseData.data;
         return {
@@ -87,6 +135,57 @@ const patientService = {
       return response.data;
     } catch (error) {
       console.error('Error creating patient:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Lấy danh sách bệnh nhân liên kết theo số điện thoại
+   * @param phone - Số điện thoại cần tìm kiếm
+   * @returns Promise với response từ API với cấu trúc mới
+   */
+  getLinkedPatientsByPhone: async (phone: string): Promise<LinkedPatientsResponse> => {
+    try {
+      if (!phone || phone.trim() === '') {
+        throw new Error('Số điện thoại không được để trống');
+      }
+
+      const response = await apiClient.get<LinkedPatientsResponse>('/api/patients', {
+        params: {
+          phone: phone.trim()
+        }
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching linked patients by phone:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Tìm kiếm bệnh nhân theo từ khóa (CCCD, tên, số điện thoại...)
+   * @param keyword - Từ khóa cần tìm kiếm
+   * @returns Promise với response từ API
+   */
+  searchPatients: async (keyword: string): Promise<PatientSearchResponse> => {
+    try {
+      if (!keyword || keyword.trim() === '') {
+        return {
+          data: [],
+          message: 'Từ khóa tìm kiếm không được để trống'
+        };
+      }
+
+      const response = await apiClient.get<PatientSearchResponse>('/api/patients', {
+        params: {
+          keyword: keyword.trim()
+        }
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('Error searching patients:', error);
       throw error;
     }
   }

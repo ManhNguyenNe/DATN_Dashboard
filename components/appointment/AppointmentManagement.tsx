@@ -8,9 +8,10 @@ import { Row, Col, Card, Tab, Tabs, Alert } from "react-bootstrap";
 import AppointmentList from "./AppointmentList";
 import AppointmentSearch from "./AppointmentSearch";
 import MedicalRecordForm from "./MedicalRecordForm";
+import PatientManagement from "./PatientManagement";
 
 //import services
-import { appointmentService, AppointmentStatus, type Appointment, type AppointmentFilter } from "../../services";
+import { appointmentService, AppointmentStatus, type Appointment, type AppointmentFilter, type PatientSearchResult } from "../../services";
 
 interface AppointmentManagementProps {
   onSearch?: (filters: AppointmentFilter) => void;
@@ -28,6 +29,8 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [currentFilters, setCurrentFilters] = useState<AppointmentFilter>({});
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [selectedPatient, setSelectedPatient] = useState<PatientSearchResult | null>(null);
 
   // Use external or internal active tab
   const activeTab = externalActiveTab || internalActiveTab;
@@ -89,6 +92,15 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
     try {
       await appointmentService.confirmAppointment(appointmentId, status);
 
+      // Find the confirmed appointment
+      const confirmedAppointment = appointments.find(apt => apt.id === appointmentId);
+
+      // If confirmed successfully, switch to medical record form with appointment data
+      if (status === AppointmentStatus.DA_XAC_NHAN && confirmedAppointment) {
+        setSelectedAppointment(confirmedAppointment);
+        setActiveTab("medical-record");
+      }
+
       // Refresh appointments list after confirmation
       if (Object.keys(currentFilters).length > 0) {
         await handleSearch(currentFilters);
@@ -105,8 +117,24 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
 
   // Handle medical record created successfully
   const handleMedicalRecordCreated = async () => {
+    setSelectedAppointment(null); // Clear selected appointment
+    setSelectedPatient(null); // Clear selected patient
     setActiveTab("list");
     // Optionally refresh data or show success message
+  };
+
+  // Handle medical record cancelled
+  const handleMedicalRecordCancelled = () => {
+    setSelectedAppointment(null); // Clear selected appointment
+    setSelectedPatient(null); // Clear selected patient
+    setActiveTab("list");
+  };
+
+  // Handle fill patient to medical record
+  const handleFillPatientToMedicalRecord = (patient: PatientSearchResult) => {
+    setSelectedPatient(patient);
+    setSelectedAppointment(null); // Clear any appointment data
+    setActiveTab("medical-record");
   };
 
   return (
@@ -144,8 +172,18 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
               <Tab eventKey="medical-record" title="Phiếu khám bệnh">
                 <div className="pt-4">
                   <MedicalRecordForm
+                    appointmentData={selectedAppointment || undefined}
+                    patientData={selectedPatient || undefined}
                     onSuccess={handleMedicalRecordCreated}
-                    onCancel={() => setActiveTab("list")}
+                    onCancel={handleMedicalRecordCancelled}
+                  />
+                </div>
+              </Tab>
+
+              <Tab eventKey="patients" title="Bệnh nhân">
+                <div className="pt-4">
+                  <PatientManagement
+                    onFillToMedicalRecord={handleFillPatientToMedicalRecord}
                   />
                 </div>
               </Tab>

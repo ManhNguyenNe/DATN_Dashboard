@@ -8,7 +8,11 @@ export type {
   Patient,
   PatientsDto,
   PatientCreateData,
-  PatientsResponse
+  PatientsResponse,
+  LinkedPatient,
+  LinkedPatientsResponse,
+  PatientSearchResult,
+  PatientSearchResponse
 } from './patientService';
 
 // Appointment Service  
