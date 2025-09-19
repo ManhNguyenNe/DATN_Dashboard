@@ -96,6 +96,22 @@ export interface PatientCreateData {
   gender?: 'MALE' | 'FEMALE' | 'OTHER';
 }
 
+// New interface for creating patient with new API structure
+export interface NewPatientCreateData {
+  phone: string | null;
+  email: string | null;
+  fullName: string;
+  address: string;
+  cccd: string;
+  birth: string;
+  gender: 'NAM' | 'NU';
+  bloodType: string;
+  weight: number;
+  height: number;
+  profileImage: string | null;
+  phoneLink: string | null;
+}
+
 export interface PatientsResponse extends ApiResponse<Patient[]> {
   ownerId?: number | null;
 }
@@ -156,6 +172,21 @@ const patientService = {
       return response.data;
     } catch (error) {
       console.error('Error creating patient:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Tạo bệnh nhân mới với cấu trúc API mới
+   * @param patientData - Dữ liệu bệnh nhân theo cấu trúc mới
+   * @returns Promise với response từ API
+   */
+  createNewPatient: async (patientData: NewPatientCreateData): Promise<ApiResponse<PatientDetail>> => {
+    try {
+      const response = await apiClient.post<ApiResponse<PatientDetail>>('/api/patients', patientData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating new patient:', error);
       throw error;
     }
   },

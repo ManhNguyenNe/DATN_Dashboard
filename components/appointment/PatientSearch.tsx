@@ -3,16 +3,18 @@
 //import node module libraries
 import { useState } from "react";
 import { Row, Col, Form, Button, InputGroup } from "react-bootstrap";
-import { IconSearch, IconX } from "@tabler/icons-react";
+import { IconSearch, IconX, IconUserPlus } from "@tabler/icons-react";
 
 interface PatientSearchProps {
     onSearch: (keyword: string) => void;
+    onAddPatient?: () => void;
     loading?: boolean;
     placeholder?: string;
 }
 
 const PatientSearch: React.FC<PatientSearchProps> = ({
     onSearch,
+    onAddPatient,
     loading = false,
     placeholder = "Nhập CCCD, tên, hoặc số điện thoại để tìm kiếm..."
 }) => {
@@ -37,7 +39,7 @@ const PatientSearch: React.FC<PatientSearchProps> = ({
             <Col xl={12} lg={12} md={12} sm={12}>
                 <Form onSubmit={handleSubmit}>
                     <Row className="g-3">
-                        <Col md={8}>
+                        <Col md={6}>
                             <Form.Group>
                                 <Form.Label>Tìm kiếm bệnh nhân</Form.Label>
                                 <InputGroup>
@@ -63,12 +65,13 @@ const PatientSearch: React.FC<PatientSearchProps> = ({
                                 </InputGroup>
                             </Form.Group>
                         </Col>
-                        <Col md={4} className="d-flex align-items-end">
-                            <div className="d-grid gap-2 w-100">
+                        <Col md={6} className="d-flex align-items-end">
+                            <div className="d-flex gap-2 w-100">
                                 <Button
                                     variant="primary"
                                     type="submit"
                                     disabled={loading || !keyword.trim()}
+                                    className="flex-grow-1"
                                 >
                                     {loading ? (
                                         <>
@@ -82,6 +85,18 @@ const PatientSearch: React.FC<PatientSearchProps> = ({
                                         </>
                                     )}
                                 </Button>
+                                {onAddPatient && (
+                                    <Button
+                                        variant="success"
+                                        type="button"
+                                        onClick={onAddPatient}
+                                        disabled={loading}
+                                        className="flex-shrink-0"
+                                    >
+                                        <IconUserPlus size={16} className="me-2" />
+                                        Thêm bệnh nhân
+                                    </Button>
+                                )}
                             </div>
                         </Col>
                     </Row>

@@ -7,6 +7,7 @@ import { Alert } from "react-bootstrap";
 //import custom components
 import PatientSearch from "./PatientSearch";
 import PatientList from "./PatientList";
+import AddPatientForm from "./AddPatientForm";
 
 //import services
 import { patientService, type PatientSearchResult } from "../../services";
@@ -22,6 +23,7 @@ const PatientManagement: React.FC<PatientManagementProps> = ({
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [searchPerformed, setSearchPerformed] = useState<boolean>(false);
+    const [showAddPatientForm, setShowAddPatientForm] = useState<boolean>(false);
 
     // Handle patient search
     const handleSearch = async (keyword: string) => {
@@ -78,6 +80,24 @@ const PatientManagement: React.FC<PatientManagementProps> = ({
         }
     };
 
+    // Handle show add patient form
+    const handleShowAddPatientForm = () => {
+        setShowAddPatientForm(true);
+    };
+
+    // Handle hide add patient form
+    const handleHideAddPatientForm = () => {
+        setShowAddPatientForm(false);
+    };
+
+    // Handle patient added successfully
+    const handlePatientAdded = (newPatient: any) => {
+        console.log('New patient added:', newPatient);
+        // Optionally refresh the search or add to current list
+        setError(null);
+        // You might want to refresh the search here or show a success message
+    };
+
     return (
         <div>
             {error && (
@@ -88,6 +108,7 @@ const PatientManagement: React.FC<PatientManagementProps> = ({
 
             <PatientSearch
                 onSearch={handleSearch}
+                onAddPatient={handleShowAddPatientForm}
                 loading={loading}
             />
 
@@ -99,6 +120,12 @@ const PatientManagement: React.FC<PatientManagementProps> = ({
                     onFillToMedicalRecord={handleFillToMedicalRecord}
                 />
             )}
+
+            <AddPatientForm
+                show={showAddPatientForm}
+                onHide={handleHideAddPatientForm}
+                onPatientAdded={handlePatientAdded}
+            />
         </div>
     );
 };
