@@ -1,6 +1,6 @@
 // API Client
 export { default as apiClient } from './api';
-export type { ApiResponse } from './api';
+export { type ApiResponse, type SimpleApiResponse } from './api';
 
 // Patient Service
 export { default as patientService } from './patientService';
@@ -50,5 +50,6 @@ export {
   MedicalRecordStatus,
   type MedicalRecord,
   type MedicalRecordCreateData,
-  type MedicalRecordUpdateData
+  type MedicalRecordUpdateData,
+  type SimpleMedicalRecordCreateData
 } from './medicalRecordService';

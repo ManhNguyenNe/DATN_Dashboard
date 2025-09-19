@@ -11,13 +11,16 @@ import {
   doctorService,
   healthPlanService,
   patientService,
+  medicalRecordService,
   type Department,
   type Doctor,
   type HealthPlan,
   type LinkedPatient,
   type Appointment,
   type PatientSearchResult,
-  type PatientDetail
+  type PatientDetail,
+  type SimpleMedicalRecordCreateData,
+  type SimpleApiResponse
 } from "../../services";// Extended interface để handle response structure thực tế
 interface DoctorResponse extends Doctor {
   fullName?: string;
@@ -283,6 +286,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
 
       setFormData(prev => ({
         ...prev,
+        selectedPatientId: patientData.id, // Set the patient ID for API call
         fullName: patientData.fullName || '',
         // Note: PatientSearchResult doesn't have phone in the API structure shown
         // We'll keep existing phoneNumber if any
@@ -300,6 +304,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
       }));
 
       console.log('Filled medical info from patient search:', {
+        patientId: patientData.id,
         bloodType: patientData.bloodType || 'Không có',
         weight: patientData.weight ? `${patientData.weight} kg` : 'Chưa nhập',
         height: patientData.height ? `${patientData.height} cm` : 'Chưa nhập'
@@ -536,51 +541,78 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
       return;
     }
 
+    // Check if we have a selected patient ID or need to create patient first
+    if (!formData.selectedPatientId) {
+      setError("Vui lòng chọn bệnh nhân hoặc tạo bệnh nhân mới trước khi tạo phiếu khám");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setSuccess(null);
 
     try {
-      // TODO: Call API to create medical record
-      console.log('Medical Record Data:', {
-        ...formData,
-        // Highlight new fields
-        medicalInfo: {
-          bloodType: formData.bloodType || 'Không xác định',
-          weight: formData.weight ? `${formData.weight} kg` : 'Chưa nhập',
-          height: formData.height ? `${formData.height} cm` : 'Chưa nhập',
-          symptoms: formData.symptoms || 'Không có triệu chứng'
-        }
-      });
+      // Prepare request data for simple medical record creation
+      const requestData: SimpleMedicalRecordCreateData = {
+        patientId: formData.selectedPatientId,
+        doctorId: formData.examinationType === 'package' ? null : (formData.serviceDoctor ? parseInt(formData.serviceDoctor) : null),
+        healthPlanId: formData.examinationType === 'package' ? (formData.serviceDoctor ? parseInt(formData.serviceDoctor) : null) : null,
+        symptoms: formData.symptoms || 'Không có triệu chứng'
+      };
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('Creating medical record with data:', requestData);
 
-      setSuccess("Tạo phiếu khám bệnh thành công!");
+      // Call API to create medical record
+      const response: SimpleApiResponse = await medicalRecordService.createSimpleMedicalRecord(requestData);
 
-      // Reset form after success
-      setTimeout(() => {
-        setFormData({
-          fullName: '',
-          phoneNumber: '',
-          email: '',
-          dateOfBirth: '',
-          gender: '',
-          address: '',
-          citizenId: '',
-          bloodType: '',
-          weight: '',
-          height: '',
-          examinationType: '',
-          serviceDoctor: '',
-          symptoms: ''
-        });
-        setSuccess(null);
-        onSuccess?.();
-      }, 2000);
+      console.log('API Response:', response);
+
+      // Check if API call was successful (message contains "successfully")
+      if (response && (response.message === "successfully" || response.message.toLowerCase().includes("success"))) {
+        setSuccess("Tạo phiếu khám bệnh thành công!");
+
+        // Reset form after success
+        setTimeout(() => {
+          setFormData({
+            fullName: '',
+            phoneNumber: '',
+            email: '',
+            dateOfBirth: '',
+            gender: '',
+            address: '',
+            citizenId: '',
+            bloodType: '',
+            weight: '',
+            height: '',
+            examinationType: '',
+            serviceDoctor: '',
+            symptoms: '',
+            selectedPatientId: undefined
+          });
+          setSuccess(null);
+          onSuccess?.();
+        }, 2000);
+      } else {
+        console.error('API Error Response:', response);
+        setError(response?.message || "Lỗi khi tạo phiếu khám bệnh");
+      }
 
     } catch (err: any) {
-      setError(err.message || "Lỗi khi tạo phiếu khám bệnh");
+      console.error('Error creating medical record:', err);
+
+      // Xử lý error từ axios response
+      if (err.response && err.response.data) {
+        const errorData = err.response.data;
+        if (errorData.message) {
+          setError(errorData.message);
+        } else if (typeof errorData === 'string') {
+          setError(errorData);
+        } else {
+          setError("Lỗi khi tạo phiếu khám bệnh");
+        }
+      } else {
+        setError(err.message || "Lỗi khi tạo phiếu khám bệnh");
+      }
     } finally {
       setLoading(false);
     }

@@ -10,6 +10,12 @@ export interface ApiResponse<T = any> {
   success: boolean;
 }
 
+// Interface cho response của một số API không có field success
+export interface SimpleApiResponse<T = any> {
+  data: T;
+  message: string;
+}
+
 // Tạo axios instance với cấu hình mặc định
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,

@@ -1,4 +1,4 @@
-import apiClient, { ApiResponse } from './api';
+import apiClient, { ApiResponse, SimpleApiResponse } from './api';
 
 // Enums cho Medical Record
 export enum MedicalRecordStatus {
@@ -43,6 +43,13 @@ export interface MedicalRecordCreateData {
 export interface MedicalRecordUpdateData extends MedicalRecordCreateData {
   id: number;
   status?: MedicalRecordStatus;
+}
+
+export interface SimpleMedicalRecordCreateData {
+  patientId: number;
+  doctorId?: number | null;
+  healthPlanId?: number | null;
+  symptoms: string;
 }
 
 /**
@@ -90,6 +97,21 @@ const medicalRecordService = {
       return response.data;
     } catch (error) {
       console.error('Error fetching medical record:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Tạo phiếu khám bệnh đơn giản (chỉ với thông tin cơ bản)
+   * @param medicalRequest - Dữ liệu phiếu khám bệnh cơ bản
+   * @returns Promise với response từ API
+   */
+  createSimpleMedicalRecord: async (medicalRequest: SimpleMedicalRecordCreateData): Promise<SimpleApiResponse<MedicalRecord>> => {
+    try {
+      const response = await apiClient.post<SimpleApiResponse<MedicalRecord>>('/api/medical-record', medicalRequest);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating simple medical record:', error);
       throw error;
     }
   }
