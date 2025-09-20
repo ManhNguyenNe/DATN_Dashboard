@@ -18,6 +18,8 @@ export interface HealthPlan {
   duration?: number; // in minutes
   departmentId?: number;
   departmentName?: string;
+  roomNumber?: string;
+  roomName?: string;
   isActive?: boolean;
   requirements?: string;
   createdAt?: string;
@@ -55,7 +57,7 @@ const healthPlanService = {
 
       // Lấy tất cả và filter phía client vì backend chưa có API filter
       const response = await healthPlanService.getAllHealthPlans();
-      return response.data.filter((plan: HealthPlan) => 
+      return response.data.filter((plan: HealthPlan) =>
         plan.type && plan.type.toUpperCase() === type.toUpperCase()
       );
     } catch (error) {

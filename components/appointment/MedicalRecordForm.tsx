@@ -21,7 +21,10 @@ import {
   type PatientDetail,
   type SimpleMedicalRecordCreateData,
   type SimpleApiResponse
-} from "../../services";// Extended interface để handle response structure thực tế
+} from "../../services";
+
+//import components
+import ServiceCostDisplay from "./ServiceCostDisplay";// Extended interface để handle response structure thực tế
 interface DoctorResponse extends Doctor {
   fullName?: string;
   position?: string;
@@ -405,6 +408,43 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
     }).format(amount);
   };
 
+  // Function to get current selected service info
+  const getCurrentServiceInfo = () => {
+    if (!formData.serviceDoctor || !formData.examinationType) {
+      return null;
+    }
+
+    try {
+      if (formData.examinationType === 'package') {
+        // Health plan examination
+        const healthPlan = healthPlans.find(plan => plan.id.toString() === formData.serviceDoctor);
+        if (healthPlan) {
+          return {
+            name: healthPlan.name,
+            price: healthPlan.price,
+            roomNumber: healthPlan.roomNumber,
+            roomName: healthPlan.roomName
+          };
+        }
+      } else if (formData.examinationType === 'doctor' || formData.examinationType.startsWith('department-')) {
+        // Doctor examination (either from all doctors or department doctors)
+        const doctor = doctors.find(doc => doc.id.toString() === formData.serviceDoctor);
+        if (doctor) {
+          return {
+            name: doctor.position || doctor.name || 'Khám bác sĩ',
+            price: doctor.examinationFee || 0,
+            roomNumber: doctor.roomNumber,
+            roomName: doctor.roomName
+          };
+        }
+      }
+    } catch (error) {
+      console.error('Error getting current service info:', error);
+    }
+
+    return null;
+  };
+
   const loadInitialData = async () => {
     try {
       // Load departments and health plans
@@ -764,30 +804,57 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
       console.log('Returning health plans options:', healthPlans);
       return [
         baseOption,
-        ...healthPlans.map(plan => ({
-          value: plan.id.toString(),
-          label: `${plan.name} - ${plan.price?.toLocaleString()}đ`
-        }))
+        ...healthPlans.map(plan => {
+          let label = `${plan.name} - ${plan.price?.toLocaleString()}đ`;
+          if (plan.roomNumber || plan.roomName) {
+            const roomInfo = [plan.roomNumber, plan.roomName].filter(Boolean).join(' - ');
+            label += ` (${roomInfo})`;
+          }
+          return {
+            value: plan.id.toString(),
+            label
+          };
+        })
       ];
     } else if (formData.examinationType.startsWith('department-')) {
       // Chuyên khoa cụ thể -> hiển thị bác sĩ trong khoa đó
       console.log('Returning department doctors options:', doctors);
       return [
         { value: '', label: 'Chọn bác sĩ trong khoa' },
-        ...doctors.map(doctor => ({
-          value: doctor.id.toString(),
-          label: (doctor as any).fullName || (doctor as any).position || doctor.name || `Bác sĩ #${doctor.id}`
-        }))
+        ...doctors.map(doctor => {
+          let label = (doctor as any).fullName || (doctor as any).position || doctor.name || `Bác sĩ #${doctor.id}`;
+          if (doctor.examinationFee) {
+            label += ` - ${doctor.examinationFee.toLocaleString()}đ`;
+          }
+          if (doctor.roomNumber || doctor.roomName) {
+            const roomInfo = [doctor.roomNumber, doctor.roomName].filter(Boolean).join(' - ');
+            label += ` (${roomInfo})`;
+          }
+          return {
+            value: doctor.id.toString(),
+            label
+          };
+        })
       ];
     } else if (formData.examinationType === 'doctor') {
       // Tất cả bác sĩ -> hiển thị tất cả bác sĩ kèm tên khoa
       console.log('Returning all doctors options:', doctors);
       return [
         { value: '', label: 'Chọn bác sĩ' },
-        ...doctors.map(doctor => ({
-          value: doctor.id.toString(),
-          label: `${(doctor as any).fullName || (doctor as any).position || doctor.name || `Bác sĩ #${doctor.id}`}${doctor.departmentName ? ` - ${doctor.departmentName}` : ''}`
-        }))
+        ...doctors.map(doctor => {
+          let label = `${(doctor as any).fullName || (doctor as any).position || doctor.name || `Bác sĩ #${doctor.id}`}${doctor.departmentName ? ` - ${doctor.departmentName}` : ''}`;
+          if (doctor.examinationFee) {
+            label += ` - ${doctor.examinationFee.toLocaleString()}đ`;
+          }
+          if (doctor.roomNumber || doctor.roomName) {
+            const roomInfo = [doctor.roomNumber, doctor.roomName].filter(Boolean).join(' - ');
+            label += ` (${roomInfo})`;
+          }
+          return {
+            value: doctor.id.toString(),
+            label
+          };
+        })
       ];
     }
 
@@ -1103,21 +1170,16 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
             </Row>
           </div>
           {/* Examination Fee Display */}
-          {formData.serviceDoctor && formData.examinationFee > 0 && (
-            <Row className="mb-3">
-              <Col md={12}>
-                <div className="bg-light p-3 rounded">
-                  <h6 className="text-muted mb-2">Chi phí khám bệnh</h6>
-                  <div className="d-flex justify-content-between align-items-center">
-                    <span>Phí khám:</span>
-                    <strong className="text-primary fs-5">
-                      {formatCurrency(formData.examinationFee)}
-                    </strong>
-                  </div>
-                </div>
-              </Col>
-            </Row>
-          )}
+          {formData.serviceDoctor && formData.examinationFee > 0 && (() => {
+            const serviceInfo = getCurrentServiceInfo();
+            return serviceInfo ? (
+              <Row className="mb-3">
+                <Col md={12}>
+                  <ServiceCostDisplay service={serviceInfo} />
+                </Col>
+              </Row>
+            ) : null;
+          })()}
           {/* Action Buttons */}
           <div className="d-flex gap-2 pt-3 border-top">
             <Button

@@ -12,6 +12,11 @@ export interface Doctor {
   experience?: number;
   qualification?: string;
   schedule?: string;
+  position?: string; // From API response
+  examinationFee?: number; // From API response 
+  available?: boolean; // From API response
+  roomNumber?: string; // From API response
+  roomName?: string; // From API response
   isActive?: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -71,8 +76,8 @@ const doctorService = {
       }
 
       const response = await apiClient.get<ApiResponse<Doctor[]>>('/api/doctors/specialty', {
-        params: { 
-          specialty: specialty.trim() 
+        params: {
+          specialty: specialty.trim()
         }
       });
       return response.data;
