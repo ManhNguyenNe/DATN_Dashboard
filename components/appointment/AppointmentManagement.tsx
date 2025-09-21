@@ -112,12 +112,13 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
 
       // Chỉ chuyển sang medical record form khi trạng thái là DA_DEN (đã đến)
       if (status === AppointmentStatus.DA_DEN && updatedAppointment) {
+        console.log('Switching to medical record form with appointment:', updatedAppointment);
         setSelectedAppointment(updatedAppointment);
         setActiveTab("medical-record");
       }
 
       // Show success message (you can add toast here)
-      console.log("Appointment status updated successfully");
+      console.log("Appointment status updated successfully, status:", status);
     } catch (err: any) {
       setError(err.message || "Lỗi khi cập nhật trạng thái lịch khám");
       // Chỉ khi có lỗi mới reload để đảm bảo data đúng

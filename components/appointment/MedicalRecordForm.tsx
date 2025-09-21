@@ -137,18 +137,29 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
   // Pre-fill form with appointment data
   useEffect(() => {
     if (appointmentData) {
-      console.log('Auto-filling form with appointment data:', appointmentData);
+      console.log('🎯 useEffect triggered - Auto-filling form with appointment data:', appointmentData);
+
+      // Reset payment completed state when new appointment is loaded
+      setPaymentCompleted(false);
+      console.log('💸 Payment completed state reset to false');
+
+      // Clear any error or success messages
+      setError(null);
+      setSuccess(null);
 
       // Check if we have patientId to get detailed patient information
       if (appointmentData.patientId) {
+        console.log('👤 Loading patient detail for ID:', appointmentData.patientId);
         loadPatientDetail(appointmentData.patientId);
       } else {
         // Use appointment data directly if no patientId
+        console.log('📝 Using appointment data directly (no patientId)');
         fillFormWithAppointmentData(appointmentData);
       }
 
       // Load linked patients if we have a phone number
       if (appointmentData.phone) {
+        console.log('🔗 Loading linked patients for phone:', appointmentData.phone);
         loadLinkedPatients(appointmentData.phone);
       }
     }
@@ -263,6 +274,8 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
 
   // Function to fill form with appointment data only
   const fillFormWithAppointmentData = (appointmentData: Appointment) => {
+    console.log('🔄 fillFormWithAppointmentData called with:', appointmentData);
+
     // Determine examination type and service/doctor from appointment data
     let examinationType = '';
     let serviceDoctor = '';
@@ -707,7 +720,10 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
 
   const handleClearForm = () => {
     // Simple confirmation
-    if (window.confirm('Bạn có chắc chắn muốn xóa tất cả thông tin đã nhập không?')) {
+    if (window.confirm('Bạn có chắc chắn muốn làm mới tất cả thông tin không?')) {
+      // Reset payment completed state
+      setPaymentCompleted(false);
+
       setFormData({
         fullName: '',
         phoneNumber: '',
@@ -737,6 +753,24 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
 
       // Clear doctors and reset to initial state
       setDoctors([]);
+
+      // If we have appointment data, re-fill the form
+      if (appointmentData) {
+        console.log('Re-filling form with appointment data after refresh:', appointmentData);
+
+        // Check if we have patientId to get detailed patient information
+        if (appointmentData.patientId) {
+          loadPatientDetail(appointmentData.patientId);
+        } else {
+          // Use appointment data directly if no patientId
+          fillFormWithAppointmentData(appointmentData);
+        }
+
+        // Load linked patients if we have a phone number
+        if (appointmentData.phone) {
+          loadLinkedPatients(appointmentData.phone);
+        }
+      }
     }
   };
 
@@ -1376,7 +1410,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
                   className="d-flex align-items-center"
                 >
                   <IconTrash size={16} className="me-2" />
-                  Xóa thông tin
+                  Làm mới
                 </Button>
                 <Button
                   variant="outline-secondary"
@@ -1395,8 +1429,8 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
                   <strong>Đã thanh toán thành công! Phiếu khám đã được tạo.</strong>
                 </div>
 
-                {/* Only show Print Invoice button */}
-                <div className="d-flex justify-content-center">
+                {/* Show Print Invoice and Refresh buttons */}
+                <div className="d-flex justify-content-center gap-2">
                   <Button
                     type="button"
                     variant="primary"
@@ -1405,6 +1439,16 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
                   >
                     <i className="bi bi-printer me-2"></i>
                     In hóa đơn
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline-warning"
+                    onClick={handleClearForm}
+                    className="d-flex align-items-center"
+                  >
+                    <IconTrash size={16} className="me-2" />
+                    Làm mới
                   </Button>
                 </div>
               </div>
