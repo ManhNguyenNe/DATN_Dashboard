@@ -16,6 +16,25 @@ export interface SimpleApiResponse<T = any> {
   message: string;
 }
 
+// Interface cho payment request
+export interface PaymentLinkRequest {
+  medicalRecordId: number | null;
+  healthPlanIds?: number[];
+  doctorId: number | null;
+}
+
+// Interface cho payment response
+export interface PaymentLinkResponse {
+  invoiceId: number;
+  qrCode: string;
+}
+
+// Interface cho payment status response
+export interface PaymentStatusResponse {
+  data: boolean;
+  message: string;
+}
+
 // Tạo axios instance với cấu hình mặc định
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -60,5 +79,30 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// Payment service functions
+export const paymentService = {
+  // Tạo payment link với QR code
+  createPaymentLink: async (request: PaymentLinkRequest): Promise<ApiResponse<PaymentLinkResponse>> => {
+    try {
+      const response = await apiClient.post<ApiResponse<PaymentLinkResponse>>('/api/payments/create-link', request);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error creating payment link:', error);
+      throw error;
+    }
+  },
+
+  // Kiểm tra trạng thái thanh toán
+  checkPaymentStatus: async (invoiceId: number): Promise<PaymentStatusResponse> => {
+    try {
+      const response = await apiClient.get<PaymentStatusResponse>(`/api/payments/status/${invoiceId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error checking payment status:', error);
+      throw error;
+    }
+  }
+};
 
 export default apiClient;

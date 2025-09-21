@@ -1,6 +1,12 @@
 // API Client
-export { default as apiClient } from './api';
-export { type ApiResponse, type SimpleApiResponse } from './api';
+export { default as apiClient, paymentService } from './api';
+export {
+  type ApiResponse,
+  type SimpleApiResponse,
+  type PaymentLinkRequest,
+  type PaymentLinkResponse,
+  type PaymentStatusResponse
+} from './api';
 
 // Patient Service
 export { default as patientService } from './patientService';

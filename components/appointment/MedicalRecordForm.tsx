@@ -4,6 +4,8 @@
 import { useState, useEffect } from "react";
 import { Row, Col, Form, Button, Card, Alert } from "react-bootstrap";
 import { IconUser, IconPhone, IconMail, IconCalendar, IconMapPin, IconId, IconStethoscope, IconTrash } from "@tabler/icons-react";
+// Import Bootstrap Icons CSS for payment icons
+import "bootstrap-icons/font/bootstrap-icons.css";
 
 //import services
 import {
@@ -12,6 +14,7 @@ import {
   healthPlanService,
   patientService,
   medicalRecordService,
+  paymentService,
   type Department,
   type Doctor,
   type HealthPlan,
@@ -20,11 +23,14 @@ import {
   type PatientSearchResult,
   type PatientDetail,
   type SimpleMedicalRecordCreateData,
-  type SimpleApiResponse
+  type SimpleApiResponse,
+  type PaymentLinkRequest,
+  type PaymentLinkResponse
 } from "../../services";
 
 //import components
-import ServiceCostDisplay from "./ServiceCostDisplay";// Extended interface để handle response structure thực tế
+import ServiceCostDisplay from "./ServiceCostDisplay";
+import QRPaymentModal from "../payment/QRPaymentModal";// Extended interface để handle response structure thực tế
 interface DoctorResponse extends Doctor {
   fullName?: string;
   position?: string;
@@ -48,6 +54,7 @@ interface MedicalRecordFormData {
   symptoms: string; // Triệu chứng
   selectedPatientId?: number; // ID of selected linked patient
   examinationFee: number; // Chi phí khám bệnh
+  paymentMethod: string; // 'bank_transfer' | 'cash'
 }
 
 interface MedicalRecordFormProps {
@@ -74,7 +81,8 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
     serviceDoctor: '',
     symptoms: '',
     selectedPatientId: undefined,
-    examinationFee: 0
+    examinationFee: 0,
+    paymentMethod: 'cash' // Default to cash payment
   });
 
   // Data state
@@ -88,6 +96,15 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showLinkedPatients, setShowLinkedPatients] = useState<boolean>(false);
+  const [paymentCompleted, setPaymentCompleted] = useState<boolean>(false); // Track payment completion
+
+  // Payment modal state
+  const [showPaymentModal, setShowPaymentModal] = useState<boolean>(false);
+  const [paymentData, setPaymentData] = useState<{
+    invoiceId: number;
+    qrCode: string;
+  } | null>(null);
+
 
   // Load initial data
   useEffect(() => {
@@ -607,6 +624,87 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
     }));
   };
 
+  const handlePaymentMethodChange = (value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      paymentMethod: value
+    }));
+  };
+
+  const handleCreateQRCode = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Prepare payment request data
+      const paymentRequest = {
+        medicalRecordId: null, // Chưa có medical record, set null
+        healthPlanIds: formData.examinationType === 'package' ? [parseInt(formData.serviceDoctor)] : [],
+        doctorId: formData.examinationType !== 'package' ? parseInt(formData.serviceDoctor) : null
+      };
+
+      console.log('Creating payment link with data:', paymentRequest);
+
+      // Call API to create payment link
+      const response = await paymentService.createPaymentLink(paymentRequest);
+
+      if (response && response.data) {
+        console.log('Payment link created successfully:', response.data);
+
+        // Show QR payment modal
+        setPaymentData({
+          invoiceId: response.data.invoiceId,
+          qrCode: response.data.qrCode
+        });
+        setShowPaymentModal(true);
+      } else {
+        throw new Error(response?.message || 'Không thể tạo liên kết thanh toán');
+      }
+
+    } catch (err: any) {
+      console.error('Error creating payment link:', err);
+      const errorMessage = err.response?.data?.message || err.message || 'Lỗi khi tạo mã QR thanh toán';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirmPayment = async () => {
+    // TODO: Implement cash payment confirmation
+    alert('Xác nhận thanh toán tiền mặt (Chức năng này sẽ được triển khai sau)');
+  };
+
+  // Payment modal handlers
+  const handlePaymentSuccess = () => {
+    setSuccess("Thanh toán thành công! Phiếu khám đã được tạo.");
+    // Chỉ hiển thị thông báo thành công dưới QR, không làm gì khác
+    // Modal vẫn mở, user có thể xem QR và thông báo thành công
+  };
+
+  const handlePaymentError = (errorMessage: string) => {
+    setError(`Lỗi thanh toán: ${errorMessage}`);
+    setShowPaymentModal(false);
+    setPaymentData(null);
+  };
+
+  const handlePaymentModalClose = () => {
+    setShowPaymentModal(false);
+    setPaymentData(null);
+
+    // Nếu có success message, nghĩa là thanh toán thành công
+    if (success) {
+      setPaymentCompleted(true); // Set payment completed state
+      // KHÔNG gọi onSuccess để không chuyển tab
+      // KHÔNG reset form để giữ nguyên thông tin
+    }
+  };
+
+  const handlePrintInvoice = () => {
+    // TODO: Implement print invoice functionality
+    alert('Chức năng in hóa đơn sẽ được triển khai sau');
+  };
+
   const handleClearForm = () => {
     // Simple confirmation
     if (window.confirm('Bạn có chắc chắn muốn xóa tất cả thông tin đã nhập không?')) {
@@ -625,7 +723,8 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
         serviceDoctor: '',
         symptoms: '',
         selectedPatientId: undefined,
-        examinationFee: 0
+        examinationFee: 0,
+        paymentMethod: 'cash'
       });
 
       // Clear any error or success messages
@@ -653,6 +752,12 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
 
     if (missingFields.length > 0) {
       setError("Vui lòng điền đầy đủ thông tin bắt buộc");
+      return;
+    }
+
+    // Check payment method validation when there's an examination fee
+    if (formData.examinationFee > 0 && !formData.paymentMethod) {
+      setError("Vui lòng chọn phương thức thanh toán");
       return;
     }
 
@@ -703,7 +808,8 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
             serviceDoctor: '',
             symptoms: '',
             selectedPatientId: undefined,
-            examinationFee: 0
+            examinationFee: 0,
+            paymentMethod: 'cash'
           });
           setSuccess(null);
           onSuccess?.();
@@ -862,362 +968,463 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
   };
 
   return (
-    <Card>
-      <Card.Header className="d-flex align-items-center">
-        <IconStethoscope size={20} className="me-2" />
-        <h5 className="mb-0">Phiếu khám bệnh</h5>
-      </Card.Header>
-      <Card.Body>
-        {error && (
-          <Alert variant="danger" dismissible onClose={() => setError(null)}>
-            <strong>Lỗi:</strong> {error}
-          </Alert>
-        )}
+    <>
+      <Card>
+        <Card.Header className="d-flex align-items-center">
+          <IconStethoscope size={20} className="me-2" />
+          <h5 className="mb-0">Phiếu khám bệnh</h5>
+        </Card.Header>
+        <Card.Body>
+          {error && (
+            <Alert variant="danger" dismissible onClose={() => setError(null)}>
+              <strong>Lỗi:</strong> {error}
+            </Alert>
+          )}
 
-        {success && (
-          <Alert variant="success" dismissible onClose={() => setSuccess(null)}>
-            <strong>Thành công:</strong> {success}
-          </Alert>
-        )}
+          {success && (
+            <Alert variant="success" dismissible onClose={() => setSuccess(null)}>
+              <strong>Thành công:</strong> {success}
+            </Alert>
+          )}
 
-        <Form onSubmit={handleSubmit}>
-          {/* Personal Information */}
-          <div className="mb-4">
-            <h6 className="text-muted mb-3 d-flex align-items-center">
-              <IconUser size={18} className="me-2" />
-              Thông tin cá nhân
-            </h6>
+          <Form onSubmit={handleSubmit}>
+            {/* Personal Information */}
+            <div className="mb-4">
+              <h6 className="text-muted mb-3 d-flex align-items-center">
+                <IconUser size={18} className="me-2" />
+                Thông tin cá nhân
+              </h6>
 
-            {/* Linked Patient Selection */}
-            {showLinkedPatients && (
+              {/* Linked Patient Selection */}
+              {showLinkedPatients && (
+                <Row className="mb-3">
+                  <Col md={12}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Chọn bệnh nhân liên kết</Form.Label>
+                      <Form.Select
+                        value={formData.selectedPatientId?.toString() || ''}
+                        onChange={(e) => handleLinkedPatientSelect(e.target.value)}
+                      >
+                        <option value="">Chọn bệnh nhân (hoặc để trống để nhập thủ công)</option>
+                        {linkedPatients.map((patient) => (
+                          <option key={patient.id} value={patient.id.toString()}>
+                            {patient.fullName} - {patient.relationship}
+                            {patient.birth && ` (${new Date(patient.birth).toLocaleDateString('vi-VN')})`}
+                          </option>
+                        ))}
+                      </Form.Select>
+                      <Form.Text className="text-muted">
+                        Danh sách bệnh nhân liên kết với số điện thoại này
+                      </Form.Text>
+                    </Form.Group>
+                  </Col>
+                </Row>
+              )}
+
               <Row className="mb-3">
-                <Col md={12}>
+                <Col md={6}>
                   <Form.Group className="mb-3">
-                    <Form.Label>Chọn bệnh nhân liên kết</Form.Label>
-                    <Form.Select
-                      value={formData.selectedPatientId?.toString() || ''}
-                      onChange={(e) => handleLinkedPatientSelect(e.target.value)}
-                    >
-                      <option value="">Chọn bệnh nhân (hoặc để trống để nhập thủ công)</option>
-                      {linkedPatients.map((patient) => (
-                        <option key={patient.id} value={patient.id.toString()}>
-                          {patient.fullName} - {patient.relationship}
-                          {patient.birth && ` (${new Date(patient.birth).toLocaleDateString('vi-VN')})`}
-                        </option>
-                      ))}
-                    </Form.Select>
-                    <Form.Text className="text-muted">
-                      Danh sách bệnh nhân liên kết với số điện thoại này
-                    </Form.Text>
+                    <Form.Label>Họ và tên *</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={formData.fullName}
+                      onChange={(e) => handleInputChange('fullName', e.target.value)}
+                      placeholder="Nhập họ và tên"
+                      required
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Số điện thoại *</Form.Label>
+                    <div className="input-group">
+                      <span className="input-group-text">
+                        <IconPhone size={16} />
+                      </span>
+                      <Form.Control
+                        type="tel"
+                        value={formData.phoneNumber}
+                        onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
+                        placeholder="Nhập số điện thoại"
+                        required
+                      />
+                    </div>
                   </Form.Group>
                 </Col>
               </Row>
-            )}
 
-            <Row className="mb-3">
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Họ và tên *</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={formData.fullName}
-                    onChange={(e) => handleInputChange('fullName', e.target.value)}
-                    placeholder="Nhập họ và tên"
-                    required
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Số điện thoại *</Form.Label>
-                  <div className="input-group">
-                    <span className="input-group-text">
-                      <IconPhone size={16} />
-                    </span>
-                    <Form.Control
-                      type="tel"
-                      value={formData.phoneNumber}
-                      onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
-                      placeholder="Nhập số điện thoại"
+              <Row className="mb-3">
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Email</Form.Label>
+                    <div className="input-group">
+                      <span className="input-group-text">
+                        <IconMail size={16} />
+                      </span>
+                      <Form.Control
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => handleInputChange('email', e.target.value)}
+                        placeholder="Nhập địa chỉ email"
+                      />
+                    </div>
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Ngày sinh *</Form.Label>
+                    <div className="input-group">
+                      <span className="input-group-text">
+                        <IconCalendar size={16} />
+                      </span>
+                      <Form.Control
+                        type="date"
+                        value={formData.dateOfBirth}
+                        onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
+                        max={new Date().toISOString().split('T')[0]}
+                        required
+                      />
+                    </div>
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              <Row className="mb-3">
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Giới tính *</Form.Label>
+                    <Form.Select
+                      value={formData.gender}
+                      onChange={(e) => handleInputChange('gender', e.target.value)}
                       required
-                    />
-                  </div>
-                </Form.Group>
-              </Col>
-            </Row>
-
-            <Row className="mb-3">
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Email</Form.Label>
-                  <div className="input-group">
-                    <span className="input-group-text">
-                      <IconMail size={16} />
-                    </span>
-                    <Form.Control
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => handleInputChange('email', e.target.value)}
-                      placeholder="Nhập địa chỉ email"
-                    />
-                  </div>
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Ngày sinh *</Form.Label>
-                  <div className="input-group">
-                    <span className="input-group-text">
-                      <IconCalendar size={16} />
-                    </span>
-                    <Form.Control
-                      type="date"
-                      value={formData.dateOfBirth}
-                      onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
-                      max={new Date().toISOString().split('T')[0]}
-                      required
-                    />
-                  </div>
-                </Form.Group>
-              </Col>
-            </Row>
-
-            <Row className="mb-3">
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Giới tính *</Form.Label>
-                  <Form.Select
-                    value={formData.gender}
-                    onChange={(e) => handleInputChange('gender', e.target.value)}
-                    required
-                  >
-                    {genderOptions.map(option => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Căn cước công dân *</Form.Label>
-                  <div className="input-group">
-                    <span className="input-group-text">
-                      <IconId size={16} />
-                    </span>
-                    <Form.Control
-                      type="text"
-                      value={formData.citizenId}
-                      onChange={(e) => handleInputChange('citizenId', e.target.value)}
-                      placeholder="Nhập số căn cước công dân"
-                      required
-                    />
-                  </div>
-                </Form.Group>
-              </Col>
-            </Row>
-
-            <Form.Group className="mb-3">
-              <Form.Label>Địa chỉ</Form.Label>
-              <div className="input-group">
-                <span className="input-group-text">
-                  <IconMapPin size={16} />
-                </span>
-                <Form.Control
-                  as="textarea"
-                  rows={2}
-                  value={formData.address}
-                  onChange={(e) => handleInputChange('address', e.target.value)}
-                  placeholder="Nhập địa chỉ đầy đủ"
-                />
-              </div>
-            </Form.Group>
-
-            {/* Additional medical info */}
-            <Row className="mb-3">
-              <Col md={4}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Nhóm máu</Form.Label>
-                  <Form.Select
-                    value={formData.bloodType}
-                    onChange={(e) => handleInputChange('bloodType', e.target.value)}
-                  >
-                    <option value="">Chọn nhóm máu</option>
-                    <option value="A">A</option>
-                    <option value="B">B</option>
-                    <option value="AB">AB</option>
-                    <option value="O">O</option>
-                    <option value="A+">A+</option>
-                    <option value="A-">A-</option>
-                    <option value="B+">B+</option>
-                    <option value="B-">B-</option>
-                    <option value="AB+">AB+</option>
-                    <option value="AB-">AB-</option>
-                    <option value="O+">O+</option>
-                    <option value="O-">O-</option>
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-              <Col md={4}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Cân nặng (kg)</Form.Label>
-                  <Form.Control
-                    type="number"
-                    min="0"
-                    max="300"
-                    step="0.1"
-                    value={formData.weight}
-                    onChange={(e) => handleInputChange('weight', e.target.value)}
-                    placeholder="Nhập cân nặng"
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={4}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Chiều cao (cm)</Form.Label>
-                  <Form.Control
-                    type="number"
-                    min="0"
-                    max="250"
-                    step="0.1"
-                    value={formData.height}
-                    onChange={(e) => handleInputChange('height', e.target.value)}
-                    placeholder="Nhập chiều cao"
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-          </div>
-
-          {/* Medical Information */}
-          <div className="mb-4">
-            <h6 className="text-muted mb-3 d-flex align-items-center">
-              <IconStethoscope size={18} className="me-2" />
-              Thông tin khám bệnh
-            </h6>
-
-            <Row className="mb-3">
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Loại khám *</Form.Label>
-                  <Form.Select
-                    value={formData.examinationType}
-                    onChange={(e) => handleExaminationTypeChange(e.target.value)}
-                    required
-                  >
-                    <option value="">Chọn loại khám</option>
-
-                    {/* Gói khám */}
-                    <optgroup label="Gói khám">
-                      <option value="package">Gói khám</option>
-                    </optgroup>
-
-                    {/* Chuyên khoa */}
-                    <optgroup label="Chuyên khoa">
-                      {departments.map(dept => (
-                        <option key={`dept-${dept.id}`} value={`department-${dept.id}`}>
-                          {dept.name}
-                        </option>
-                      ))}
-                    </optgroup>
-
-                    {/* Bác sĩ */}
-                    <optgroup label="Bác sĩ">
-                      <option value="doctor">Tất cả bác sĩ</option>
-                    </optgroup>
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Dịch vụ/Bác sĩ</Form.Label>
-                  <Form.Select
-                    value={formData.serviceDoctor}
-                    onChange={(e) => handleServiceDoctorChange(e.target.value)}
-                    disabled={!formData.examinationType || loading}
-                  >
-                    {loading && (formData.examinationType === 'doctor' || formData.examinationType.startsWith('department-')) ? (
-                      <option value="">Đang tải danh sách bác sĩ...</option>
-                    ) : (
-                      getServiceDoctorOptions().map(option => (
+                    >
+                      {genderOptions.map(option => (
                         <option key={option.value} value={option.value}>
                           {option.label}
                         </option>
-                      ))
-                    )}
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-            </Row>
-
-
-
-            {/* Symptoms field */}
-            <Row className="mb-3">
-              <Col md={12}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Triệu chứng</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={3}
-                    value={formData.symptoms}
-                    onChange={(e) => handleInputChange('symptoms', e.target.value)}
-                    placeholder="Mô tả triệu chứng và lý do khám bệnh..."
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-          </div>
-          {/* Examination Fee Display */}
-          {formData.serviceDoctor && formData.examinationFee > 0 && (() => {
-            const serviceInfo = getCurrentServiceInfo();
-            return serviceInfo ? (
-              <Row className="mb-3">
-                <Col md={12}>
-                  <ServiceCostDisplay service={serviceInfo} />
+                      ))}
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Căn cước công dân *</Form.Label>
+                    <div className="input-group">
+                      <span className="input-group-text">
+                        <IconId size={16} />
+                      </span>
+                      <Form.Control
+                        type="text"
+                        value={formData.citizenId}
+                        onChange={(e) => handleInputChange('citizenId', e.target.value)}
+                        placeholder="Nhập số căn cước công dân"
+                        required
+                      />
+                    </div>
+                  </Form.Group>
                 </Col>
               </Row>
-            ) : null;
-          })()}
-          {/* Action Buttons */}
-          <div className="d-flex gap-2 pt-3 border-top">
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={loading}
-              className="d-flex align-items-center"
-            >
-              {loading ? (
-                <>
-                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                  Đang tạo...
-                </>
-              ) : (
-                'Tạo phiếu khám'
+
+              <Form.Group className="mb-3">
+                <Form.Label>Địa chỉ</Form.Label>
+                <div className="input-group">
+                  <span className="input-group-text">
+                    <IconMapPin size={16} />
+                  </span>
+                  <Form.Control
+                    as="textarea"
+                    rows={2}
+                    value={formData.address}
+                    onChange={(e) => handleInputChange('address', e.target.value)}
+                    placeholder="Nhập địa chỉ đầy đủ"
+                  />
+                </div>
+              </Form.Group>
+
+              {/* Additional medical info */}
+              <Row className="mb-3">
+                <Col md={4}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Nhóm máu</Form.Label>
+                    <Form.Select
+                      value={formData.bloodType}
+                      onChange={(e) => handleInputChange('bloodType', e.target.value)}
+                    >
+                      <option value="">Chọn nhóm máu</option>
+                      <option value="A">A</option>
+                      <option value="B">B</option>
+                      <option value="AB">AB</option>
+                      <option value="O">O</option>
+                      <option value="A+">A+</option>
+                      <option value="A-">A-</option>
+                      <option value="B+">B+</option>
+                      <option value="B-">B-</option>
+                      <option value="AB+">AB+</option>
+                      <option value="AB-">AB-</option>
+                      <option value="O+">O+</option>
+                      <option value="O-">O-</option>
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+                <Col md={4}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Cân nặng (kg)</Form.Label>
+                    <Form.Control
+                      type="number"
+                      min="0"
+                      max="300"
+                      step="0.1"
+                      value={formData.weight}
+                      onChange={(e) => handleInputChange('weight', e.target.value)}
+                      placeholder="Nhập cân nặng"
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={4}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Chiều cao (cm)</Form.Label>
+                    <Form.Control
+                      type="number"
+                      min="0"
+                      max="250"
+                      step="0.1"
+                      value={formData.height}
+                      onChange={(e) => handleInputChange('height', e.target.value)}
+                      placeholder="Nhập chiều cao"
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+            </div>
+
+            {/* Medical Information */}
+            <div className="mb-4">
+              <h6 className="text-muted mb-3 d-flex align-items-center">
+                <IconStethoscope size={18} className="me-2" />
+                Thông tin khám bệnh
+              </h6>
+
+              <Row className="mb-3">
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Loại khám *</Form.Label>
+                    <Form.Select
+                      value={formData.examinationType}
+                      onChange={(e) => handleExaminationTypeChange(e.target.value)}
+                      required
+                    >
+                      <option value="">Chọn loại khám</option>
+
+                      {/* Gói khám */}
+                      <optgroup label="Gói khám">
+                        <option value="package">Gói khám</option>
+                      </optgroup>
+
+                      {/* Chuyên khoa */}
+                      <optgroup label="Chuyên khoa">
+                        {departments.map(dept => (
+                          <option key={`dept-${dept.id}`} value={`department-${dept.id}`}>
+                            {dept.name}
+                          </option>
+                        ))}
+                      </optgroup>
+
+                      {/* Bác sĩ */}
+                      <optgroup label="Bác sĩ">
+                        <option value="doctor">Tất cả bác sĩ</option>
+                      </optgroup>
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Dịch vụ/Bác sĩ</Form.Label>
+                    <Form.Select
+                      value={formData.serviceDoctor}
+                      onChange={(e) => handleServiceDoctorChange(e.target.value)}
+                      disabled={!formData.examinationType || loading}
+                    >
+                      {loading && (formData.examinationType === 'doctor' || formData.examinationType.startsWith('department-')) ? (
+                        <option value="">Đang tải danh sách bác sĩ...</option>
+                      ) : (
+                        getServiceDoctorOptions().map(option => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))
+                      )}
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+              </Row>
+
+
+
+              {/* Symptoms field */}
+              <Row className="mb-3">
+                <Col md={12}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Triệu chứng</Form.Label>
+                    <Form.Control
+                      as="textarea"
+                      rows={3}
+                      value={formData.symptoms}
+                      onChange={(e) => handleInputChange('symptoms', e.target.value)}
+                      placeholder="Mô tả triệu chứng và lý do khám bệnh..."
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              {/* Payment Method Selection */}
+              {formData.serviceDoctor && formData.examinationFee > 0 && (
+                <Row className="mb-3">
+                  <Col md={12}>
+                    <Form.Group className="mb-3">
+                      <Form.Label className="fw-semibold">Phương thức thanh toán *</Form.Label>
+                      <div className="d-flex gap-4 mt-2">
+                        <Form.Check
+                          type="radio"
+                          name="paymentMethod"
+                          id="cash"
+                          label="Tiền mặt"
+                          value="cash"
+                          checked={formData.paymentMethod === 'cash'}
+                          onChange={(e) => handlePaymentMethodChange(e.target.value)}
+                        />
+                        <Form.Check
+                          type="radio"
+                          name="paymentMethod"
+                          id="bank_transfer"
+                          label="Chuyển khoản"
+                          value="bank_transfer"
+                          checked={formData.paymentMethod === 'bank_transfer'}
+                          onChange={(e) => handlePaymentMethodChange(e.target.value)}
+                        />
+                      </div>
+                    </Form.Group>
+                  </Col>
+                </Row>
               )}
-            </Button>
-            <Button
-              type="button"
-              variant="outline-warning"
-              onClick={handleClearForm}
-              disabled={loading}
-              className="d-flex align-items-center"
-            >
-              <IconTrash size={16} className="me-2" />
-              Xóa thông tin
-            </Button>
-            <Button
-              variant="outline-secondary"
-              onClick={onCancel}
-              disabled={loading}
-            >
-              Hủy bỏ
-            </Button>
-          </div>
-        </Form>
-      </Card.Body>
-    </Card>
+            </div>
+            {/* Examination Fee Display */}
+            {formData.serviceDoctor && formData.examinationFee > 0 && (() => {
+              const serviceInfo = getCurrentServiceInfo();
+              return serviceInfo ? (
+                <Row className="mb-3">
+                  <Col md={12}>
+                    <ServiceCostDisplay service={serviceInfo} />
+                  </Col>
+                </Row>
+              ) : null;
+            })()}
+
+            {/* Action Buttons */}
+            {!paymentCompleted ? (
+              // Normal buttons when payment not completed
+              <div className="d-flex gap-2 pt-3 border-top">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={loading}
+                  className="d-flex align-items-center"
+                >
+                  {loading ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      Đang tạo...
+                    </>
+                  ) : (
+                    'Tạo phiếu khám'
+                  )}
+                </Button>
+
+                {/* Payment buttons - only show if service is selected and has fee */}
+                {formData.serviceDoctor && formData.examinationFee > 0 && (
+                  <>
+                    {formData.paymentMethod === 'bank_transfer' ? (
+                      <Button
+                        type="button"
+                        variant="success"
+                        onClick={handleCreateQRCode}
+                        disabled={loading}
+                        className="d-flex align-items-center"
+                      >
+                        <i className="bi bi-qr-code me-2"></i>
+                        Tạo mã QR thanh toán
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="warning"
+                        onClick={handleConfirmPayment}
+                        disabled={loading}
+                        className="d-flex align-items-center"
+                      >
+                        <i className="bi bi-cash-coin me-2"></i>
+                        Xác nhận thanh toán
+                      </Button>
+                    )}
+                  </>
+                )}
+
+                <Button
+                  type="button"
+                  variant="outline-warning"
+                  onClick={handleClearForm}
+                  disabled={loading}
+                  className="d-flex align-items-center"
+                >
+                  <IconTrash size={16} className="me-2" />
+                  Xóa thông tin
+                </Button>
+                <Button
+                  variant="outline-secondary"
+                  onClick={onCancel}
+                  disabled={loading}
+                >
+                  Hủy bỏ
+                </Button>
+              </div>
+            ) : (
+              // Payment completed view
+              <div className="pt-3 border-top">
+                {/* Success message */}
+                <div className="alert alert-success d-flex align-items-center mb-3">
+                  <i className="bi bi-check-circle-fill me-2"></i>
+                  <strong>Đã thanh toán thành công! Phiếu khám đã được tạo.</strong>
+                </div>
+
+                {/* Only show Print Invoice button */}
+                <div className="d-flex justify-content-center">
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={handlePrintInvoice}
+                    className="d-flex align-items-center"
+                  >
+                    <i className="bi bi-printer me-2"></i>
+                    In hóa đơn
+                  </Button>
+                </div>
+              </div>
+            )}
+          </Form>
+        </Card.Body>
+      </Card>
+
+      {/* QR Payment Modal */}
+      {paymentData && (
+        <QRPaymentModal
+          show={showPaymentModal}
+          onHide={handlePaymentModalClose}
+          qrCodeData={paymentData.qrCode}
+          invoiceId={paymentData.invoiceId}
+          onPaymentSuccess={handlePaymentSuccess}
+          onPaymentError={handlePaymentError}
+        />
+      )}
+    </>
   );
 };
 
