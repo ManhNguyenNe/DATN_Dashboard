@@ -155,6 +155,13 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
     setActiveTab("medical-record");
   };
 
+  // Handle fill appointment to medical record
+  const handleFillAppointmentToMedicalRecord = (appointment: Appointment) => {
+    setSelectedAppointment(appointment);
+    setSelectedPatient(null); // Clear any patient data
+    setActiveTab("medical-record");
+  };
+
   return (
     <Row>
       <Col xl={12} lg={12} md={12} sm={12}>
@@ -184,6 +191,7 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
                     updatingAppointments={updatingAppointments}
                     onConfirm={handleConfirmAppointment}
                     onRefresh={() => handleSearch(currentFilters)}
+                    onFillMedicalRecord={handleFillAppointmentToMedicalRecord}
                   />
                 </div>
               </Tab>

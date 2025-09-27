@@ -3,6 +3,7 @@ import apiClient, { ApiResponse, SimpleApiResponse } from './api';
 // Enums cho Medical Record
 export enum MedicalRecordStatus {
   DANG_KHAM = 'DANG_KHAM',
+  CHO_XET_NGHIEM = 'CHO_XET_NGHIEM',
   HOAN_THANH = 'HOAN_THANH',
   HUY = 'HUY'
 }
@@ -50,6 +51,28 @@ export interface SimpleMedicalRecordCreateData {
   doctorId?: number | null;
   healthPlanId?: number | null;
   symptoms: string;
+}
+
+// Interface cho Medical Record List item từ API
+export interface MedicalRecordListItem {
+  id: string;
+  code: string;
+  symptoms: string;
+  clinicalExamination: string | null;
+  diagnosis: string | null;
+  treatmentPlan: string | null;
+  note: string | null;
+  total: number;
+  patientName: string;
+  date: string;
+  status: MedicalRecordStatus | string;
+}
+
+// Interface cho Medical Record Filter
+export interface MedicalRecordFilter {
+  date?: string;
+  keyword?: string;
+  status?: MedicalRecordStatus | string;
 }
 
 /**
@@ -112,6 +135,36 @@ const medicalRecordService = {
       return response.data;
     } catch (error) {
       console.error('Error creating simple medical record:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Lấy danh sách phiếu khám bệnh với filter
+   * @param filters - Bộ lọc để tìm kiếm phiếu khám (date, keyword, status)
+   * @returns Promise với danh sách phiếu khám
+   */
+  getMedicalRecords: async (filters?: MedicalRecordFilter): Promise<ApiResponse<MedicalRecordListItem[]>> => {
+    try {
+      const params = new URLSearchParams();
+
+      if (filters?.date) {
+        params.append('date', filters.date);
+      }
+      if (filters?.keyword) {
+        params.append('keyword', filters.keyword);
+      }
+      if (filters?.status) {
+        params.append('status', filters.status);
+      }
+
+      const queryString = params.toString();
+      const url = queryString ? `/api/medical-record?${queryString}` : '/api/medical-record';
+
+      const response = await apiClient.get<ApiResponse<MedicalRecordListItem[]>>(url);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching medical records:', error);
       throw error;
     }
   }

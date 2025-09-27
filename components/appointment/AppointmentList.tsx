@@ -3,7 +3,7 @@
 //import node module libraries
 import { useState } from "react";
 import { Table, Badge, Button, Card, Alert } from "react-bootstrap";
-import { IconCheck, IconX, IconRefresh, IconChevronDown, IconChevronUp, IconPhone } from "@tabler/icons-react";
+import { IconCheck, IconX, IconRefresh, IconChevronDown, IconChevronUp, IconPhone, IconFileText } from "@tabler/icons-react";
 
 //import services  
 import { type Appointment, AppointmentStatus } from "../../services";
@@ -14,6 +14,7 @@ interface AppointmentListProps {
   updatingAppointments?: Set<number>;
   onConfirm: (appointmentId: number, status: AppointmentStatus) => void;
   onRefresh?: () => void;
+  onFillMedicalRecord?: (appointment: Appointment) => void;
 }
 
 const AppointmentList: React.FC<AppointmentListProps> = ({
@@ -21,7 +22,8 @@ const AppointmentList: React.FC<AppointmentListProps> = ({
   loading = false,
   updatingAppointments = new Set(),
   onConfirm,
-  onRefresh
+  onRefresh,
+  onFillMedicalRecord
 }) => {
   const [showAll, setShowAll] = useState<boolean>(false);
   const INITIAL_DISPLAY_COUNT = 5;
@@ -241,7 +243,21 @@ const AppointmentList: React.FC<AppointmentListProps> = ({
                         </>
                       )}
 
-                    {/* Trạng thái ĐÃ ĐẾN: Không hiển thị nút nào */}
+                    {/* Trạng thái ĐÃ ĐẾN: Hiển thị nút điền phiếu khám */}
+                    {((appointment.status as string) === AppointmentStatus.DA_DEN ||
+                      (appointment.status as string) === 'DA_DEN') && onFillMedicalRecord && (
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          onClick={() => onFillMedicalRecord(appointment)}
+                          title="Điền vào phiếu khám"
+                          className="d-flex align-items-center"
+                        >
+                          <IconFileText size={14} className="me-1" />
+                          <span className="d-none d-md-inline"></span>
+                        </Button>
+                      )}
+
                     {/* Trạng thái KHÔNG ĐẾN: Không hiển thị nút nào */}
                   </div>
                 </td>

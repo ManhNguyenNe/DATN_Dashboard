@@ -57,5 +57,7 @@ export {
   type MedicalRecord,
   type MedicalRecordCreateData,
   type MedicalRecordUpdateData,
-  type SimpleMedicalRecordCreateData
+  type SimpleMedicalRecordCreateData,
+  type MedicalRecordListItem,
+  type MedicalRecordFilter
 } from './medicalRecordService';

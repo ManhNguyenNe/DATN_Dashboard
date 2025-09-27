@@ -6,6 +6,7 @@ import {
   IconNews,
   IconFile,
   IconLock,
+  IconStethoscope,
 } from "@tabler/icons-react";
 
 //import custom type
@@ -23,6 +24,12 @@ export const DashboardMenu: MenuItemType[] = [
     title: "Đặt lịch",
     link: "/dat-lich",
     icon: <IconShoppingBag size={20} strokeWidth={1.5} />,
+  },
+  {
+    id: uuid(),
+    title: "Phiếu khám",
+    link: "/phieu-kham",
+    icon: <IconStethoscope size={20} strokeWidth={1.5} />,
   },
   {
     id: uuid(),
