@@ -51,6 +51,7 @@ export interface SimpleMedicalRecordCreateData {
   doctorId?: number | null;
   healthPlanId?: number | null;
   symptoms: string;
+  invoiceId?: number;
 }
 
 // Interface cho Medical Record List item từ API
@@ -131,10 +132,19 @@ const medicalRecordService = {
    */
   createSimpleMedicalRecord: async (medicalRequest: SimpleMedicalRecordCreateData): Promise<SimpleApiResponse<MedicalRecord>> => {
     try {
+      console.log('Creating medical record with data:', medicalRequest);
       const response = await apiClient.post<SimpleApiResponse<MedicalRecord>>('/api/medical-record', medicalRequest);
+      console.log('Medical record service response:', response.data);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating simple medical record:', error);
+
+      // Log chi tiết error để debug
+      if (error.response) {
+        console.error('Response data:', error.response.data);
+        console.error('Response status:', error.response.status);
+      }
+
       throw error;
     }
   },

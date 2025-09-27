@@ -104,7 +104,6 @@ const MedicalRecordList: React.FC<MedicalRecordListProps> = ({
                             <th>Bệnh nhân</th>
                             <th>Ngày khám</th>
                             <th>Triệu chứng</th>
-                            <th>Tổng tiền</th>
                             <th>Trạng thái</th>
                         </tr>
                     </thead>
@@ -135,11 +134,6 @@ const MedicalRecordList: React.FC<MedicalRecordListProps> = ({
                                             : 'Không có'
                                         }
                                     </small>
-                                </td>
-                                <td>
-                                    <div className="fw-semibold text-success">
-                                        {formatCurrency(record.total)}
-                                    </div>
                                 </td>
                                 <td>{getStatusBadge(record.status)}</td>
                             </tr>

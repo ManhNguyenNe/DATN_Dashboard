@@ -691,8 +691,9 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
   // Payment modal handlers
   const handlePaymentSuccess = () => {
     setSuccess("Thanh toán thành công! Phiếu khám đã được tạo.");
-    // Chỉ hiển thị thông báo thành công dưới QR, không làm gì khác
-    // Modal vẫn mở, user có thể xem QR và thông báo thành công
+    setPaymentCompleted(true); // Set payment completed state
+    // Chỉ hiển thị thông báo thành công, không làm gì khác
+    // Modal vẫn mở để user có thể xem thông báo thành công
   };
 
   const handlePaymentError = (errorMessage: string) => {
@@ -705,12 +706,8 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
     setShowPaymentModal(false);
     setPaymentData(null);
 
-    // Nếu có success message, nghĩa là thanh toán thành công
-    if (success) {
-      setPaymentCompleted(true); // Set payment completed state
-      // KHÔNG gọi onSuccess để không chuyển tab
-      // KHÔNG reset form để giữ nguyên thông tin
-    }
+    // Nếu đã thanh toán thành công (payment completed), không làm gì thêm
+    // UI sẽ hiển thị trạng thái "Đã thanh toán thành công"
   };
 
   const handlePrintInvoice = () => {
@@ -1466,6 +1463,12 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
           invoiceId={paymentData.invoiceId}
           onPaymentSuccess={handlePaymentSuccess}
           onPaymentError={handlePaymentError}
+          medicalRecordData={{
+            patientId: formData.selectedPatientId || 0,
+            doctorId: formData.examinationType !== 'package' ? parseInt(formData.serviceDoctor) : undefined,
+            healthPlanId: formData.examinationType === 'package' ? parseInt(formData.serviceDoctor) : undefined,
+            symptoms: formData.symptoms
+          }}
         />
       )}
     </>

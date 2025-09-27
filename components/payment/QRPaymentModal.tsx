@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Modal, Button, Alert, Spinner } from "react-bootstrap";
 import { paymentService, PaymentStatusResponse } from "../../services/api";
+import { medicalRecordService, type SimpleMedicalRecordCreateData } from "../../services";
 
 interface QRPaymentModalProps {
     show: boolean;
@@ -11,6 +12,13 @@ interface QRPaymentModalProps {
     invoiceId: number;
     onPaymentSuccess: () => void;
     onPaymentError: (error: string) => void;
+    // Thêm dữ liệu cần thiết để tạo phiếu khám
+    medicalRecordData?: {
+        patientId: number;
+        doctorId?: number | undefined;
+        healthPlanId?: number | undefined;
+        symptoms: string;
+    };
 }
 
 const QRPaymentModal: React.FC<QRPaymentModalProps> = ({
@@ -19,7 +27,8 @@ const QRPaymentModal: React.FC<QRPaymentModalProps> = ({
     qrCodeData,
     invoiceId,
     onPaymentSuccess,
-    onPaymentError
+    onPaymentError,
+    medicalRecordData
 }) => {
     const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
     const [paymentStatus, setPaymentStatus] = useState<'checking' | 'success' | 'failed' | 'waiting'>('waiting');
@@ -137,6 +146,55 @@ const QRPaymentModal: React.FC<QRPaymentModalProps> = ({
         checkPaymentStatus();
     };
 
+    const createMedicalRecord = async () => {
+        try {
+            if (!medicalRecordData) {
+                throw new Error("Không có dữ liệu phiếu khám");
+            }
+
+            setStatusMessage("Đang tạo phiếu khám...");
+
+            const medicalRecordRequest: SimpleMedicalRecordCreateData = {
+                patientId: medicalRecordData.patientId,
+                doctorId: medicalRecordData.doctorId || null,
+                healthPlanId: medicalRecordData.healthPlanId || null,
+                symptoms: medicalRecordData.symptoms,
+                invoiceId: invoiceId
+            };
+
+            const response = await medicalRecordService.createSimpleMedicalRecord(medicalRecordRequest);
+
+            console.log('Medical record API response:', response);
+
+            // Kiểm tra response - API có thể trả về message "successfully" khi thành công
+            if (response && (response.data || response.message?.toLowerCase().includes('success'))) {
+                console.log('Medical record created successfully');
+                setStatusMessage("Thanh toán và tạo phiếu khám thành công!");
+                // Gọi callback success để update parent component
+                onPaymentSuccess();
+            } else {
+                console.log('Medical record creation failed:', response);
+                throw new Error(response?.message || "Không thể tạo phiếu khám");
+            }
+        } catch (error: any) {
+            console.error('Error creating medical record:', error);
+
+            // Kiểm tra xem có phải là lỗi thực sự không
+            const errorMessage = error.response?.data?.message || error.message || "Lỗi khi tạo phiếu khám";
+
+            // Nếu message có chứa "success" thì có thể đây không phải là lỗi thực sự
+            if (errorMessage.toLowerCase().includes('success')) {
+                console.log('API returned success message in error block, treating as success');
+                setStatusMessage("Thanh toán và tạo phiếu khám thành công!");
+                onPaymentSuccess();
+            } else {
+                setPaymentStatus('failed');
+                setStatusMessage(`Thanh toán thành công nhưng lỗi tạo phiếu khám: ${errorMessage}`);
+                onPaymentError(errorMessage);
+            }
+        }
+    };
+
     const checkPaymentStatus = async () => {
         // Prevent duplicate calls và calls sau khi đã completed
         if (isCheckingRef.current || isCompletedRef.current) {
@@ -156,13 +214,18 @@ const QRPaymentModal: React.FC<QRPaymentModalProps> = ({
                 isCompletedRef.current = true; // Set completed flag NGAY LẬP TỨC
 
                 setPaymentStatus('success');
-                setStatusMessage("Thanh toán thành công! Phiếu khám đã được tạo.");
+                setStatusMessage("Thanh toán thành công! Đang tạo phiếu khám...");
 
                 // Dừng polling NGAY LẬP TỨC
                 cleanup();
 
-                // Gọi callback success để update parent component nhưng không đóng modal
-                onPaymentSuccess();
+                // Tạo phiếu khám nếu có dữ liệu
+                if (medicalRecordData) {
+                    await createMedicalRecord();
+                } else {
+                    // Gọi callback success để update parent component
+                    onPaymentSuccess();
+                }
             } else {
                 // Vẫn chưa thanh toán, tiếp tục chờ
                 console.log('Payment still pending, continuing to poll...');

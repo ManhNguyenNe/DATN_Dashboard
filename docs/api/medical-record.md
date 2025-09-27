@@ -22,3 +22,14 @@
     "message": "Get all medical record successfully"
 }
 - **NOTE** chỉ hiển thị thông tin date, status, code, patientName
+
+## POST - Tạo phiếu khám
+**api** /api/medical-record
+**request**
+{
+  "patientId": 5,
+  "doctorId": 10,
+  "healthPlanId": null,
+  "symptoms": "viêm họng, đau đầu",
+  "invoiceId": 20
+}

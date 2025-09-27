@@ -57,6 +57,7 @@ const MedicalRecordManagement: React.FC = () => {
     return (
         <Row>
             <Col xl={12} lg={12} md={12} sm={12}>
+                <h1 className="mb-1 h2 fw-bold">Quản lý phiếu khám</h1>
                 <div className="pt-4">
                     {error && (
                         <Alert variant="danger" dismissible onClose={() => setError(null)}>
