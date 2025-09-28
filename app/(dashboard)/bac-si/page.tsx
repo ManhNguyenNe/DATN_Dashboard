@@ -1,6 +1,7 @@
 "use client";
 import { Card, Col, Row } from "react-bootstrap";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { CalendarCheck, Clock, PersonCheck, BarChart } from "react-bootstrap-icons";
 import { useAuth } from "../../../contexts/AuthContext";
 import appointmentService, { Appointment } from "../../../services/appointmentService";
@@ -23,6 +24,7 @@ const DoctorDashboard = () => {
     });
     const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([]);
     const [loading, setLoading] = useState(true);
+    const router = useRouter();
 
     useEffect(() => {
         fetchDoctorData();
@@ -211,7 +213,7 @@ const DoctorDashboard = () => {
                                                     {appointment.status === 'DA_XAC_NHAN' && (
                                                         <button
                                                             className="btn btn-sm btn-primary"
-                                                            onClick={() => window.location.href = `/bac-si/kham-benh?id=${appointment.id}`}
+                                                            onClick={() => router.push(`/bac-si/kham-benh/${appointment.id}`)}
                                                         >
                                                             Bắt đầu khám
                                                         </button>
@@ -219,7 +221,7 @@ const DoctorDashboard = () => {
                                                     {appointment.status === 'DA_DEN' && (
                                                         <button
                                                             className="btn btn-sm btn-outline-primary"
-                                                            onClick={() => window.location.href = `/dat-lich?id=${appointment.id}`}
+                                                            onClick={() => router.push(`/dat-lich?id=${appointment.id}`)}
                                                         >
                                                             Xem chi tiết
                                                         </button>

@@ -1,6 +1,7 @@
 "use client";
 import { Card, Col, Row, Form, Button, InputGroup, Table, Badge, Modal, Alert } from "react-bootstrap";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { PersonFill, Search, Eye, Plus, Telephone, PencilSquare, Trash } from "react-bootstrap-icons";
 import { useAuth } from "../../../../contexts/AuthContext";
 import appointmentService, { Appointment } from "../../../../services/appointmentService";
@@ -21,6 +22,7 @@ interface PatientInfo {
 
 const ReceptionistPatientsPage = () => {
     const { user } = useAuth();
+    const router = useRouter();
     const [patients, setPatients] = useState<PatientInfo[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -142,7 +144,7 @@ const ReceptionistPatientsPage = () => {
             address: patient.address || ''
         });
 
-        window.location.href = `/le-tan/dat-lich?${queryParams.toString()}`;
+        router.push(`/le-tan/dat-lich?${queryParams.toString()}`);
     };
 
     if (loading) return <Loading />;
@@ -153,7 +155,7 @@ const ReceptionistPatientsPage = () => {
                 <h2>Quản lý bệnh nhân</h2>
                 <Button
                     variant="primary"
-                    onClick={() => window.location.href = '/le-tan/dat-lich'}
+                    onClick={() => router.push('/le-tan/dat-lich')}
                 >
                     <Plus className="me-1" size={16} />
                     Thêm lịch hẹn mới
@@ -372,7 +374,7 @@ const ReceptionistPatientsPage = () => {
                                                         <Button
                                                             size="sm"
                                                             variant="outline-primary"
-                                                            onClick={() => window.location.href = `/le-tan/phieu-kham/${appointment.id}`}
+                                                            onClick={() => router.push(`/le-tan/phieu-kham/${appointment.id}`)}
                                                         >
                                                             Xem chi tiết
                                                         </Button>

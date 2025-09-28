@@ -2,12 +2,13 @@
 
 //import node module libraries
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Row, Col, Alert } from "react-bootstrap";
 
 //import custom components
-import MedicalRecordList from "./MedicalRecordList";
 import MedicalRecordSearch from "./MedicalRecordSearch";
 import MedicalRecordDetail from "./MedicalRecordDetail";
+import DoctorMedicalRecordList from "./DoctorMedicalRecordList";
 
 //import services
 import {
@@ -16,11 +17,8 @@ import {
     type MedicalRecordFilter
 } from "../../services";
 
-interface MedicalRecordManagementProps {
-    userRole?: 'BAC_SI' | 'LE_TAN';
-}
-
-const MedicalRecordManagement: React.FC<MedicalRecordManagementProps> = ({ userRole = 'LE_TAN' }) => {
+const DoctorMedicalRecordManagement: React.FC = () => {
+    const router = useRouter();
     const [medicalRecords, setMedicalRecords] = useState<MedicalRecordListItem[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
@@ -54,34 +52,38 @@ const MedicalRecordManagement: React.FC<MedicalRecordManagementProps> = ({ userR
 
             setMedicalRecords(recordsData);
             setCurrentFilters(filters);
-        } catch (err: any) {
-            console.error('Error fetching medical records:', err);
-            setError(err.message || "Lỗi khi tải danh sách phiếu khám");
+        } catch (err) {
+            console.error('Error loading medical records:', err);
+            setError('Có lỗi xảy ra khi tải danh sách phiếu khám. Vui lòng thử lại.');
             setMedicalRecords([]);
         } finally {
             setLoading(false);
         }
     };
 
-    // Handle view detail
+    // Handle viewing record detail
     const handleViewDetail = (medicalRecordId: string) => {
         setSelectedRecordId(medicalRecordId);
         setViewMode('detail');
+    };
+
+    // Handle starting examination
+    const handleStartExamination = (medicalRecordId: string) => {
+        // Redirect to examination page
+        router.push(`/bac-si/kham-benh/${medicalRecordId}`);
     };
 
     // Handle back to list
     const handleBackToList = () => {
         setViewMode('list');
         setSelectedRecordId(null);
-        // Refresh list to get updated data
-        handleSearch(currentFilters);
     };
 
     return (
         <Row>
-            <Col xl={12} lg={12} md={12} sm={12}>
-                <h1 className="mb-1 h2 fw-bold">
-                    {viewMode === 'list' ? 'Quản lý phiếu khám' : 'Chi tiết phiếu khám'}
+            <Col>
+                <h1>
+                    {viewMode === 'list' ? 'Danh sách phiếu khám' : 'Chi tiết phiếu khám'}
                 </h1>
                 <div className="pt-4">
                     {error && (
@@ -97,12 +99,12 @@ const MedicalRecordManagement: React.FC<MedicalRecordManagementProps> = ({ userR
                                 loading={loading}
                             />
 
-                            <MedicalRecordList
+                            <DoctorMedicalRecordList
                                 medicalRecords={medicalRecords}
                                 loading={loading}
                                 onRefresh={() => handleSearch(currentFilters)}
                                 onViewDetail={handleViewDetail}
-                                userRole={userRole}
+                                onStartExamination={handleStartExamination}
                             />
                         </>
                     ) : (
@@ -119,4 +121,4 @@ const MedicalRecordManagement: React.FC<MedicalRecordManagementProps> = ({ userR
     );
 };
 
-export default MedicalRecordManagement;
+export default DoctorMedicalRecordManagement;

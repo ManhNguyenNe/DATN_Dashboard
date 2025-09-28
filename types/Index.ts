@@ -128,3 +128,6 @@ export type JustifyContentType =
   | "xxl-between"
   | "xxl-around"
   | "xxl-evenly";
+
+// Export MedicalServiceType
+export * from './MedicalServiceType';

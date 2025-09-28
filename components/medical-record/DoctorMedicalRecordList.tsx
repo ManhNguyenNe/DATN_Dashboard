@@ -4,27 +4,25 @@
 import { useState } from "react";
 import { Table, Badge, Button, Card, Alert } from "react-bootstrap";
 import { IconRefresh, IconChevronDown, IconChevronUp } from "@tabler/icons-react";
-import { useRouter } from "next/navigation";
 
 //import services  
 import { type MedicalRecordListItem, MedicalRecordStatus } from "../../services";
 
-interface MedicalRecordListProps {
+interface DoctorMedicalRecordListProps {
     medicalRecords: MedicalRecordListItem[];
     loading?: boolean;
     onRefresh?: () => void;
     onViewDetail?: (medicalRecordId: string) => void;
-    userRole?: 'BAC_SI' | 'LE_TAN' | 'ADMIN';
+    onStartExamination?: (medicalRecordId: string) => void;
 }
 
-const MedicalRecordList: React.FC<MedicalRecordListProps> = ({
+const DoctorMedicalRecordList: React.FC<DoctorMedicalRecordListProps> = ({
     medicalRecords,
     loading = false,
     onRefresh,
     onViewDetail,
-    userRole
+    onStartExamination
 }) => {
-    const router = useRouter();
     const [showAll, setShowAll] = useState<boolean>(false);
     const INITIAL_DISPLAY_COUNT = 10;
 
@@ -51,39 +49,54 @@ const MedicalRecordList: React.FC<MedicalRecordListProps> = ({
             case 'HUY':
                 return <Badge bg="danger">Hủy</Badge>;
             default:
-                return <Badge bg="secondary">Không xác định ({statusStr})</Badge>;
+                return <Badge bg="secondary">Chờ khám</Badge>;
         }
     };
 
-    const formatDateTime = (dateString: string) => {
+    const formatDateTime = (dateStr: string): string => {
         try {
-            const date = new Date(dateString);
-            if (isNaN(date.getTime())) {
-                return dateString;
-            }
-            return date.toLocaleDateString('vi-VN') + ' - ' + date.toLocaleTimeString('vi-VN', {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('vi-VN', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
                 hour: '2-digit',
                 minute: '2-digit'
             });
-        } catch (error) {
-            return dateString;
+        } catch {
+            return dateStr;
         }
     };
 
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('vi-VN', {
-            style: 'currency',
-            currency: 'VND'
-        }).format(amount);
+    const canStartExamination = (status: MedicalRecordStatus | string | undefined) => {
+        const statusStr = status as string;
+        return statusStr === MedicalRecordStatus.DANG_KHAM || statusStr === 'CHO_KHAM' || !statusStr;
     };
 
-    if (medicalRecords.length === 0) {
+    const isCompleted = (status: MedicalRecordStatus | string | undefined) => {
+        const statusStr = status as string;
+        return statusStr === MedicalRecordStatus.HOAN_THANH;
+    };
+
+    if (loading) {
         return (
             <Card>
-                <Card.Body className="text-center py-5">
-                    <Alert variant="info">
-                        <h5>Chưa có phiếu khám nào</h5>
-                        <p className="mb-0">Tìm kiếm theo ngày, mã phiếu khám hoặc tên bệnh nhân để xem danh sách phiếu khám.</p>
+                <Card.Body className="text-center py-4">
+                    <div className="d-flex justify-content-center align-items-center">
+                        <div className="spinner-border spinner-border-sm me-2" role="status"></div>
+                        <span>Đang tải danh sách phiếu khám...</span>
+                    </div>
+                </Card.Body>
+            </Card>
+        );
+    }
+
+    if (!medicalRecords || medicalRecords.length === 0) {
+        return (
+            <Card>
+                <Card.Body className="text-center py-4">
+                    <Alert variant="info" className="mb-0">
+                        Không tìm thấy phiếu khám nào. Hãy thử điều chỉnh bộ lọc tìm kiếm.
                     </Alert>
                 </Card.Body>
             </Card>
@@ -96,68 +109,65 @@ const MedicalRecordList: React.FC<MedicalRecordListProps> = ({
                 <h5 className="mb-0">
                     Danh sách phiếu khám ({medicalRecords.length})
                 </h5>
-                {onRefresh && (
-                    <Button variant="outline-primary" size="sm" onClick={onRefresh}>
-                        <IconRefresh size={16} />
-                    </Button>
-                )}
+                <Button variant="outline-primary" size="sm" onClick={onRefresh}>
+                    <IconRefresh size={16} className="me-1" />
+                    Tải lại
+                </Button>
             </Card.Header>
             <Card.Body className="p-0">
-                <Table responsive className="mb-0">
-                    <thead className="table-light">
+                <Table responsive striped className="mb-0">
+                    <thead>
                         <tr>
-                            <th>Mã phiếu khám</th>
+                            <th>Mã phiếu</th>
                             <th>Bệnh nhân</th>
-                            <th>Ngày khám</th>
-                            <th>Triệu chứng</th>
+                            <th>Ngày tạo</th>
+                            <th>Bác sĩ</th>
                             <th>Trạng thái</th>
                             <th>Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {displayedMedicalRecords.map((record) => (
-                            <tr key={record.id}>
+                        {displayedMedicalRecords.map((record, index) => (
+                            <tr key={record.id || index}>
+                                <td className="fw-semibold text-primary">{record.id}</td>
                                 <td>
-                                    <div className="fw-semibold text-primary">
-                                        {record.code}
+                                    <div>
+                                        <div className="fw-semibold">{record.patientName}</div>
+                                        <small className="text-muted">Mã: {record.code}</small>
                                     </div>
                                 </td>
+                                <td>{formatDateTime(record.date)}</td>
                                 <td>
-                                    <div className="fw-semibold">
-                                        {record.patientName || 'Chưa xác định'}
-                                    </div>
-                                </td>
-                                <td>
-                                    <small>
-                                        {formatDateTime(record.date)}
-                                    </small>
-                                </td>
-                                <td>
-                                    <small className="text-muted">
-                                        {record.symptoms
-                                            ? (record.symptoms.length > 50
-                                                ? `${record.symptoms.substring(0, 50)}...`
-                                                : record.symptoms)
-                                            : 'Không có'
-                                        }
-                                    </small>
+                                    <span className="text-muted">
+                                        Bác sĩ khám
+                                    </span>
                                 </td>
                                 <td>{getStatusBadge(record.status)}</td>
                                 <td>
                                     <div className="d-flex gap-2">
-                                        {userRole === 'BAC_SI' ? (
-                                            // Bác sĩ: chỉ có nút khám bệnh
+                                        {canStartExamination(record.status) && (
                                             <Button
-                                                variant={record.status === 'HOAN_THANH' ? 'success' : 'primary'}
+                                                variant="primary"
                                                 size="sm"
-                                                onClick={() => router.push(`/bac-si/kham-benh/${record.id}`)}
+                                                onClick={() => onStartExamination?.(record.id)}
                                                 className="d-flex align-items-center"
                                             >
-                                                <i className={`bi ${record.status === 'HOAN_THANH' ? 'bi-check-circle' : 'bi-stethoscope'} me-1`}></i>
-                                                {record.status === 'HOAN_THANH' ? 'Xem kết quả' : 'Bắt đầu khám'}
+                                                <i className="bi bi-stethoscope me-1"></i>
+                                                Bắt đầu khám
                                             </Button>
-                                        ) : (
-                                            // Lễ tân: nút xem chi tiết
+                                        )}
+                                        {isCompleted(record.status) && (
+                                            <Button
+                                                variant="outline-success"
+                                                size="sm"
+                                                onClick={() => onViewDetail?.(record.id)}
+                                                className="d-flex align-items-center"
+                                            >
+                                                <i className="bi bi-eye me-1"></i>
+                                                Xem kết quả
+                                            </Button>
+                                        )}
+                                        {!canStartExamination(record.status) && !isCompleted(record.status) && (
                                             <Button
                                                 variant="outline-primary"
                                                 size="sm"
@@ -179,7 +189,7 @@ const MedicalRecordList: React.FC<MedicalRecordListProps> = ({
                 {hasMoreRecords && (
                     <div className="text-center py-3 border-top">
                         <Button
-                            variant="outline-primary"
+                            variant="outline-secondary"
                             size="sm"
                             onClick={() => setShowAll(!showAll)}
                             className="d-flex align-items-center mx-auto"
@@ -187,12 +197,12 @@ const MedicalRecordList: React.FC<MedicalRecordListProps> = ({
                             {showAll ? (
                                 <>
                                     <IconChevronUp size={16} className="me-1" />
-                                    Thu gọn ({medicalRecords.length - INITIAL_DISPLAY_COUNT} bản ghi)
+                                    Ẩn bớt
                                 </>
                             ) : (
                                 <>
                                     <IconChevronDown size={16} className="me-1" />
-                                    Xem thêm {medicalRecords.length - INITIAL_DISPLAY_COUNT} bản ghi
+                                    Xem thêm ({medicalRecords.length - INITIAL_DISPLAY_COUNT} phiếu khám)
                                 </>
                             )}
                         </Button>
@@ -203,4 +213,4 @@ const MedicalRecordList: React.FC<MedicalRecordListProps> = ({
     );
 };
 
-export default MedicalRecordList;
+export default DoctorMedicalRecordList;

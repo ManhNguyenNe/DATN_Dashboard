@@ -74,3 +74,7 @@ export {
   type MedicalRecordDetail,
   type MedicalRecordService
 } from './medicalRecordService';
+
+// Medical Service Service
+export { default as medicalServiceService } from './medicalServiceService';
+export type { MedicalServiceFilter } from './medicalServiceService';

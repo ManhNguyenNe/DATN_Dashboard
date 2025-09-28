@@ -1,6 +1,7 @@
 "use client";
 import { Card, Col, Row, Button, Badge, Form } from "react-bootstrap";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Calendar, Clock, PersonFill, ChevronLeft, ChevronRight } from "react-bootstrap-icons";
 import { useAuth } from "../../../../contexts/AuthContext";
 import appointmentService, { Appointment } from "../../../../services/appointmentService";
@@ -12,6 +13,7 @@ interface WeeklySchedule {
 
 const DoctorSchedulePage = () => {
     const { user } = useAuth();
+    const router = useRouter();
     const [schedule, setSchedule] = useState<WeeklySchedule>({});
     const [loading, setLoading] = useState(true);
     const [currentWeek, setCurrentWeek] = useState(new Date());
@@ -265,7 +267,7 @@ const DoctorSchedulePage = () => {
                                                             size="sm"
                                                             variant="outline-primary"
                                                             className="w-100"
-                                                            onClick={() => window.location.href = `/bac-si/kham-benh?id=${appointment.id}`}
+                                                            onClick={() => router.push(`/bac-si/kham-benh/${appointment.id}`)}
                                                         >
                                                             Bắt đầu khám
                                                         </Button>
@@ -275,7 +277,7 @@ const DoctorSchedulePage = () => {
                                                             size="sm"
                                                             variant="outline-success"
                                                             className="w-100"
-                                                            onClick={() => window.location.href = `/dat-lich?id=${appointment.id}`}
+                                                            onClick={() => router.push(`/dat-lich?id=${appointment.id}`)}
                                                         >
                                                             Xem chi tiết
                                                         </Button>

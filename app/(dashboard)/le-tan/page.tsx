@@ -1,6 +1,7 @@
 "use client";
 import { Card, Col, Row } from "react-bootstrap";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { CalendarCheck, Clock, PersonFill, TelephoneFill } from "react-bootstrap-icons";
 import { useAuth } from "../../../contexts/AuthContext";
 import appointmentService, { Appointment } from "../../../services/appointmentService";
@@ -15,6 +16,7 @@ interface ReceptionistStats {
 
 const ReceptionistDashboard = () => {
     const { user } = useAuth();
+    const router = useRouter();
     const [stats, setStats] = useState<ReceptionistStats>({
         todayAppointments: 0,
         pendingConfirmation: 0,
@@ -167,7 +169,7 @@ const ReceptionistDashboard = () => {
             <Row className="mb-4">
                 <Col md={3}>
                     <Card className="h-100 border-0 shadow-sm cursor-pointer"
-                        onClick={() => window.location.href = '/le-tan/dat-lich'}>
+                        onClick={() => router.push('/le-tan/dat-lich')}>
                         <Card.Body className="text-center">
                             <CalendarCheck size={32} className="text-primary mb-3" />
                             <h6>Đặt lịch hẹn</h6>
@@ -177,7 +179,7 @@ const ReceptionistDashboard = () => {
                 </Col>
                 <Col md={3}>
                     <Card className="h-100 border-0 shadow-sm cursor-pointer"
-                        onClick={() => window.location.href = '/le-tan/phieu-kham'}>
+                        onClick={() => router.push('/le-tan/phieu-kham')}>
                         <Card.Body className="text-center">
                             <Clock size={32} className="text-warning mb-3" />
                             <h6>Quản lý phiếu khám</h6>
@@ -265,14 +267,14 @@ const ReceptionistDashboard = () => {
                                                     {appointment.status === 'CHO_XAC_NHAN' && (
                                                         <button
                                                             className="btn btn-sm btn-success"
-                                                            onClick={() => window.location.href = `/le-tan/dat-lich?confirm=${appointment.id}`}
+                                                            onClick={() => router.push(`/le-tan/dat-lich?confirm=${appointment.id}`)}
                                                         >
                                                             Xác nhận
                                                         </button>
                                                     )}
                                                     <button
                                                         className="btn btn-sm btn-outline-primary"
-                                                        onClick={() => window.location.href = `/le-tan/phieu-kham/${appointment.id}`}
+                                                        onClick={() => router.push(`/le-tan/phieu-kham/${appointment.id}`)}
                                                     >
                                                         Xem chi tiết
                                                     </button>
