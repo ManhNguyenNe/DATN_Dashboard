@@ -33,3 +33,46 @@
   "symptoms": "viêm họng, đau đầu",
   "invoiceId": 20
 }
+
+## GET - Chi tiết phiếu khám
+**api** /api/medical-record/{id}
+**response** 
+{
+    "data": {
+        "id": "26",
+        "code": "PK1758977705",
+        "symptoms": "viêm họng, đau đầu",
+        "clinicalExamination": null,
+        "diagnosis": null,
+        "treatmentPlan": null,
+        "note": null,
+        "total": 6000.00,
+        "patientName": "Nguyen Van A",
+        "date": "2025-09-27T19:55:06",
+        "status": "DANG_KHAM",
+        "services": [
+            {
+                "serviceName": "Khám bệnh",
+                "doctorName": "BS. HOANG VAN G",
+                "price": 6000.00,
+                "room": "Phòng khám Tim mạch - 108A",
+                "status": "CHUA_THANH_TOAN"
+            },
+            {
+                "serviceName": "Xét nghiệm máu cơ bản",
+                "doctorName": "BS. HOANG VAN G",
+                "price": 2000.00,
+                "room": "Phòng xét nghiệm  - 204A",
+                "status": "DA_THANH_TOAN"
+            },
+            {
+                "serviceName": "X-quang phổi",
+                "doctorName": "BS. NGO THI H",
+                "price": 3000.00,
+                "room": "Phòng khám Nội tổng quát - 101A",
+                "status": "DA_THANH_TOAN"
+            }
+        ]
+    },
+    "message": "Get medical record by id successfully"
+}

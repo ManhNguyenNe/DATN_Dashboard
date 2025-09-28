@@ -7,6 +7,7 @@ import { Row, Col, Alert } from "react-bootstrap";
 //import custom components
 import MedicalRecordList from "./MedicalRecordList";
 import MedicalRecordSearch from "./MedicalRecordSearch";
+import MedicalRecordDetail from "./MedicalRecordDetail";
 
 //import services
 import {
@@ -20,6 +21,10 @@ const MedicalRecordManagement: React.FC = () => {
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [currentFilters, setCurrentFilters] = useState<MedicalRecordFilter>({});
+
+    // State for detail view
+    const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
+    const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
 
     // Load medical records with filters
     const handleSearch = async (filters: MedicalRecordFilter) => {
@@ -54,10 +59,26 @@ const MedicalRecordManagement: React.FC = () => {
         }
     };
 
+    // Handle view detail
+    const handleViewDetail = (medicalRecordId: string) => {
+        setSelectedRecordId(medicalRecordId);
+        setViewMode('detail');
+    };
+
+    // Handle back to list
+    const handleBackToList = () => {
+        setViewMode('list');
+        setSelectedRecordId(null);
+        // Refresh list to get updated data
+        handleSearch(currentFilters);
+    };
+
     return (
         <Row>
             <Col xl={12} lg={12} md={12} sm={12}>
-                <h1 className="mb-1 h2 fw-bold">Quản lý phiếu khám</h1>
+                <h1 className="mb-1 h2 fw-bold">
+                    {viewMode === 'list' ? 'Quản lý phiếu khám' : 'Chi tiết phiếu khám'}
+                </h1>
                 <div className="pt-4">
                     {error && (
                         <Alert variant="danger" dismissible onClose={() => setError(null)}>
@@ -65,16 +86,28 @@ const MedicalRecordManagement: React.FC = () => {
                         </Alert>
                     )}
 
-                    <MedicalRecordSearch
-                        onSearch={handleSearch}
-                        loading={loading}
-                    />
+                    {viewMode === 'list' ? (
+                        <>
+                            <MedicalRecordSearch
+                                onSearch={handleSearch}
+                                loading={loading}
+                            />
 
-                    <MedicalRecordList
-                        medicalRecords={medicalRecords}
-                        loading={loading}
-                        onRefresh={() => handleSearch(currentFilters)}
-                    />
+                            <MedicalRecordList
+                                medicalRecords={medicalRecords}
+                                loading={loading}
+                                onRefresh={() => handleSearch(currentFilters)}
+                                onViewDetail={handleViewDetail}
+                            />
+                        </>
+                    ) : (
+                        selectedRecordId && (
+                            <MedicalRecordDetail
+                                medicalRecordId={selectedRecordId}
+                                onBack={handleBackToList}
+                            />
+                        )
+                    )}
                 </div>
             </Col>
         </Row>

@@ -12,12 +12,14 @@ interface MedicalRecordListProps {
     medicalRecords: MedicalRecordListItem[];
     loading?: boolean;
     onRefresh?: () => void;
+    onViewDetail?: (medicalRecordId: string) => void;
 }
 
 const MedicalRecordList: React.FC<MedicalRecordListProps> = ({
     medicalRecords,
     loading = false,
-    onRefresh
+    onRefresh,
+    onViewDetail
 }) => {
     const [showAll, setShowAll] = useState<boolean>(false);
     const INITIAL_DISPLAY_COUNT = 10;
@@ -105,6 +107,7 @@ const MedicalRecordList: React.FC<MedicalRecordListProps> = ({
                             <th>Ngày khám</th>
                             <th>Triệu chứng</th>
                             <th>Trạng thái</th>
+                            <th>Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -136,6 +139,17 @@ const MedicalRecordList: React.FC<MedicalRecordListProps> = ({
                                     </small>
                                 </td>
                                 <td>{getStatusBadge(record.status)}</td>
+                                <td>
+                                    <Button
+                                        variant="outline-primary"
+                                        size="sm"
+                                        onClick={() => onViewDetail?.(record.id)}
+                                        className="d-flex align-items-center"
+                                    >
+                                        <i className="bi bi-eye me-1"></i>
+                                        Xem chi tiết
+                                    </Button>
+                                </td>
                             </tr>
                         ))}
                     </tbody>

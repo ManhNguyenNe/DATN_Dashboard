@@ -76,6 +76,31 @@ export interface MedicalRecordFilter {
   status?: MedicalRecordStatus | string;
 }
 
+// Interface cho Service trong Medical Record Detail
+export interface MedicalRecordService {
+  serviceName: string;
+  doctorName: string;
+  price: number;
+  room: string;
+  status: 'DA_THANH_TOAN' | 'CHUA_THANH_TOAN';
+}
+
+// Interface cho Medical Record Detail
+export interface MedicalRecordDetail {
+  id: string;
+  code: string;
+  symptoms: string;
+  clinicalExamination: string | null;
+  diagnosis: string | null;
+  treatmentPlan: string | null;
+  note: string | null;
+  total: number;
+  patientName: string;
+  date: string;
+  status: MedicalRecordStatus | string;
+  services: MedicalRecordService[];
+}
+
 /**
  * Service để quản lý các API liên quan đến Medical Records (Phiếu khám bệnh)
  */
@@ -175,6 +200,21 @@ const medicalRecordService = {
       return response.data;
     } catch (error) {
       console.error('Error fetching medical records:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Lấy chi tiết phiếu khám bệnh theo ID
+   * @param id - ID phiếu khám bệnh
+   * @returns Promise với chi tiết phiếu khám
+   */
+  getMedicalRecordDetail: async (id: string): Promise<ApiResponse<MedicalRecordDetail>> => {
+    try {
+      const response = await apiClient.get<ApiResponse<MedicalRecordDetail>>(`/api/medical-record/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching medical record detail:', error);
       throw error;
     }
   }
