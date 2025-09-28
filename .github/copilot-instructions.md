@@ -8,6 +8,8 @@
 - **Cấu trúc thư mục:** Tuân thủ cấu trúc thư mục đã được định sẵn
 - **Tài liệu API:**
   - Toàn bộ tài liệu về các endpoint của API nằm trong thư mục `/docs/api`.
+  - Toàn bộ tài liệu về  luồng quy trình nằm trong thư mục `/docs/explain`
+  - Toàn bộ api khi gọi đều phải gán kèm theo jwt token trong header
   - Luôn tham khảo tài liệu này để biết các tham số yêu cầu, body và cấu trúc phản hồi.
 ---
 

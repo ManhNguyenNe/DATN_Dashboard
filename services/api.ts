@@ -47,8 +47,8 @@ const apiClient: AxiosInstance = axios.create({
 // Interceptor để xử lý request
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // Có thể thêm token vào header ở đây nếu cần
-    const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
+    // Thêm token vào header cho mọi request
+    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -69,6 +69,17 @@ apiClient.interceptors.response.use(
     if (error.response) {
       // Server trả về lỗi
       console.error('API Error:', error.response.data);
+
+      // Xử lý lỗi 401 (Unauthorized) - token hết hạn hoặc không hợp lệ
+      if (error.response.status === 401) {
+        // Xóa token và chuyển hướng đến trang đăng nhập
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('user');
+          // Chuyển hướng đến trang đăng nhập
+          window.location.href = '/sign-in';
+        }
+      }
     } else if (error.request) {
       // Request được gửi nhưng không nhận được response
       console.error('Network Error:', error.request);

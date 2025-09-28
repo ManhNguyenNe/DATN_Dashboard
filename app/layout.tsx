@@ -4,6 +4,7 @@ import { Public_Sans } from "next/font/google";
 
 //import custom components
 import ClientWrapper from "components/common/ClientWrapper";
+import { AuthProvider } from "contexts/AuthContext";
 
 // Import Swiper styles
 import "swiper/css";
@@ -32,7 +33,11 @@ export default function RootLayout({
   return (
     <ClientWrapper>
       <html lang="en" className="expanded">
-        <body className={`${publicSans.variable}`}>{children}</body>
+        <body className={`${publicSans.variable}`}>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </body>
       </html>
     </ClientWrapper>
   );

@@ -1,19 +1,19 @@
+"use client";
+
 //import node module libraries
 import { Fragment } from "react";
-import { Metadata } from "next";
 
 //import custom components
 import AppointmentPageWrapper from "../../../components/appointment/AppointmentPageWrapper";
-
-export const metadata: Metadata = {
-  title: "Đặt lịch khám | Dasher - Responsive Bootstrap 5 Admin Dashboard",
-  description: "Quản lý lịch khám bệnh - Dasher Admin Dashboard",
-};
+import ProtectedRoute from "../../../components/common/ProtectedRoute";
+import { UserRole } from "../../../services";
 
 const DatLich = () => {
   return (
     <Fragment>
-      <AppointmentPageWrapper />
+      <ProtectedRoute requiredRoles={[UserRole.LE_TAN]}>
+        <AppointmentPageWrapper />
+      </ProtectedRoute>
     </Fragment>
   );
 };

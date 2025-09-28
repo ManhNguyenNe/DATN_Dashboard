@@ -1,15 +1,15 @@
+"use client";
+
 //import node modules libraries
 import React from "react";
-import { Dropdown, Image } from "react-bootstrap";
+import { Dropdown, Image, Badge } from "react-bootstrap";
 import Link from "next/link";
-import { IconLogin2 } from "@tabler/icons-react";
-
-//import routes files
-import { UserMenuItem } from "routes/HeaderRoute";
+import { IconLogin2, IconUser, IconSettings } from "@tabler/icons-react";
 
 //import custom components
 import { Avatar } from "components/common/Avatar";
 import { getAssetPath } from "helper/assetPath";
+import { useAuth } from "contexts/AuthContext";
 
 interface UserToggleProps {
   children?: React.ReactNode;
@@ -24,6 +24,38 @@ const CustomToggle = React.forwardRef<HTMLAnchorElement, UserToggleProps>(
 );
 
 const UserMenu = () => {
+  const { user, logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+  };
+
+  const getRoleDisplayName = (role: string) => {
+    switch (role) {
+      case 'BAC_SI':
+        return 'Bác sĩ';
+      case 'LE_TAN':
+        return 'Lễ tân';
+      case 'ADMIN':
+        return 'Quản trị viên';
+      default:
+        return role;
+    }
+  };
+
+  const getRoleBadgeVariant = (role: string) => {
+    switch (role) {
+      case 'BAC_SI':
+        return 'primary';
+      case 'LE_TAN':
+        return 'info';
+      case 'ADMIN':
+        return 'danger';
+      default:
+        return 'secondary';
+    }
+  };
+
   return (
     <Dropdown>
       <Dropdown.Toggle as={CustomToggle}>
@@ -42,32 +74,34 @@ const UserMenu = () => {
             alt=""
             className="avatar avatar-md rounded-circle"
           />
-          <div>
-            <h4 className="mb-0 fs-5">Jitu Chauhan</h4>
-            <p className="mb-0 text-secondar small">@imjituchauhan</p>
+          <div className="flex-grow-1">
+            <h4 className="mb-1 fs-5">{user?.name || user?.email || 'Người dùng'}</h4>
+            <p className="mb-1 text-muted small">{user?.email}</p>
+            {user?.role && (
+              <Badge bg={getRoleBadgeVariant(user.role)} className="small">
+                {getRoleDisplayName(user.role)}
+              </Badge>
+            )}
           </div>
         </div>
         <div className="p-3 d-flex flex-column gap-1">
-          {UserMenuItem.map((item) => (
-            <Dropdown.Item
-              key={item.id}
-              className="d-flex align-items-center gap-2"
-            >
-              <span>{item.icon}</span>
-              <span>{item.title}</span>
-            </Dropdown.Item>
-          ))}
+          <Dropdown.Item className="d-flex align-items-center gap-2">
+            <IconUser size={16} />
+            <span>Thông tin cá nhân</span>
+          </Dropdown.Item>
+          <Dropdown.Item className="d-flex align-items-center gap-2">
+            <IconSettings size={16} />
+            <span>Cài đặt</span>
+          </Dropdown.Item>
         </div>
-        <div className="border-dashed border-top mb-4 pt-4 px-6">
-          <Link
-            href=""
-            className="text-secondary d-flex align-items-center gap-2"
+        <div className="border-dashed border-top pt-3 px-4 pb-4">
+          <button
+            onClick={handleLogout}
+            className="btn btn-link text-danger d-flex align-items-center gap-2 p-0 border-0 bg-transparent"
           >
-            <span>
-              <IconLogin2 size={20} strokeWidth={1.5} />
-            </span>
-            <span>Logout</span>
-          </Link>
+            <IconLogin2 size={16} />
+            <span>Đăng xuất</span>
+          </button>
         </div>
       </Dropdown.Menu>
     </Dropdown>

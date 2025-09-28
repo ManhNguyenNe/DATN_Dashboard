@@ -7,29 +7,114 @@ import {
   IconFile,
   IconLock,
   IconStethoscope,
+  IconCalendar,
+  IconUsers,
+  IconClipboardCheck,
+  IconUserCheck,
+  IconReportMedical,
 } from "@tabler/icons-react";
 
 //import custom type
 import { MenuItemType } from "types/menuTypes";
+import { UserRole } from "../services";
 
-export const DashboardMenu: MenuItemType[] = [
+// Menu dành cho Lễ tân
+export const LeTanMenu: MenuItemType[] = [
   {
     id: uuid(),
-    title: "Project",
+    title: "Tổng quan",
     link: "/",
     icon: <IconFiles size={20} strokeWidth={1.5} />,
   },
   {
     id: uuid(),
-    title: "Đặt lịch",
+    title: "Đặt lịch khám",
     link: "/dat-lich",
-    icon: <IconShoppingBag size={20} strokeWidth={1.5} />,
+    icon: <IconCalendar size={20} strokeWidth={1.5} />,
   },
   {
     id: uuid(),
     title: "Phiếu khám",
     link: "/phieu-kham",
     icon: <IconStethoscope size={20} strokeWidth={1.5} />,
+  },
+  {
+    id: uuid(),
+    title: "Quản lý bệnh nhân",
+    link: "/benh-nhan",
+    icon: <IconUsers size={20} strokeWidth={1.5} />,
+  }
+];
+
+// Menu dành cho Bác sĩ
+export const BacSiMenu: MenuItemType[] = [
+  {
+    id: uuid(),
+    title: "Dashboard",
+    link: "/bac-si",
+    icon: <IconFiles size={20} strokeWidth={1.5} />,
+  },
+  {
+    id: uuid(),
+    title: "Lịch làm việc",
+    link: "/bac-si/lich-lam-viec",
+    icon: <IconCalendar size={20} strokeWidth={1.5} />,
+  },
+  {
+    id: uuid(),
+    title: "Khám bệnh",
+    link: "/bac-si/kham-benh",
+    icon: <IconClipboardCheck size={20} strokeWidth={1.5} />,
+  },
+  {
+    id: uuid(),
+    title: "Bệnh nhân của tôi",
+    link: "/bac-si/benh-nhan-cua-toi",
+    icon: <IconUserCheck size={20} strokeWidth={1.5} />,
+  },
+  {
+    id: uuid(),
+    title: "Báo cáo khám",
+    link: "/bac-si/bao-cao",
+    icon: <IconReportMedical size={20} strokeWidth={1.5} />,
+  }
+];
+
+// Menu dành cho Admin
+export const AdminMenu: MenuItemType[] = [
+  {
+    id: uuid(),
+    title: "Dashboard",
+    link: "/",
+    icon: <IconFiles size={20} strokeWidth={1.5} />,
+  },
+  {
+    id: uuid(),
+    title: "Quản lý người dùng",
+    grouptitle: true,
+  },
+  {
+    id: uuid(),
+    title: "Đặt lịch khám",
+    link: "/dat-lich",
+    icon: <IconCalendar size={20} strokeWidth={1.5} />,
+  },
+  {
+    id: uuid(),
+    title: "Phiếu khám",
+    link: "/phieu-kham",
+    icon: <IconStethoscope size={20} strokeWidth={1.5} />,
+  },
+  {
+    id: uuid(),
+    title: "Quản lý bệnh nhân",
+    link: "/benh-nhan",
+    icon: <IconUsers size={20} strokeWidth={1.5} />,
+  },
+  {
+    id: uuid(),
+    title: "Báo cáo & Thống kê",
+    grouptitle: true,
   },
   {
     id: uuid(),
@@ -42,26 +127,22 @@ export const DashboardMenu: MenuItemType[] = [
     title: "Blog",
     link: "/blog",
     icon: <IconNews size={20} strokeWidth={1.5} />,
-  },
-  {
-    id: uuid(),
-    title: "Auth",
-    link: "/sign-in",
-    icon: <IconLock size={20} strokeWidth={1.5} />,
-  },
-
-  {
-    id: uuid(),
-    title: "Pages",
-    grouptitle: true,
-  },
-  {
-    id: uuid(),
-    title: "Pages",
-    icon: <IconFile size={20} strokeWidth={1.5} />,
-    children: [
-      { id: uuid(), name: "Maintenance", link: "maintenance" },
-      { id: uuid(), name: "404 Error", link: "not-found" },
-    ],
-  },
+  }
 ];
+
+// Function để lấy menu theo role
+export const getMenuByRole = (role: UserRole): MenuItemType[] => {
+  switch (role) {
+    case UserRole.BAC_SI:
+      return BacSiMenu;
+    case UserRole.LE_TAN:
+      return LeTanMenu;
+    case UserRole.ADMIN:
+      return AdminMenu;
+    default:
+      return LeTanMenu; // Default fallback
+  }
+};
+
+// Backward compatibility - sử dụng LeTanMenu làm default
+export const DashboardMenu: MenuItemType[] = LeTanMenu;

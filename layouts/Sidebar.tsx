@@ -14,7 +14,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { MenuItemType } from "types/menuTypes";
 import CustomToggle, { CustomToggleLevel2 } from "./SidebarMenuToggle";
 import { Avatar } from "components/common/Avatar";
-import { DashboardMenu } from "routes/DashboardRoute";
+import { getMenuByRole } from "routes/DashboardRoute";
+import { useAuth } from "contexts/AuthContext";
 import { getAssetPath } from "helper/assetPath";
 
 interface SidebarProps {
@@ -27,6 +28,10 @@ const Sidebar: React.FC<SidebarProps> = ({ hideLogo = false, containerId }) => {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [optimisticPath, setOptimisticPath] = useState<string | null>(null);
+  const { user } = useAuth();
+
+  // Get menu items based on user role
+  const menuItems = user?.role ? getMenuByRole(user.role) : [];
 
   // Handle navigation with immediate UI feedback
   const handleNavigation = (href: string, e: React.MouseEvent) => {
@@ -113,7 +118,7 @@ const Sidebar: React.FC<SidebarProps> = ({ hideLogo = false, containerId }) => {
           as="ul"
           bsPrefix="navbar-nav flex-column"
         >
-          {DashboardMenu.map(function (menu, index) {
+          {menuItems.map(function (menu: MenuItemType, index: number) {
             if (menu.grouptitle) {
               return (
                 <Nav.Item key={index} as="li">
@@ -131,8 +136,8 @@ const Sidebar: React.FC<SidebarProps> = ({ hideLogo = false, containerId }) => {
                     <Accordion.Collapse eventKey={index.toString()}>
                       <ListGroup as="ul" className="dropdown-menu flex-column">
                         {menu.children.map(function (
-                          menuLevel1Item,
-                          menuLevel1Index
+                          menuLevel1Item: any,
+                          menuLevel1Index: number
                         ) {
                           return (
                             <ListGroup.Item

@@ -3,6 +3,8 @@ import { Suspense } from "react";
 import Header from "layouts/header/Header";
 import Sidebar from "layouts/Sidebar";
 import Loading from "components/common/Loading";
+import ProtectedRoute from "components/common/ProtectedRoute";
+import { UserRole } from "services";
 
 interface DashboardProps {
   children: React.ReactNode;
@@ -10,23 +12,19 @@ interface DashboardProps {
 
 const DashboardLayout: React.FC<DashboardProps> = ({ children }) => {
   return (
-    <div>
-      <Sidebar hideLogo={false} containerId='miniSidebar' />
-      <div id='content' className='position-relative h-100'>
-        <Header />
-        <div className='custom-container'>
-          <Suspense fallback={<Loading size="lg" text="Đang tải..." className="py-5" />}>
-            {children}
-          </Suspense>
+    <ProtectedRoute requiredRoles={[UserRole.BAC_SI, UserRole.LE_TAN, UserRole.ADMIN]}>
+      <div>
+        <Sidebar hideLogo={false} containerId='miniSidebar' />
+        <div id='content' className='position-relative h-100'>
+          <Header />
+          <div className='custom-container'>
+            <Suspense fallback={<Loading size="lg" text="Đang tải..." className="py-5" />}>
+              {children}
+            </Suspense>
+          </div>
         </div>
-        {/* <div className='custom-container'>
-          <span className='me-1'>Theme distributed by - </span>
-          <a href='https://www.themewagon.com/' target='_blank' rel='noopener '>
-            ThemeWagon
-          </a>
-        </div> */}
       </div>
-    </div>
+    </ProtectedRoute>
   );
 };
 

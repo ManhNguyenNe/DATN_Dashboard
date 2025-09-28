@@ -8,6 +8,17 @@ export {
   type PaymentStatusResponse
 } from './api';
 
+// Auth Service
+export { default as authService } from './authService';
+export {
+  UserRole,
+  UserStatus,
+  type User,
+  type LoginRequest,
+  type LoginResponse,
+  type AuthState
+} from './authService';
+
 // Patient Service
 export { default as patientService } from './patientService';
 export type {
