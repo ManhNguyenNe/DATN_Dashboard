@@ -23,25 +23,25 @@ export const LeTanMenu: MenuItemType[] = [
   {
     id: uuid(),
     title: "Tổng quan",
-    link: "/",
+    link: "/le-tan",
     icon: <IconFiles size={20} strokeWidth={1.5} />,
   },
   {
     id: uuid(),
     title: "Đặt lịch khám",
-    link: "/dat-lich",
+    link: "/le-tan/dat-lich",
     icon: <IconCalendar size={20} strokeWidth={1.5} />,
   },
   {
     id: uuid(),
     title: "Phiếu khám",
-    link: "/phieu-kham",
+    link: "/le-tan/phieu-kham",
     icon: <IconStethoscope size={20} strokeWidth={1.5} />,
   },
   {
     id: uuid(),
     title: "Quản lý bệnh nhân",
-    link: "/benh-nhan",
+    link: "/le-tan/benh-nhan",
     icon: <IconUsers size={20} strokeWidth={1.5} />,
   }
 ];

@@ -4,9 +4,9 @@
 import { Fragment } from "react";
 
 //import custom components
-import AppointmentPageWrapper from "../../../components/appointment/AppointmentPageWrapper";
-import ProtectedRoute from "../../../components/common/ProtectedRoute";
-import { UserRole } from "../../../services";
+import AppointmentPageWrapper from "../../../../components/appointment/AppointmentPageWrapper";
+import ProtectedRoute from "../../../../components/common/ProtectedRoute";
+import { UserRole } from "../../../../services";
 
 const DatLich = () => {
   return (
