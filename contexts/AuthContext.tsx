@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, ReactNode, useMemo, useCallback } from 'react';
 import { authService, type User, type LoginRequest, type AuthState, UserRole } from '../services';
 
 // Interface cho AuthContext
@@ -90,13 +90,8 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const [state, dispatch] = useReducer(authReducer, initialState);
 
-    // Kiểm tra authentication khi component mount
-    useEffect(() => {
-        checkAuth();
-    }, []);
-
-    // Function để kiểm tra authentication
-    const checkAuth = async (): Promise<void> => {
+    // Memoize các function để tránh re-render không cần thiết
+    const checkAuth = useCallback(async (): Promise<void> => {
         try {
             dispatch({ type: 'AUTH_START' });
 
@@ -118,10 +113,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             authService.logout();
             dispatch({ type: 'AUTH_FAILURE' });
         }
-    };
+    }, []);
 
-    // Function đăng nhập
-    const login = async (loginData: LoginRequest): Promise<void> => {
+    const login = useCallback(async (loginData: LoginRequest): Promise<void> => {
         try {
             dispatch({ type: 'AUTH_START' });
 
@@ -142,28 +136,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             dispatch({ type: 'AUTH_FAILURE' });
             throw error;
         }
-    };
+    }, []);
 
-    // Function đăng xuất
-    const logout = (): void => {
+    const logout = useCallback((): void => {
         authService.logout();
         dispatch({ type: 'LOGOUT' });
-    };
+    }, []);
 
-    // Function kiểm tra quyền
-    const hasRole = (requiredRoles: UserRole[]): boolean => {
+    const hasRole = useCallback((requiredRoles: UserRole[]): boolean => {
         if (!state.user) return false;
         return requiredRoles.includes(state.user.role);
-    };
+    }, [state.user]);
 
-    // Context value
-    const contextValue: AuthContextType = {
+    // Kiểm tra authentication khi component mount
+    useEffect(() => {
+        checkAuth();
+    }, [checkAuth]);
+
+    // Memoize context value để tránh re-render toàn bộ component tree
+    const contextValue = useMemo<AuthContextType>(() => ({
         ...state,
         login,
         logout,
         hasRole,
         checkAuth,
-    };
+    }), [state, login, logout, hasRole, checkAuth]);
 
     return (
         <AuthContext.Provider value={contextValue}>
