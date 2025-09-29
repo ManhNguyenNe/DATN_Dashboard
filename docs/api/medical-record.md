@@ -39,40 +39,133 @@
 **response** 
 {
     "data": {
-        "id": "26",
-        "code": "PK1758977705",
-        "symptoms": "viêm họng, đau đầu",
+        "id": "34",
+        "code": "PK1759052378",
+        "symptoms": "",
         "clinicalExamination": null,
         "diagnosis": null,
         "treatmentPlan": null,
         "note": null,
-        "total": 6000.00,
-        "patientName": "Nguyen Van A",
-        "date": "2025-09-27T19:55:06",
+        "total": 5000.00,
+        "patientName": "Mạnh Sĩ",
+        "date": "2025-09-28T16:39:38",
         "status": "DANG_KHAM",
-        "services": [
+        "labOrdersResponses": [
             {
-                "serviceName": "Khám bệnh",
-                "doctorName": "BS. HOANG VAN G",
-                "price": 6000.00,
-                "room": "Phòng khám Tim mạch - 108A",
-                "status": "CHUA_THANH_TOAN"
+                "id": 25,
+                "recordId": null,
+                "healthPlanId": 11,
+                "healthPlanName": "Xét nghiệm công thức máu",
+                "room": "",
+                "healthPlanResponse": null,
+                "doctorPerformed": null,
+                "doctorOrdered": null,
+                "status": "CHO_THUC_HIEN",
+                "statusPayment": "DA_THANH_TOAN",
+                "price": 120000.00,
+                "createdAt": null,
+                "expectedResultDate": null
             },
             {
-                "serviceName": "Xét nghiệm máu cơ bản",
-                "doctorName": "BS. HOANG VAN G",
-                "price": 2000.00,
-                "room": "Phòng xét nghiệm  - 204A",
-                "status": "DA_THANH_TOAN"
+                "id": 26,
+                "recordId": null,
+                "healthPlanId": 12,
+                "healthPlanName": "Nội soi dạ dày",
+                "room": "",
+                "healthPlanResponse": null,
+                "doctorPerformed": null,
+                "doctorOrdered": null,
+                "status": "CHO_THUC_HIEN",
+                "statusPayment": "DA_THANH_TOAN",
+                "price": 900000.00,
+                "createdAt": null,
+                "expectedResultDate": null
             },
             {
-                "serviceName": "X-quang phổi",
-                "doctorName": "BS. NGO THI H",
-                "price": 3000.00,
-                "room": "Phòng khám Nội tổng quát - 101A",
-                "status": "DA_THANH_TOAN"
+                "id": 27,
+                "recordId": null,
+                "healthPlanId": 13,
+                "healthPlanName": "Chụp X-quang ngực",
+                "room": "",
+                "healthPlanResponse": null,
+                "doctorPerformed": null,
+                "doctorOrdered": null,
+                "status": "CHO_THUC_HIEN",
+                "statusPayment": "DA_THANH_TOAN",
+                "price": 150000.00,
+                "createdAt": null,
+                "expectedResultDate": null
+            },
+            {
+                "id": 28,
+                "recordId": null,
+                "healthPlanId": 14,
+                "healthPlanName": "Siêu âm ổ bụng tổng quát",
+                "room": "",
+                "healthPlanResponse": null,
+                "doctorPerformed": null,
+                "doctorOrdered": null,
+                "status": "CHO_THUC_HIEN",
+                "statusPayment": "DA_THANH_TOAN",
+                "price": 250000.00,
+                "createdAt": null,
+                "expectedResultDate": null
             }
         ]
     },
     "message": "Get medical record by id successfully"
+}
+
+## GET -lấy tất cả phiếu khám
+**api** /api/medical-record?date=2025-09-13&status=&keyword=PK1759052571
+- response trả về
+{
+    "data": [
+        {
+            "id": "36",
+            "code": "PK1759052571",
+            "symptoms": "",
+            "clinicalExamination": null,
+            "diagnosis": null,
+            "treatmentPlan": null,
+            "note": null,
+            "total": 2000.00,
+            "patientName": "Con ông mạnh",
+            "date": "2025-09-28T16:42:51",
+            "status": "DANG_KHAM",
+            "labOrdersResponses": [
+                {
+                    "id": 30,
+                    "recordId": null,
+                    "healthPlanId": 2,
+                    "healthPlanName": "Xét nghiệm máu cơ bản",
+                    "room": "",
+                    "healthPlanResponse": null,
+                    "doctorPerformed": null,
+                    "doctorOrdered": null,
+                    "status": "CHO_THUC_HIEN",
+                    "statusPayment": "CHUA_THANH_TOAN",
+                    "price": 2000.00,
+                    "orderDate": "2025-09-28T16:42:51",
+                    "expectedResultDate": null
+                },
+                {
+                    "id": 31,
+                    "recordId": null,
+                    "healthPlanId": 3,
+                    "healthPlanName": "X-quang phổi",
+                    "room": "",
+                    "healthPlanResponse": null,
+                    "doctorPerformed": null,
+                    "doctorOrdered": null,
+                    "status": "CHO_THUC_HIEN",
+                    "statusPayment": "DA_THANH_TOAN",
+                    "price": 3000.00,
+                    "orderDate": "2025-09-28T12:57:14",
+                    "expectedResultDate": null
+                }
+            ]
+        }
+    ],
+    "message": "Get all medical record successfully"
 }

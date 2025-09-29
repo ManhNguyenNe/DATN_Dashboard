@@ -11,7 +11,7 @@ export interface AppointmentService {
     serviceId: number;
     serviceName: string;
     price: number;
-    status: 'CHO_THANH_TOAN' | 'DA_THANH_TOAN' | 'HUY';
+    status: 'CHO_THANH_TOAN' | 'DA_THANH_TOAN' | 'CHUA_THANH_TOAN' | 'HUY';
     paymentDate?: string;
     result?: string;
     notes?: string;
@@ -32,6 +32,7 @@ export interface NewPrescription {
 export enum ServiceStatus {
     CHO_THANH_TOAN = 'CHO_THANH_TOAN',
     DA_THANH_TOAN = 'DA_THANH_TOAN',
+    CHUA_THANH_TOAN = 'CHUA_THANH_TOAN',
     HUY = 'HUY'
 }
 

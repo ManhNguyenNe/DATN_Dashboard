@@ -76,13 +76,22 @@ export interface MedicalRecordFilter {
   status?: MedicalRecordStatus | string;
 }
 
-// Interface cho Service trong Medical Record Detail
-export interface MedicalRecordService {
-  serviceName: string;
-  doctorName: string;
-  price: number;
+// Interface cho Lab Order Response trong Medical Record Detail
+export interface LabOrderResponse {
+  id: number;
+  recordId: number | null;
+  healthPlanId: number;
+  healthPlanName: string;
   room: string;
-  status: 'DA_THANH_TOAN' | 'CHUA_THANH_TOAN';
+  healthPlanResponse: any | null;
+  doctorPerformed: string | null;
+  doctorOrdered: string | null;
+  status: 'CHO_THUC_HIEN' | 'DANG_THUC_HIEN' | 'HOAN_THANH' | 'HUY';
+  statusPayment: 'DA_THANH_TOAN' | 'CHUA_THANH_TOAN' | null;
+  price: number;
+  createdAt: string | null;
+  expectedResultDate: string | null;
+  orderDate?: string;
 }
 
 // Interface cho Medical Record Detail
@@ -98,7 +107,7 @@ export interface MedicalRecordDetail {
   patientName: string;
   date: string;
   status: MedicalRecordStatus | string;
-  services: MedicalRecordService[];
+  labOrdersResponses: LabOrderResponse[];
 }
 
 /**

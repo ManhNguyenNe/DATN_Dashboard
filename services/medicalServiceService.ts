@@ -1,6 +1,25 @@
 import api from './api';
 import { MedicalService, AppointmentService, NewPrescription } from '../types/MedicalServiceType';
 
+// Interface cho bác sĩ được phân công từ API services
+export interface AssignedDoctor {
+    id: number;
+    fullName: string;
+    position: string;
+    available: boolean;
+    shift: 'SANG' | 'CHIEU';
+}
+
+// Interface cho response của API services detail
+export interface ServiceDetailResponse {
+    id: number;
+    code: string;
+    name: string;
+    price: number;
+    description: string;
+    doctorsAssigned: AssignedDoctor[];
+}
+
 export interface MedicalServiceFilter {
     category?: string;
     priceRange?: {
@@ -101,6 +120,25 @@ class MedicalServiceService {
         } catch (error) {
             console.error('Lỗi khi lấy chi tiết dịch vụ:', error);
             throw error;
+        }
+    }
+
+    // Lấy chi tiết dịch vụ với thông tin bác sĩ được phân công từ API /api/services/{id}
+    async getServiceDetail(serviceId: number): Promise<ServiceDetailResponse> {
+        try {
+            const response = await api.get(`/api/services/${serviceId}`);
+            return response.data;
+        } catch (error) {
+            console.error('Lỗi khi lấy chi tiết dịch vụ từ API services:', error);
+            // Fallback data nếu API không khả dụng
+            return {
+                id: serviceId,
+                code: `DV${serviceId.toString().padStart(3, '0')}`,
+                name: 'Dịch vụ không xác định',
+                price: 0,
+                description: 'Không thể tải thông tin dịch vụ',
+                doctorsAssigned: []
+            };
         }
     }
 }
