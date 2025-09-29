@@ -94,6 +94,17 @@ export interface LabOrderResponse {
   orderDate?: string;
 }
 
+// Interface cho Medical Record Service (mapping từ LabOrderResponse)
+export interface MedicalRecordService {
+  serviceName: string;
+  doctorName: string;
+  price: number;
+  room: string;
+  status: 'DA_THANH_TOAN' | 'CHUA_THANH_TOAN';
+  orderDate?: string;
+  expectedResultDate?: string;
+}
+
 // Interface cho Medical Record Detail
 export interface MedicalRecordDetail {
   id: string;
@@ -108,6 +119,8 @@ export interface MedicalRecordDetail {
   date: string;
   status: MedicalRecordStatus | string;
   labOrdersResponses: LabOrderResponse[];
+  // Computed field để backward compatibility
+  services?: MedicalRecordService[];
 }
 
 /**

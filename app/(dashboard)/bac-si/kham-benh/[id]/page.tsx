@@ -7,7 +7,7 @@ import { useAuth } from "../../../../../contexts/AuthContext";
 import { Appointment } from "../../../../../services/appointmentService";
 import Loading from "../../../../../components/common/Loading";
 import { AppointmentService, NewPrescription, MedicalService, ServiceStatus, PrescriptionStatus } from "../../../../../types/MedicalServiceType";
-import medicalRecordService, { MedicalRecordDetail, LabOrderResponse } from "../../../../../services/medicalRecordService";
+import { medicalRecordService, type MedicalRecordDetail, type LabOrderResponse } from "../../../../../services";
 import labOrderService, { LabOrderDetail } from "../../../../../services/labOrderService";
 import medicalServiceService, { ServiceDetailResponse, AssignedDoctor } from "../../../../../services/medicalServiceService";
 

@@ -10,7 +10,7 @@ import {
     medicalRecordService,
     paymentService,
     type MedicalRecordDetail as MedicalRecordDetailType,
-    type MedicalRecordService as ServiceType,
+    type LabOrderResponse,
     type PaymentLinkRequest,
     type PaymentLinkResponse
 } from "../../services";
@@ -78,15 +78,28 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
         }
     };
 
-    const getUnpaidServices = (): ServiceType[] => {
-        return medicalRecord?.services?.filter(service => service.status === 'CHUA_THANH_TOAN') || [];
+    // Chuyển đổi labOrdersResponses sang format services để maintain backward compatibility
+    const convertToServices = (labOrders: LabOrderResponse[]): SelectedService[] => {
+        return labOrders.map(order => ({
+            serviceName: order.healthPlanName,
+            doctorName: order.doctorPerformed || order.doctorOrdered || 'Chưa xác định',
+            price: order.price,
+            room: order.room || 'Chưa xác định'
+        }));
     };
 
-    const getPaidServices = (): ServiceType[] => {
-        return medicalRecord?.services?.filter(service => service.status === 'DA_THANH_TOAN') || [];
+    const getUnpaidServices = (): LabOrderResponse[] => {
+        return medicalRecord?.labOrdersResponses?.filter(service => service.statusPayment === 'CHUA_THANH_TOAN') || [];
     };
 
-    const handleSelectAllUnpaid = () => {
+    const getPaidServices = (): LabOrderResponse[] => {
+        return medicalRecord?.labOrdersResponses?.filter(service => service.statusPayment === 'DA_THANH_TOAN') || [];
+    };
+
+    // Lấy tất cả dịch vụ đã thanh toán (bao gồm cả phí khám có id = null)
+    const getPaidServicesWithExamFee = (): LabOrderResponse[] => {
+        return medicalRecord?.labOrdersResponses?.filter(service => service.statusPayment === 'DA_THANH_TOAN') || [];
+    }; const handleSelectAllUnpaid = () => {
         const unpaidServices = getUnpaidServices();
         if (selectedServices.length === unpaidServices.length) {
             // Deselect all
@@ -94,27 +107,27 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
         } else {
             // Select all
             setSelectedServices(unpaidServices.map(service => ({
-                serviceName: service.serviceName,
-                doctorName: service.doctorName,
+                serviceName: service.healthPlanName,
+                doctorName: service.doctorPerformed || service.doctorOrdered || 'Chưa xác định',
                 price: service.price,
-                room: service.room
+                room: service.room || 'Chưa xác định'
             })));
         }
     };
 
-    const handleServiceSelection = (service: ServiceType) => {
-        const isSelected = selectedServices.some(s => s.serviceName === service.serviceName);
+    const handleServiceSelection = (service: LabOrderResponse) => {
+        const isSelected = selectedServices.some(s => s.serviceName === service.healthPlanName);
 
         if (isSelected) {
             // Remove from selection
-            setSelectedServices(prev => prev.filter(s => s.serviceName !== service.serviceName));
+            setSelectedServices(prev => prev.filter(s => s.serviceName !== service.healthPlanName));
         } else {
             // Add to selection
             setSelectedServices(prev => [...prev, {
-                serviceName: service.serviceName,
-                doctorName: service.doctorName,
+                serviceName: service.healthPlanName,
+                doctorName: service.doctorPerformed || service.doctorOrdered || 'Chưa xác định',
                 price: service.price,
-                room: service.room
+                room: service.room || 'Chưa xác định'
             }]);
         }
     };
@@ -245,6 +258,7 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
 
     const unpaidServices = getUnpaidServices();
     const paidServices = getPaidServices();
+    const paidServicesWithExamFee = getPaidServicesWithExamFee();
 
     return (
         <>
@@ -330,13 +344,13 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
                     {/* Services Section */}
                     <Row>
                         {/* Paid Services */}
-                        {paidServices.length > 0 && (
+                        {paidServicesWithExamFee.length > 0 && (
                             <Col md={6} className="mb-4">
                                 <Card className="h-100">
                                     <Card.Header className="bg-success text-white">
                                         <h6 className="mb-0">
                                             <i className="bi bi-check-circle me-2"></i>
-                                            Dịch vụ đã thanh toán ({paidServices.length})
+                                            Dịch vụ đã thanh toán ({paidServicesWithExamFee.length})
                                         </h6>
                                     </Card.Header>
                                     <Card.Body>
@@ -350,16 +364,23 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {paidServices.map((service, index) => (
-                                                    <tr key={index}>
-                                                        <td>{service.serviceName}</td>
-                                                        <td>{service.doctorName}</td>
-                                                        <td>{service.room}</td>
-                                                        <td className="text-end fw-bold text-success">
-                                                            {service.price.toLocaleString('vi-VN')}đ
-                                                        </td>
-                                                    </tr>
-                                                ))}
+                                                {paidServicesWithExamFee.map((service, index) => {
+                                                    // Kiểm tra xem đây có phải là phí khám không (id = null)
+                                                    const isExamFee = service.id === null;
+                                                    return (
+                                                        <tr key={index} className={isExamFee ? 'table-info' : ''}>
+                                                            <td>
+                                                                {service.healthPlanName}
+                                                                {isExamFee && <Badge bg="info" className="ms-2">Phí khám</Badge>}
+                                                            </td>
+                                                            <td>{service.doctorPerformed || service.doctorOrdered || 'Chưa xác định'}</td>
+                                                            <td>{service.room || 'Chưa xác định'}</td>
+                                                            <td className="text-end fw-bold text-success">
+                                                                {service.price.toLocaleString('vi-VN')}đ
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
                                             </tbody>
                                         </Table>
                                     </Card.Body>
@@ -369,7 +390,7 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
 
                         {/* Unpaid Services */}
                         {unpaidServices.length > 0 && (
-                            <Col md={paidServices.length > 0 ? 6 : 12} className="mb-4">
+                            <Col md={paidServicesWithExamFee.length > 0 ? 6 : 12} className="mb-4">
                                 <Card className="h-100">
                                     <Card.Header className="bg-warning text-dark d-flex justify-content-between align-items-center">
                                         <h6 className="mb-0">
@@ -396,7 +417,7 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
                                             </thead>
                                             <tbody>
                                                 {unpaidServices.map((service, index) => {
-                                                    const isSelected = selectedServices.some(s => s.serviceName === service.serviceName);
+                                                    const isSelected = selectedServices.some(s => s.serviceName === service.healthPlanName);
                                                     return (
                                                         <tr key={index} className={isSelected ? 'table-primary' : ''}>
                                                             <td>
@@ -406,9 +427,9 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
                                                                     onChange={() => handleServiceSelection(service)}
                                                                 />
                                                             </td>
-                                                            <td>{service.serviceName}</td>
-                                                            <td>{service.doctorName}</td>
-                                                            <td>{service.room}</td>
+                                                            <td>{service.healthPlanName}</td>
+                                                            <td>{service.doctorPerformed || service.doctorOrdered || 'Chưa xác định'}</td>
+                                                            <td>{service.room || 'Chưa xác định'}</td>
                                                             <td className="text-end fw-bold text-warning">
                                                                 {service.price.toLocaleString('vi-VN')}đ
                                                             </td>

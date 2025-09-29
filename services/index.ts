@@ -72,7 +72,8 @@ export {
   type MedicalRecordListItem,
   type MedicalRecordFilter,
   type MedicalRecordDetail,
-  type MedicalRecordService
+  type MedicalRecordService,
+  type LabOrderResponse
 } from './medicalRecordService';
 
 // Medical Service Service
