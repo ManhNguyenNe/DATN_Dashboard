@@ -30,13 +30,27 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
   const [searchLoading, setSearchLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [currentFilters, setCurrentFilters] = useState<AppointmentFilter>({});
-  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(() => {
+    // Restore from localStorage on component mount
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('selectedAppointment');
+      return saved ? JSON.parse(saved) : null;
+    }
+    return null;
+  });
   const [selectedPatient, setSelectedPatient] = useState<PatientSearchResult | null>(null);
   const [updatingAppointments, setUpdatingAppointments] = useState<Set<number>>(new Set());
 
   // Use external or internal active tab
   const activeTab = externalActiveTab || internalActiveTab;
   const setActiveTab = onTabChange || setInternalActiveTab;
+
+  // Auto-navigate to medical-record tab if we have a selected appointment from localStorage
+  useEffect(() => {
+    if (selectedAppointment && !externalActiveTab) {
+      setInternalActiveTab("medical-record");
+    }
+  }, [selectedAppointment, externalActiveTab]);
 
   // Load appointments with filters
   const handleSearch = async (filters: AppointmentFilter) => {
@@ -137,6 +151,10 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
   const handleMedicalRecordCreated = async () => {
     setSelectedAppointment(null); // Clear selected appointment
     setSelectedPatient(null); // Clear selected patient
+    // Clear localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('selectedAppointment');
+    }
     setActiveTab("list");
     // Optionally refresh data or show success message
   };
@@ -145,6 +163,10 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
   const handleMedicalRecordCancelled = () => {
     setSelectedAppointment(null); // Clear selected appointment
     setSelectedPatient(null); // Clear selected patient
+    // Clear localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('selectedAppointment');
+    }
     setActiveTab("list");
   };
 
@@ -158,6 +180,10 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
   // Handle fill appointment to medical record
   const handleFillAppointmentToMedicalRecord = (appointment: Appointment) => {
     setSelectedAppointment(appointment);
+    // Save to localStorage for persistence across page refreshes
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('selectedAppointment', JSON.stringify(appointment));
+    }
     setSelectedPatient(null); // Clear any patient data
     setActiveTab("medical-record");
   };

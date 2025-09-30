@@ -2,10 +2,13 @@
 
 //import node module libraries
 import { useState, useEffect } from "react";
-import { Row, Col, Form, Button, Card, Alert } from "react-bootstrap";
+import { Row, Col, Form, Button, Card } from "react-bootstrap";
 import { IconUser, IconPhone, IconMail, IconCalendar, IconMapPin, IconId, IconStethoscope, IconTrash } from "@tabler/icons-react";
 // Import Bootstrap Icons CSS for payment icons
 import "bootstrap-icons/font/bootstrap-icons.css";
+// Import Ant Design components
+import { Spin } from 'antd';
+import { LoadingOutlined } from '@ant-design/icons';
 
 //import services
 import {
@@ -27,6 +30,9 @@ import {
   type PaymentLinkRequest,
   type PaymentLinkResponse
 } from "../../services";
+
+// Import Ant Design notification
+import { useAntdNotification } from 'components/common/AntdNotificationProvider';
 
 //import components
 import ServiceCostDisplay from "./ServiceCostDisplay";
@@ -62,9 +68,10 @@ interface MedicalRecordFormProps {
   onCancel?: () => void;
   appointmentData?: Appointment; // Pre-fill data from appointment
   patientData?: PatientSearchResult; // Pre-fill data from patient search
+  onMedicalRecordCreated?: (medicalRecordId?: number) => void; // Optional callback when medical record is created
 }
 
-const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCancel, appointmentData, patientData }) => {
+const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCancel, appointmentData, patientData, onMedicalRecordCreated }) => {
   // Form state
   const [formData, setFormData] = useState<MedicalRecordFormData>({
     fullName: '',
@@ -93,10 +100,11 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
 
   // UI state
   const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [showLinkedPatients, setShowLinkedPatients] = useState<boolean>(false);
   const [paymentCompleted, setPaymentCompleted] = useState<boolean>(false); // Track payment completion
+
+  // Ant Design notification hook
+  const { showSuccess, showError } = useAntdNotification();
 
   // Payment modal state
   const [showPaymentModal, setShowPaymentModal] = useState<boolean>(false);
@@ -143,9 +151,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
       setPaymentCompleted(false);
       console.log('💸 Payment completed state reset to false');
 
-      // Clear any error or success messages
-      setError(null);
-      setSuccess(null);
+      // No need to clear error/success messages as they are now toast notifications
 
       // Check if we have patientId to get detailed patient information
       if (appointmentData.patientId) {
@@ -349,6 +355,12 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
     if (patientData) {
       console.log('Auto-filling form with patient search data:', patientData);
 
+      // Reset payment completed state when new patient is loaded
+      setPaymentCompleted(false);
+      console.log('💸 Payment completed state reset to false');
+
+      // No need to clear error/success messages as they are now toast notifications
+
       setFormData(prev => ({
         ...prev,
         selectedPatientId: patientData.id, // Set the patient ID for API call
@@ -515,7 +527,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
       setHealthPlans(healthPlansData);
     } catch (err: any) {
       console.error('Error loading initial data:', err);
-      setError('Lỗi khi tải dữ liệu khởi tạo');
+      showError('Lỗi khi tải dữ liệu', 'Không thể tải dữ liệu khởi tạo. Vui lòng thử lại.');
     }
   };
 
@@ -559,7 +571,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
 
         if (departments.length === 0) {
           console.warn('No departments loaded yet, cannot load doctors');
-          setError('Chưa tải được danh sách khoa. Vui lòng thử lại.');
+          showError('Chưa tải được danh sách khoa', 'Vui lòng thử lại sau.');
           return;
         }
 
@@ -609,7 +621,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
       }
     } catch (err: any) {
       console.error('Error loading service/doctor options:', err);
-      setError('Lỗi khi tải danh sách dịch vụ/bác sĩ');
+      showError('Lỗi khi tải dữ liệu', 'Không thể tải danh sách dịch vụ/bác sĩ');
     } finally {
       setLoading(false);
     }
@@ -647,7 +659,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
   const handleCreateQRCode = async () => {
     try {
       setLoading(true);
-      setError(null);
+      // No need to clear error as it's now handled by toast
 
       // Prepare payment request data
       const paymentRequest = {
@@ -677,27 +689,83 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
     } catch (err: any) {
       console.error('Error creating payment link:', err);
       const errorMessage = err.response?.data?.message || err.message || 'Lỗi khi tạo mã QR thanh toán';
-      setError(errorMessage);
+      showError("Lỗi tạo QR thanh toán", errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
   const handleConfirmPayment = async () => {
-    // TODO: Implement cash payment confirmation
-    alert('Xác nhận thanh toán tiền mặt (Chức năng này sẽ được triển khai sau)');
+    // Check if we have a selected patient ID (most important requirement)
+    if (!formData.selectedPatientId) {
+      showError("Thiếu thông tin bệnh nhân", "Vui lòng chọn bệnh nhân hoặc tạo bệnh nhân mới trước khi thanh toán");
+      return;
+    }
+
+    // Check if examination type and service/doctor are selected
+    if (!formData.examinationType || !formData.serviceDoctor) {
+      showError("Thiếu thông tin khám", "Vui lòng chọn loại khám và dịch vụ/bác sĩ");
+      return;
+    }
+
+    // Check if examination fee is calculated
+    if (formData.examinationFee <= 0) {
+      showError("Lỗi phí khám", "Không thể xác định phí khám. Vui lòng chọn lại dịch vụ");
+      return;
+    }
+
+    console.log('All form data for payment:', formData);
+
+    setLoading(true);
+    // No need to clear error/success as they are now toast notifications
+
+    try {
+      // Prepare request data for medical record creation with cash payment
+      const requestData: SimpleMedicalRecordCreateData = {
+        patientId: formData.selectedPatientId,
+        doctorId: formData.examinationType === 'package' ? null : (formData.serviceDoctor ? parseInt(formData.serviceDoctor) : null),
+        healthPlanId: formData.examinationType === 'package' ? (formData.serviceDoctor ? parseInt(formData.serviceDoctor) : null) : null,
+        symptoms: formData.symptoms || 'Không có triệu chứng'
+        // invoiceId is undefined for cash payment (no invoice needed)
+      };
+
+      console.log('Creating medical record with cash payment:', requestData);
+
+      // Call API to create medical record
+      const response: SimpleApiResponse = await medicalRecordService.createSimpleMedicalRecord(requestData);
+
+      console.log('Cash payment API Response:', response);
+
+      // Check if API call was successful
+      if (response && (response.message === "successfully" || response.message.toLowerCase().includes("success"))) {
+        showSuccess("Thanh toán thành công!", "Thanh toán tiền mặt thành công! Phiếu khám đã được tạo.");
+        setPaymentCompleted(true);
+
+        // Call medical record created callback if provided (but not onSuccess to avoid unwanted actions)
+        onMedicalRecordCreated?.(response.data?.medicalRecordId); // Pass medical record ID if available
+      } else {
+        console.error('API Error Response:', response);
+        showError("Lỗi tạo phiếu khám", response?.message || "Lỗi khi tạo phiếu khám bệnh");
+      }
+    } catch (err: any) {
+      console.error('Error confirming cash payment:', err);
+      const errorMessage = err.response?.data?.message || err.message || 'Lỗi khi xác nhận thanh toán tiền mặt';
+      showError("Lỗi thanh toán", errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Payment modal handlers
   const handlePaymentSuccess = () => {
-    setSuccess("Thanh toán thành công! Phiếu khám đã được tạo.");
+    showSuccess("Thanh toán thành công!", "Thanh toán thành công! Phiếu khám đã được tạo.");
     setPaymentCompleted(true); // Set payment completed state
     // Chỉ hiển thị thông báo thành công, không làm gì khác
     // Modal vẫn mở để user có thể xem thông báo thành công
   };
 
   const handlePaymentError = (errorMessage: string) => {
-    setError(`Lỗi thanh toán: ${errorMessage}`);
+    showError("Lỗi thanh toán", errorMessage);
     setShowPaymentModal(false);
     setPaymentData(null);
   };
@@ -740,9 +808,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
         paymentMethod: 'cash'
       });
 
-      // Clear any error or success messages
-      setError(null);
-      setSuccess(null);
+      // No need to clear error/success messages as they are now toast notifications
 
       // Clear linked patients if any
       setLinkedPatients([]);
@@ -774,101 +840,10 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate required fields
-    const requiredFields = ['fullName', 'phoneNumber', 'dateOfBirth', 'gender', 'citizenId', 'examinationType'];
-    const missingFields = requiredFields.filter(field => {
-      const value = formData[field as keyof MedicalRecordFormData];
-      return typeof value === 'string' ? !value.trim() : !value;
-    });
-
-    if (missingFields.length > 0) {
-      setError("Vui lòng điền đầy đủ thông tin bắt buộc");
-      return;
-    }
-
-    // Check payment method validation when there's an examination fee
-    if (formData.examinationFee > 0 && !formData.paymentMethod) {
-      setError("Vui lòng chọn phương thức thanh toán");
-      return;
-    }
-
-    // Check if we have a selected patient ID or need to create patient first
-    if (!formData.selectedPatientId) {
-      setError("Vui lòng chọn bệnh nhân hoặc tạo bệnh nhân mới trước khi tạo phiếu khám");
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    setSuccess(null);
-
-    try {
-      // Prepare request data for simple medical record creation
-      const requestData: SimpleMedicalRecordCreateData = {
-        patientId: formData.selectedPatientId,
-        doctorId: formData.examinationType === 'package' ? null : (formData.serviceDoctor ? parseInt(formData.serviceDoctor) : null),
-        healthPlanId: formData.examinationType === 'package' ? (formData.serviceDoctor ? parseInt(formData.serviceDoctor) : null) : null,
-        symptoms: formData.symptoms || 'Không có triệu chứng'
-      };
-
-      console.log('Creating medical record with data:', requestData);
-
-      // Call API to create medical record
-      const response: SimpleApiResponse = await medicalRecordService.createSimpleMedicalRecord(requestData);
-
-      console.log('API Response:', response);
-
-      // Check if API call was successful (message contains "successfully")
-      if (response && (response.message === "successfully" || response.message.toLowerCase().includes("success"))) {
-        setSuccess("Tạo phiếu khám bệnh thành công!");
-
-        // Reset form after success
-        setTimeout(() => {
-          setFormData({
-            fullName: '',
-            phoneNumber: '',
-            email: '',
-            dateOfBirth: '',
-            gender: '',
-            address: '',
-            citizenId: '',
-            bloodType: '',
-            weight: '',
-            height: '',
-            examinationType: '',
-            serviceDoctor: '',
-            symptoms: '',
-            selectedPatientId: undefined,
-            examinationFee: 0,
-            paymentMethod: 'cash'
-          });
-          setSuccess(null);
-          onSuccess?.();
-        }, 2000);
-      } else {
-        console.error('API Error Response:', response);
-        setError(response?.message || "Lỗi khi tạo phiếu khám bệnh");
-      }
-
-    } catch (err: any) {
-      console.error('Error creating medical record:', err);
-
-      // Xử lý error từ axios response
-      if (err.response && err.response.data) {
-        const errorData = err.response.data;
-        if (errorData.message) {
-          setError(errorData.message);
-        } else if (typeof errorData === 'string') {
-          setError(errorData);
-        } else {
-          setError("Lỗi khi tạo phiếu khám bệnh");
-        }
-      } else {
-        setError(err.message || "Lỗi khi tạo phiếu khám bệnh");
-      }
-    } finally {
-      setLoading(false);
-    }
+    // Medical record creation is now only handled through payment confirmation
+    // No direct creation without payment
+    showError("Phải thanh toán", "Vui lòng chọn phương thức thanh toán để tạo phiếu khám");
+    return;
   };
 
   // Handle linked patient selection
@@ -877,6 +852,12 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
 
     if (selectedPatient) {
       console.log('Auto-filling form with linked patient data:', selectedPatient);
+
+      // Reset payment completed state when new patient is selected
+      setPaymentCompleted(false);
+      console.log('💸 Payment completed state reset to false');
+
+      // No need to clear error/success messages as they are now toast notifications
 
       setFormData(prev => ({
         ...prev,
@@ -901,6 +882,12 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
       });
     } else if (patientId === '') {
       // Reset to appointment data if available, or empty
+      // Reset payment completed state when deselecting patient
+      setPaymentCompleted(false);
+      console.log('💸 Payment completed state reset to false');
+
+      // No need to clear error/success messages as they are now toast notifications
+
       if (appointmentData) {
         setFormData(prev => ({
           ...prev,
@@ -915,6 +902,21 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
           weight: '',
           height: '',
           symptoms: appointmentData.symptoms || '', // Restore symptoms from appointment if available
+        }));
+      } else {
+        // No appointment data - reset to empty form
+        setFormData(prev => ({
+          ...prev,
+          selectedPatientId: undefined,
+          fullName: '',
+          dateOfBirth: '',
+          gender: '',
+          address: '',
+          citizenId: '',
+          bloodType: '',
+          weight: '',
+          height: '',
+          symptoms: '',
         }));
       }
     }
@@ -999,24 +1001,14 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
   };
 
   return (
-    <>
+    <Spin spinning={loading} tip="Đang tải dữ liệu..." size="large">
       <Card>
         <Card.Header className="d-flex align-items-center">
           <IconStethoscope size={20} className="me-2" />
           <h5 className="mb-0">Phiếu khám bệnh</h5>
         </Card.Header>
         <Card.Body>
-          {error && (
-            <Alert variant="danger" dismissible onClose={() => setError(null)}>
-              <strong>Lỗi:</strong> {error}
-            </Alert>
-          )}
-
-          {success && (
-            <Alert variant="success" dismissible onClose={() => setSuccess(null)}>
-              <strong>Thành công:</strong> {success}
-            </Alert>
-          )}
+          {/* Error/Success messages are now handled by Toast notifications */}
 
           <Form onSubmit={handleSubmit}>
             {/* Personal Information */}
@@ -1062,6 +1054,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
                       onChange={(e) => handleInputChange('fullName', e.target.value)}
                       placeholder="Nhập họ và tên"
                       required
+                      readOnly
                     />
                   </Form.Group>
                 </Col>
@@ -1078,6 +1071,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
                         onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
                         placeholder="Nhập số điện thoại"
                         required
+                        readOnly
                       />
                     </div>
                   </Form.Group>
@@ -1097,6 +1091,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
                         value={formData.email}
                         onChange={(e) => handleInputChange('email', e.target.value)}
                         placeholder="Nhập địa chỉ email"
+                        readOnly
                       />
                     </div>
                   </Form.Group>
@@ -1114,6 +1109,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
                         onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
                         max={new Date().toISOString().split('T')[0]}
                         required
+                        readOnly
                       />
                     </div>
                   </Form.Group>
@@ -1124,17 +1120,14 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
                 <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>Giới tính *</Form.Label>
-                    <Form.Select
+                    <Form.Control
+                      type="text"
                       value={formData.gender}
                       onChange={(e) => handleInputChange('gender', e.target.value)}
+                      placeholder="Chọn giới tính"
                       required
-                    >
-                      {genderOptions.map(option => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </Form.Select>
+                      readOnly
+                    />
                   </Form.Group>
                 </Col>
                 <Col md={6}>
@@ -1150,6 +1143,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
                         onChange={(e) => handleInputChange('citizenId', e.target.value)}
                         placeholder="Nhập số căn cước công dân"
                         required
+                        readOnly
                       />
                     </div>
                   </Form.Group>
@@ -1168,6 +1162,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
                     value={formData.address}
                     onChange={(e) => handleInputChange('address', e.target.value)}
                     placeholder="Nhập địa chỉ đầy đủ"
+                    readOnly
                   />
                 </div>
               </Form.Group>
@@ -1177,24 +1172,13 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
                 <Col md={4}>
                   <Form.Group className="mb-3">
                     <Form.Label>Nhóm máu</Form.Label>
-                    <Form.Select
+                    <Form.Control
+                      type="text"
                       value={formData.bloodType}
                       onChange={(e) => handleInputChange('bloodType', e.target.value)}
-                    >
-                      <option value="">Chọn nhóm máu</option>
-                      <option value="A">A</option>
-                      <option value="B">B</option>
-                      <option value="AB">AB</option>
-                      <option value="O">O</option>
-                      <option value="A+">A+</option>
-                      <option value="A-">A-</option>
-                      <option value="B+">B+</option>
-                      <option value="B-">B-</option>
-                      <option value="AB+">AB+</option>
-                      <option value="AB-">AB-</option>
-                      <option value="O+">O+</option>
-                      <option value="O-">O-</option>
-                    </Form.Select>
+                      placeholder="Chọn nhóm máu"
+                      readOnly
+                    />
                   </Form.Group>
                 </Col>
                 <Col md={4}>
@@ -1208,6 +1192,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
                       value={formData.weight}
                       onChange={(e) => handleInputChange('weight', e.target.value)}
                       placeholder="Nhập cân nặng"
+                      readOnly
                     />
                   </Form.Group>
                 </Col>
@@ -1222,6 +1207,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
                       value={formData.height}
                       onChange={(e) => handleInputChange('height', e.target.value)}
                       placeholder="Nhập chiều cao"
+                      readOnly
                     />
                   </Form.Group>
                 </Col>
@@ -1352,25 +1338,9 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
 
             {/* Action Buttons */}
             {!paymentCompleted ? (
-              // Normal buttons when payment not completed
+              // Payment buttons when payment not completed
               <div className="d-flex gap-2 pt-3 border-top">
-                <Button
-                  type="submit"
-                  variant="primary"
-                  disabled={loading}
-                  className="d-flex align-items-center"
-                >
-                  {loading ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                      Đang tạo...
-                    </>
-                  ) : (
-                    'Tạo phiếu khám'
-                  )}
-                </Button>
-
-                {/* Payment buttons - only show if service is selected and has fee */}
+                {/* Show payment buttons only if service is selected and has fee */}
                 {formData.serviceDoctor && formData.examinationFee > 0 && (
                   <>
                     {formData.paymentMethod === 'bank_transfer' ? (
@@ -1381,8 +1351,17 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
                         disabled={loading}
                         className="d-flex align-items-center"
                       >
-                        <i className="bi bi-qr-code me-2"></i>
-                        Tạo mã QR thanh toán
+                        {loading ? (
+                          <>
+                            <LoadingOutlined className="me-2" />
+                            Đang tạo...
+                          </>
+                        ) : (
+                          <>
+                            <i className="bi bi-qr-code me-2"></i>
+                            Tạo mã QR thanh toán
+                          </>
+                        )}
                       </Button>
                     ) : (
                       <Button
@@ -1392,8 +1371,17 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
                         disabled={loading}
                         className="d-flex align-items-center"
                       >
-                        <i className="bi bi-cash-coin me-2"></i>
-                        Xác nhận thanh toán
+                        {loading ? (
+                          <>
+                            <LoadingOutlined className="me-2" />
+                            Đang xử lý...
+                          </>
+                        ) : (
+                          <>
+                            <i className="bi bi-cash-coin me-2"></i>
+                            Xác nhận thanh toán tiền mặt
+                          </>
+                        )}
                       </Button>
                     )}
                   </>
@@ -1471,7 +1459,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
           }}
         />
       )}
-    </>
+    </Spin>
   );
 };
 

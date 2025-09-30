@@ -6,12 +6,16 @@ import { Public_Sans } from "next/font/google";
 import ClientWrapper from "components/common/ClientWrapper";
 import { AuthProvider } from "contexts/AuthContext";
 import { APIProvider } from "contexts/APIContext";
+import { AntdNotificationProvider } from "components/common/AntdNotificationProvider";
 
 // Import Swiper styles
 import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
 import "swiper/css/scrollbar";
+
+// import Ant Design CSS
+import "antd/dist/reset.css";
 
 // import main theme scss
 import "styles/theme.scss";
@@ -37,7 +41,9 @@ export default function RootLayout({
         <body className={`${publicSans.variable}`}>
           <APIProvider>
             <AuthProvider>
-              {children}
+              <AntdNotificationProvider>
+                {children}
+              </AntdNotificationProvider>
             </AuthProvider>
           </APIProvider>
         </body>

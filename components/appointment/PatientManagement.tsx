@@ -2,12 +2,12 @@
 
 //import node module libraries
 import { useState } from "react";
-import { Alert, Toast, ToastContainer } from "react-bootstrap";
-import { IconCheck } from "@tabler/icons-react";
+import { Alert } from "react-bootstrap";
 
 //import custom components
 import PatientSearch from "./PatientSearch";
 import PatientList from "./PatientList";
+import { useAntdNotification } from "components/common/AntdNotificationProvider";
 import AddPatientForm from "./AddPatientForm";
 
 //import services
@@ -20,6 +20,7 @@ interface PatientManagementProps {
 const PatientManagement: React.FC<PatientManagementProps> = ({
     onFillToMedicalRecord
 }) => {
+    const { showSuccess } = useAntdNotification();
     const [patients, setPatients] = useState<PatientSearchResult[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [searchLoading, setSearchLoading] = useState<boolean>(false);
@@ -27,8 +28,6 @@ const PatientManagement: React.FC<PatientManagementProps> = ({
     const [searchPerformed, setSearchPerformed] = useState<boolean>(false);
     const [showAddPatientForm, setShowAddPatientForm] = useState<boolean>(false);
     const [formLoading, setFormLoading] = useState<boolean>(false);
-    const [showSuccessToast, setShowSuccessToast] = useState<boolean>(false);
-    const [successMessage, setSuccessMessage] = useState<string>("");
     const [currentKeyword, setCurrentKeyword] = useState<string>("");
     const [displayKeyword, setDisplayKeyword] = useState<string>(""); // Keyword real-time cho display
 
@@ -151,8 +150,7 @@ const PatientManagement: React.FC<PatientManagementProps> = ({
 
     // Handle success message from form
     const handleSuccess = (message: string) => {
-        setSuccessMessage(message);
-        setShowSuccessToast(true);
+        showSuccess('Thành công!', message);
     };
 
     return (
@@ -185,35 +183,6 @@ const PatientManagement: React.FC<PatientManagementProps> = ({
                 onLoadingChange={handleFormLoadingChange}
                 onSuccess={handleSuccess}
             />
-
-            {/* Toast Container positioned at screen level */}
-            <ToastContainer
-                className="p-3"
-                position="top-end"
-                style={{
-                    position: 'fixed',
-                    zIndex: 9999,
-                    top: '20px',
-                    right: '20px'
-                }}
-            >
-                <Toast
-                    show={showSuccessToast}
-                    onClose={() => setShowSuccessToast(false)}
-                    delay={4000}
-                    autohide
-                    bg="success"
-                    className="text-white"
-                >
-                    <Toast.Header closeButton={false} className="bg-success text-white border-0">
-                        <IconCheck size={20} className="me-2" />
-                        <strong className="me-auto">Thành công!</strong>
-                    </Toast.Header>
-                    <Toast.Body>
-                        {successMessage}
-                    </Toast.Body>
-                </Toast>
-            </ToastContainer>
         </div>
     );
 };

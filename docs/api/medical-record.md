@@ -169,3 +169,15 @@
     ],
     "message": "Get all medical record successfully"
 }
+
+## POST Thêm phiếu khám
+**api** /api/medical-record
+request
+{
+  "patientId": 5,
+  "doctorId": 10,
+  "healthPlanId": null,
+  "symptoms": "viêm họng, đau đầu",
+  "invoiceId": null
+}
+- Khi bấm xác nhận thanh toán (tiền mặt) thì invoiceId sẽ là null
