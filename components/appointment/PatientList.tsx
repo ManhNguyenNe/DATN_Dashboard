@@ -296,7 +296,7 @@ const PatientList: React.FC<PatientListProps> = ({
                                         type="number"
                                         step="0.1"
                                         value={editFormData.weight}
-                                        onChange={(e) => handleEditFormChange('weight', parseFloat(e.target.value) || 0)}
+                                        onChange={(e) => handleEditFormChange('weight', parseFloat(e.target.value))}
                                     />
                                 </Form.Group>
                             </Col>
@@ -307,7 +307,7 @@ const PatientList: React.FC<PatientListProps> = ({
                                         type="number"
                                         step="0.1"
                                         value={editFormData.height}
-                                        onChange={(e) => handleEditFormChange('height', parseFloat(e.target.value) || 0)}
+                                        onChange={(e) => handleEditFormChange('height', parseFloat(e.target.value))}
                                     />
                                 </Form.Group>
                             </Col>

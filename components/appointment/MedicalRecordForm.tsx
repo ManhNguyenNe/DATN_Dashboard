@@ -144,7 +144,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
 
   // Pre-fill form with appointment data
   useEffect(() => {
-    if (appointmentData) {
+    if (appointmentData && !patientData) { // Only use appointmentData if no patientData
       console.log('🎯 useEffect triggered - Auto-filling form with appointment data:', appointmentData);
 
       // Reset payment completed state when new appointment is loaded
@@ -168,8 +168,10 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
         console.log('🔗 Loading linked patients for phone:', appointmentData.phone);
         loadLinkedPatients(appointmentData.phone);
       }
+    } else if (appointmentData && patientData) {
+      console.log('⚠️ Both appointmentData and patientData present, prioritizing patientData');
     }
-  }, [appointmentData]);
+  }, [appointmentData, patientData]); // Add patientData as dependency
 
   // Recalculate examination fee when doctor/health plan data becomes available
   useEffect(() => {
@@ -353,7 +355,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
   // Pre-fill form with patient search data
   useEffect(() => {
     if (patientData) {
-      console.log('Auto-filling form with patient search data:', patientData);
+      console.log('📝 Auto-filling form with patient search data:', patientData);
 
       // Reset payment completed state when new patient is loaded
       setPaymentCompleted(false);
@@ -361,28 +363,30 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
 
       // No need to clear error/success messages as they are now toast notifications
 
-      setFormData(prev => ({
-        ...prev,
-        selectedPatientId: patientData.id, // Set the patient ID for API call
+      // IMPORTANT: Clear form first to avoid mixing old data
+      setFormData({
         fullName: patientData.fullName || '',
-        // Note: PatientSearchResult doesn't have phone in the API structure shown
-        // We'll keep existing phoneNumber if any
+        phoneNumber: patientData.phone || '',
         email: '', // PatientSearchResult doesn't have email
         dateOfBirth: patientData.birth || '',
         gender: patientData.gender === 'NAM' ? 'Nam' : patientData.gender === 'NU' ? 'Nữ' : 'Khác',
         address: patientData.address || '',
         citizenId: patientData.cccd || '',
-        phoneNumber: patientData.phone || '',
-        // Fill medical information from patient search data
         bloodType: patientData.bloodType || '',
         weight: patientData.weight?.toString() || '',
         height: patientData.height?.toString() || '',
-        symptoms: '', // Clear symptoms as patient data doesn't have this
-        examinationFee: 0 // Reset examination fee for new patient selection
-      }));
+        examinationType: '',
+        serviceDoctor: '',
+        symptoms: '',
+        selectedPatientId: patientData.id,
+        examinationFee: 0,
+        paymentMethod: 'cash'
+      });
 
-      console.log('Filled medical info from patient search:', {
+      console.log('✅ Form filled with patient data:', {
         patientId: patientData.id,
+        fullName: patientData.fullName,
+        phone: patientData.phone,
         bloodType: patientData.bloodType || 'Không có',
         weight: patientData.weight ? `${patientData.weight} kg` : 'Chưa nhập',
         height: patientData.height ? `${patientData.height} cm` : 'Chưa nhập'
@@ -391,6 +395,8 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
       // Don't load linked patients for direct patient selection
       setLinkedPatients([]);
       setShowLinkedPatients(false);
+    } else {
+      console.log('⚠️ No patientData available');
     }
   }, [patientData]);
 
@@ -786,9 +792,20 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
   const handleClearForm = () => {
     // Simple confirmation
     if (window.confirm('Bạn có chắc chắn muốn làm mới tất cả thông tin không?')) {
+      console.log('🗑️ Clearing form and localStorage...');
+
       // Reset payment completed state
       setPaymentCompleted(false);
 
+      // Clear all localStorage related to medical record
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('selectedAppointment');
+        localStorage.removeItem('selectedPatientForMedicalRecord');
+        localStorage.removeItem('medicalRecordActiveTab');
+        console.log('✅ Cleared all localStorage data');
+      }
+
+      // Clear form data
       setFormData({
         fullName: '',
         phoneNumber: '',
@@ -808,8 +825,6 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
         paymentMethod: 'cash'
       });
 
-      // No need to clear error/success messages as they are now toast notifications
-
       // Clear linked patients if any
       setLinkedPatients([]);
       setShowLinkedPatients(false);
@@ -817,23 +832,13 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
       // Clear doctors and reset to initial state
       setDoctors([]);
 
-      // If we have appointment data, re-fill the form
-      if (appointmentData) {
-        console.log('Re-filling form with appointment data after refresh:', appointmentData);
-
-        // Check if we have patientId to get detailed patient information
-        if (appointmentData.patientId) {
-          loadPatientDetail(appointmentData.patientId);
-        } else {
-          // Use appointment data directly if no patientId
-          fillFormWithAppointmentData(appointmentData);
-        }
-
-        // Load linked patients if we have a phone number
-        if (appointmentData.phone) {
-          loadLinkedPatients(appointmentData.phone);
-        }
+      // Call onCancel to notify parent component and navigate away
+      if (onCancel) {
+        console.log('📤 Calling onCancel to return to list');
+        onCancel();
       }
+
+      console.log('✅ Form cleared successfully');
     }
   };
 

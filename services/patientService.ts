@@ -132,10 +132,52 @@ export interface PatientsResponse extends ApiResponse<Patient[]> {
   ownerId?: number | null;
 }
 
+// Interface cho API GET /patients response
+export interface PatientApiData {
+  id: number;
+  code: string;
+  bloodType: string;
+  weight: number;
+  height: number;
+  registrationDate: string;
+  fullName: string;
+  phone: string | null;
+  address: string;
+  cccd: string;
+  birth: string;
+  gender: 'NAM' | 'NU';
+  profileImage: string | null;
+  relationship: string | null;
+  email: string | null;
+}
+
 /**
  * Service để quản lý các API liên quan đến patients
  */
 const patientService = {
+  /**
+   * Lấy danh sách bệnh nhân với tìm kiếm
+   * @param keyword - Từ khóa tìm kiếm (tên, SĐT, CCCD)
+   * @returns Promise với response từ API
+   */
+  getPatients: async (keyword?: string): Promise<ApiResponse<PatientApiData[]>> => {
+    try {
+      const params: any = {};
+      if (keyword && keyword.trim() !== '') {
+        params.keyword = keyword.trim();
+      }
+
+      const response = await apiClient.get<ApiResponse<PatientApiData[]>>('/api/patients', {
+        params
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching patients:', error);
+      throw error;
+    }
+  },
+
   /**
    * Lấy thông tin bệnh nhân theo số điện thoại
    * @param phone - Số điện thoại cần tìm kiếm

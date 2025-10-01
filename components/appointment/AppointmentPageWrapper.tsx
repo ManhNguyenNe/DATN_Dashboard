@@ -1,7 +1,7 @@
 "use client";
 
 //import node module libraries
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Fragment } from "react";
 import { AppointmentFilter } from "../../services";
 
@@ -11,7 +11,25 @@ import AppointmentManagement from "./AppointmentManagement";
 
 const AppointmentPageWrapper = () => {
   const [currentFilters, setCurrentFilters] = useState<AppointmentFilter>({});
-  const [activeTab, setActiveTab] = useState<string>("list");
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    // Check localStorage for active tab
+    if (typeof window !== 'undefined') {
+      const savedTab = localStorage.getItem('medicalRecordActiveTab');
+      const savedPatient = localStorage.getItem('selectedPatientForMedicalRecord');
+
+      console.log('🎯 AppointmentPageWrapper initializing:', {
+        savedTab,
+        hasSavedPatient: !!savedPatient
+      });
+
+      if (savedTab) {
+        localStorage.removeItem('medicalRecordActiveTab');
+        console.log('✅ Setting activeTab to:', savedTab);
+        return savedTab;
+      }
+    }
+    return "list";
+  });
 
   const handleSearch = (filters: AppointmentFilter) => {
     setCurrentFilters(filters);
@@ -20,6 +38,8 @@ const AppointmentPageWrapper = () => {
   const handleNewAppointment = () => {
     setActiveTab("create");
   };
+
+  console.log('🔄 AppointmentPageWrapper render, activeTab:', activeTab);
 
   return (
     <Fragment>

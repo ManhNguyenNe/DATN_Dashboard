@@ -8,7 +8,6 @@ import { Row, Col, Card, Tab, Tabs, Alert } from "react-bootstrap";
 import AppointmentList from "./AppointmentList";
 import AppointmentSearch from "./AppointmentSearch";
 import MedicalRecordForm from "./MedicalRecordForm";
-import PatientManagement from "./PatientManagement";
 
 //import services
 import { appointmentService, AppointmentStatus, type Appointment, type AppointmentFilter, type PatientSearchResult } from "../../services";
@@ -38,19 +37,39 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
     }
     return null;
   });
-  const [selectedPatient, setSelectedPatient] = useState<PatientSearchResult | null>(null);
+  const [selectedPatient, setSelectedPatient] = useState<PatientSearchResult | null>(() => {
+    // Restore from localStorage on component mount
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('selectedPatientForMedicalRecord');
+      if (saved) {
+        const parsedData = JSON.parse(saved);
+        console.log('📋 Restored patient data from localStorage:', parsedData);
+        return parsedData;
+      }
+    }
+    return null;
+  });
   const [updatingAppointments, setUpdatingAppointments] = useState<Set<number>>(new Set());
 
   // Use external or internal active tab
   const activeTab = externalActiveTab || internalActiveTab;
   const setActiveTab = onTabChange || setInternalActiveTab;
 
-  // Auto-navigate to medical-record tab if we have a selected appointment from localStorage
+  // Auto-navigate to medical-record tab if we have a selected appointment or patient from localStorage
   useEffect(() => {
-    if (selectedAppointment && !externalActiveTab) {
+    if ((selectedAppointment || selectedPatient) && !externalActiveTab) {
+      console.log('🔄 Auto-navigating to medical-record tab', {
+        hasAppointment: !!selectedAppointment,
+        hasPatient: !!selectedPatient
+      });
       setInternalActiveTab("medical-record");
     }
-  }, [selectedAppointment, externalActiveTab]);
+  }, [selectedAppointment, selectedPatient, externalActiveTab]);
+
+  // Debug log when selectedPatient changes
+  useEffect(() => {
+    console.log('🔍 selectedPatient state changed:', selectedPatient);
+  }, [selectedPatient]);
 
   // Load appointments with filters
   const handleSearch = async (filters: AppointmentFilter) => {
@@ -154,6 +173,8 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
     // Clear localStorage
     if (typeof window !== 'undefined') {
       localStorage.removeItem('selectedAppointment');
+      localStorage.removeItem('selectedPatientForMedicalRecord');
+      localStorage.removeItem('medicalRecordActiveTab');
     }
     setActiveTab("list");
     // Optionally refresh data or show success message
@@ -166,6 +187,8 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
     // Clear localStorage
     if (typeof window !== 'undefined') {
       localStorage.removeItem('selectedAppointment');
+      localStorage.removeItem('selectedPatientForMedicalRecord');
+      localStorage.removeItem('medicalRecordActiveTab');
     }
     setActiveTab("list");
   };
@@ -229,14 +252,6 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
                     patientData={selectedPatient || undefined}
                     onSuccess={handleMedicalRecordCreated}
                     onCancel={handleMedicalRecordCancelled}
-                  />
-                </div>
-              </Tab>
-
-              <Tab eventKey="patients" title="Bệnh nhân">
-                <div className="pt-4">
-                  <PatientManagement
-                    onFillToMedicalRecord={handleFillPatientToMedicalRecord}
                   />
                 </div>
               </Tab>
