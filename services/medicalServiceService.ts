@@ -141,6 +141,35 @@ class MedicalServiceService {
             };
         }
     }
+
+    // Tìm kiếm dịch vụ theo từ khóa (real-time search)
+    async searchServices(keyword: string): Promise<ServiceSearchResult[]> {
+        try {
+            if (!keyword || keyword.trim().length === 0) {
+                return [];
+            }
+
+            const response = await api.get(`/api/services`, {
+                params: { keyword: keyword.trim() }
+            });
+
+            return response.data;
+        } catch (error) {
+            console.error('Lỗi khi tìm kiếm dịch vụ:', error);
+            return [];
+        }
+    }
+}
+
+// Interface cho kết quả tìm kiếm dịch vụ
+export interface ServiceSearchResult {
+    id: number;
+    code: string;
+    name: string;
+    price: number;
+    description: string;
+    roomNumber: string;
+    roomName: string;
 }
 
 const medicalServiceService = new MedicalServiceService();

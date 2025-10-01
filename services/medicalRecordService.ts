@@ -78,7 +78,7 @@ export interface MedicalRecordFilter {
 
 // Interface cho Lab Order Response trong Medical Record Detail
 export interface LabOrderResponse {
-  id: number;
+  id: number | null;  // Có thể null cho phí khám
   recordId: number | null;
   healthPlanId: number;
   healthPlanName: string;
@@ -89,9 +89,9 @@ export interface LabOrderResponse {
   status: 'CHO_THUC_HIEN' | 'DANG_THUC_HIEN' | 'HOAN_THANH' | 'HUY';
   statusPayment: 'DA_THANH_TOAN' | 'CHUA_THANH_TOAN' | null;
   price: number;
-  createdAt: string | null;
-  expectedResultDate: string | null;
-  orderDate?: string;
+  createdAt?: string | null;  // Optional - không phải tất cả response đều có
+  orderDate?: string | null;  // Optional - chỉ có trong GET all, không có trong GET detail
+  expectedResultDate?: string | null;  // Optional - có thể null hoặc không có
 }
 
 // Interface cho Medical Record Service (mapping từ LabOrderResponse)
@@ -165,6 +165,7 @@ const medicalRecordService = {
   getMedicalRecordById: async (id: number): Promise<ApiResponse<MedicalRecord>> => {
     try {
       const response = await apiClient.get<ApiResponse<MedicalRecord>>(`/api/medical-record/${id}`);
+      console.log('Fetched medical record:', response.data);
       return response.data;
     } catch (error) {
       console.error('Error fetching medical record:', error);

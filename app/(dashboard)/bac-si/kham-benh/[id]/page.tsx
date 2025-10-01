@@ -2,14 +2,15 @@
 import { Card, Col, Row, Form, Button, Alert, Tab, Tabs, Table, Badge, Modal } from "react-bootstrap";
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { PersonFill, ClipboardData, Prescription2, Save, Plus, Check, X, Activity, FileText, Printer, Receipt, PencilSquare, InfoCircle, Gear } from "react-bootstrap-icons";
+import { PersonFill, ClipboardData, Save, Plus, Check, X, Activity, FileText, Printer, Receipt, PencilSquare, InfoCircle, Gear } from "react-bootstrap-icons";
 import { useAuth } from "../../../../../contexts/AuthContext";
 import { Appointment } from "../../../../../services/appointmentService";
 import Loading from "../../../../../components/common/Loading";
 import { AppointmentService, NewPrescription, MedicalService, ServiceStatus, PrescriptionStatus } from "../../../../../types/MedicalServiceType";
 import { medicalRecordService, type MedicalRecordDetail, type LabOrderResponse } from "../../../../../services";
-import labOrderService, { LabOrderDetail } from "../../../../../services/labOrderService";
-import medicalServiceService, { ServiceDetailResponse, AssignedDoctor } from "../../../../../services/medicalServiceService";
+import labOrderService, { LabOrderDetail, CreateLabOrderRequest } from "../../../../../services/labOrderService";
+import medicalServiceService, { ServiceDetailResponse, AssignedDoctor, ServiceSearchResult } from "../../../../../services/medicalServiceService";
+import ServiceSearchInput from "../../../../../components/common/ServiceSearchInput";
 
 // CSS cho print
 const printStyles = `
@@ -28,7 +29,6 @@ interface ExaminationData {
     chanDoan: string;
     trieuChung: string;
     huongDieuTri: string;
-    donThuoc: string;
     ghiChu: string;
 }
 
@@ -47,13 +47,14 @@ const ExaminationDetailPage = () => {
 
     // States cho dịch vụ và chỉ định
     const [paidServices, setPaidServices] = useState<AppointmentService[]>([]);
-    const [newPrescriptions, setNewPrescriptions] = useState<NewPrescription[]>([]);
     const [availableServices, setAvailableServices] = useState<MedicalService[]>([]);
     const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: number, name: string, specialty: string }>>([]);
     const [showAddPrescriptionModal, setShowAddPrescriptionModal] = useState(false);
-    const [selectedService, setSelectedService] = useState<number | null>(null);
+    const [selectedService, setSelectedService] = useState<ServiceSearchResult | null>(null);
+    const [selectedDoctorId, setSelectedDoctorId] = useState<number | null>(null);
     const [prescriptionReason, setPrescriptionReason] = useState('');
     const [prescriptionNotes, setPrescriptionNotes] = useState('');
+    const [loadingServiceDetail, setLoadingServiceDetail] = useState(false);
 
     // States cho edit chỉ định
     const [editingPrescription, setEditingPrescription] = useState<NewPrescription | null>(null);
@@ -75,7 +76,6 @@ const ExaminationDetailPage = () => {
         chanDoan: '',
         trieuChung: '',
         huongDieuTri: '',
-        donThuoc: '',
         ghiChu: ''
     });
 
@@ -121,7 +121,6 @@ const ExaminationDetailPage = () => {
                     chanDoan: record.diagnosis || '',
                     trieuChung: record.symptoms || '',
                     huongDieuTri: record.treatmentPlan || '',
-                    donThuoc: '',
                     ghiChu: record.note || ''
                 });
 
@@ -134,13 +133,12 @@ const ExaminationDetailPage = () => {
                     status: labOrder.statusPayment === 'DA_THANH_TOAN' ? ServiceStatus.DA_THANH_TOAN : ServiceStatus.CHUA_THANH_TOAN,
                     paymentDate: labOrder.statusPayment === 'DA_THANH_TOAN' ? record.date : undefined,
                     assignedDoctor: labOrder.doctorPerformed || 'Chưa phân công',
-                    reason: `Chỉ định thực hiện tại ${labOrder.room || 'phòng chưa xác định'}`
+                    reason: `Chỉ định thực hiện tại ${labOrder.room || 'phòng chưa xác định'}`,
+                    // Thêm trạng thái thực hiện để kiểm tra UI
+                    executionStatus: labOrder.status // CHO_THUC_HIEN, DANG_THUC_HIEN, HOAN_THANH, HUY
                 }));
 
                 setPaidServices(services);
-
-                // Khởi tạo danh sách chỉ định mới rỗng
-                setNewPrescriptions([]);
 
             } else {
                 throw new Error('Không thể tải thông tin phiếu khám');
@@ -154,7 +152,13 @@ const ExaminationDetailPage = () => {
         }
     };
 
-    const handleEditPrescription = async (labOrderId: number) => {
+    const handleEditPrescription = async (labOrderId: number | null) => {
+        // Không thể xem chi tiết nếu không có ID (như tiền khám)
+        if (labOrderId === null) {
+            setAlert({ type: 'danger', message: 'Dịch vụ này không có chi tiết chỉ định (tiền khám)' });
+            return;
+        }
+
         try {
             setLoadingLabOrderDetail(true);
 
@@ -184,23 +188,8 @@ const ExaminationDetailPage = () => {
                     setAvailableDoctorsForAssignment([]);
                 }
 
-                // 3. Tạo prescription object cho modal từ lab order detail
-                const prescriptionFromLabOrder: NewPrescription = {
-                    id: labOrderDetail.id,
-                    serviceId: labOrderDetail.healthPlanId,
-                    serviceName: labOrderDetail.healthPlanName,
-                    reason: `Chỉ định ${labOrderDetail.healthPlanName}`,
-                    notes: labOrderDetail.room ? `Thực hiện tại: ${labOrderDetail.room}` : '',
-                    createdAt: labOrderDetail.orderDate,
-                    status: PrescriptionStatus.CHO_XAC_NHAN
-                };
-
-                setEditingPrescription(prescriptionFromLabOrder);
-                setSelectedService(labOrderDetail.healthPlanId);
-                setPrescriptionReason(`Chỉ định ${labOrderDetail.healthPlanName}`);
-                setPrescriptionNotes(labOrderDetail.room ? `Thực hiện tại: ${labOrderDetail.room}` : '');
+                // Hiển thị modal chi tiết chỉ định
                 setSelectedDoctor(labOrderDetail.doctorOrdered || labOrderDetail.doctorPerformed || user?.name || '');
-
                 setShowEditPrescriptionModal(true);
 
             } else {
@@ -215,16 +204,6 @@ const ExaminationDetailPage = () => {
             });
         } finally {
             setLoadingLabOrderDetail(false);
-        }
-    };
-
-    const fetchNewPrescriptions = async () => {
-        try {
-            // Tạm thời dùng dữ liệu mẫu
-            const samplePrescriptions: NewPrescription[] = [];
-            setNewPrescriptions(samplePrescriptions);
-        } catch (error) {
-            console.error('Lỗi khi tải chỉ định mới:', error);
         }
     };
 
@@ -259,80 +238,87 @@ const ExaminationDetailPage = () => {
     };
 
     const handleAddPrescription = async () => {
-        if (!selectedService || !prescriptionReason.trim()) {
-            setAlert({ type: 'danger', message: 'Vui lòng chọn dịch vụ và nhập lý do chỉ định' });
+        if (!selectedService || !prescriptionReason.trim() || !selectedDoctorId) {
+            setAlert({ type: 'danger', message: 'Vui lòng điền đầy đủ thông tin (dịch vụ, bác sĩ thực hiện, lý do chỉ định)' });
+            return;
+        }
+
+        if (!medicalRecord?.id) {
+            setAlert({ type: 'danger', message: 'Không tìm thấy thông tin phiếu khám' });
             return;
         }
 
         try {
-            const service = availableServices.find(s => s.id === selectedService);
-            if (!service) return;
+            setSaving(true);
 
-            const newPrescription: NewPrescription = {
-                id: Date.now(),
-                serviceId: selectedService,
-                serviceName: service.name,
-                reason: prescriptionReason,
-                notes: prescriptionNotes,
-                createdAt: new Date().toISOString(),
-                status: PrescriptionStatus.CHO_XAC_NHAN
+            // Tạo request theo API spec
+            const createRequest: CreateLabOrderRequest = {
+                recordId: parseInt(medicalRecord.id),
+                healthPlanId: selectedService.id,
+                performingDoctor: selectedDoctorId,
+                diagnosis: prescriptionReason
             };
 
-            setNewPrescriptions([...newPrescriptions, newPrescription]);
+            console.log('🔄 Đang tạo chỉ định mới:', createRequest);
+
+            // Gọi API tạo chỉ định
+            const response = await labOrderService.createLabOrder(createRequest);
+
+            console.log('✅ Tạo chỉ định thành công:', response);
+
+            // Đóng modal và clear form TRƯỚC KHI refresh
             setShowAddPrescriptionModal(false);
             setSelectedService(null);
+            setSelectedDoctorId(null);
             setPrescriptionReason('');
             setPrescriptionNotes('');
-            setSelectedDoctor('');
+            setServiceDetail(null);
+
+            // Hiển thị thông báo thành công
             setAlert({ type: 'success', message: 'Đã thêm chỉ định mới thành công' });
 
-        } catch (error) {
-            console.error('Lỗi khi thêm chỉ định:', error);
-            setAlert({ type: 'danger', message: 'Có lỗi xảy ra khi thêm chỉ định' });
+            // Refresh danh sách dịch vụ SAU KHI đóng modal
+            await fetchMedicalRecordDetails();
+
+        } catch (error: any) {
+            console.error('❌ Lỗi khi thêm chỉ định:', error);
+            setAlert({ type: 'danger', message: error.response?.data?.message || 'Có lỗi xảy ra khi thêm chỉ định' });
+        } finally {
+            setSaving(false);
         }
     };
 
-    const handleDeletePrescription = (prescriptionId: number) => {
-        setNewPrescriptions(newPrescriptions.filter(p => p.id !== prescriptionId));
-        setAlert({ type: 'success', message: 'Đã xóa chỉ định' });
+    // Xử lý khi chọn dịch vụ từ ServiceSearchInput
+    const handleServiceSelect = async (service: ServiceSearchResult) => {
+        setSelectedService(service);
+        setLoadingServiceDetail(true);
+
+        try {
+            // Lấy chi tiết dịch vụ để hiển thị bác sĩ có thể phân công
+            const detail = await medicalServiceService.getServiceDetail(service.id);
+            setServiceDetail(detail);
+
+            // Auto-select bác sĩ đầu tiên nếu có
+            if (detail.doctorsAssigned && detail.doctorsAssigned.length > 0) {
+                setSelectedDoctorId(detail.doctorsAssigned[0].id);
+            }
+        } catch (error) {
+            console.error('Lỗi khi tải chi tiết dịch vụ:', error);
+        } finally {
+            setLoadingServiceDetail(false);
+        }
     };
 
-
-
-    const handleUpdatePrescription = async () => {
-        if (!editingPrescription || !selectedService || !prescriptionReason.trim()) {
-            setAlert({ type: 'danger', message: 'Vui lòng điền đầy đủ thông tin' });
+    // Xử lý xem kết quả dịch vụ
+    const handleViewResult = (serviceId: number | null) => {
+        if (serviceId === null) {
+            setAlert({ type: 'danger', message: 'Không thể xem kết quả cho dịch vụ này' });
             return;
         }
 
-        try {
-            const service = availableServices.find(s => s.id === selectedService);
-            if (!service) return;
-
-            const updatedPrescription: NewPrescription = {
-                ...editingPrescription,
-                serviceId: selectedService,
-                serviceName: service.name,
-                reason: prescriptionReason,
-                notes: prescriptionNotes
-            };
-
-            setNewPrescriptions(newPrescriptions.map(p =>
-                p.id === editingPrescription.id ? updatedPrescription : p
-            ));
-
-            setShowEditPrescriptionModal(false);
-            setEditingPrescription(null);
-            setSelectedService(null);
-            setPrescriptionReason('');
-            setPrescriptionNotes('');
-            setSelectedDoctor('');
-            setAlert({ type: 'success', message: 'Đã cập nhật chỉ định thành công' });
-
-        } catch (error) {
-            console.error('Lỗi khi cập nhật chỉ định:', error);
-            setAlert({ type: 'danger', message: 'Có lỗi xảy ra khi cập nhật chỉ định' });
-        }
+        // TODO: Implement xem kết quả dịch vụ (mở modal hoặc navigate)
+        setAlert({ type: 'success', message: `Đang mở kết quả cho dịch vụ ID: ${serviceId}` });
+        console.log('Xem kết quả dịch vụ:', serviceId);
     };
 
     const handleEditService = (serviceId: number) => {
@@ -634,30 +620,6 @@ const ExaminationDetailPage = () => {
                                     </Form>
                                 </Tab>
 
-                                <Tab eventKey="prescription" title="Đơn thuốc">
-                                    <Form.Group className="mb-3">
-                                        <Form.Label>
-                                            <Prescription2 className="me-2" />
-                                            Đơn thuốc
-                                        </Form.Label>
-                                        <Form.Control
-                                            as="textarea"
-                                            rows={10}
-                                            placeholder={`Ví dụ:
-1. Paracetamol 500mg - Uống 1 viên x 3 lần/ngày sau ăn - 10 viên
-2. Amoxicillin 250mg - Uống 1 viên x 2 lần/ngày - 14 viên
-3. Vitamin C 1000mg - Uống 1 viên/ngày - 30 viên
-
-Lời dặn:
-- Uống thuốc đúng giờ
-- Không được tự ý ngưng thuốc
-- Tái khám sau 1 tuần`}
-                                            value={examinationData.donThuoc}
-                                            onChange={(e) => handleInputChange('donThuoc', e.target.value)}
-                                        />
-                                    </Form.Group>
-                                </Tab>
-
                                 <Tab eventKey="services" title={
                                     <span>
                                         <Activity className="me-1" />
@@ -671,15 +633,26 @@ Lời dặn:
                                                 <Activity className="me-2" />
                                                 Dịch vụ trong lần khám
                                             </h6>
-                                            <Button
-                                                variant="success"
-                                                size="sm"
-                                                onClick={handlePrintInvoice}
-                                                className="d-flex align-items-center"
-                                            >
-                                                <Printer className="me-1" size={16} />
-                                                In hóa đơn
-                                            </Button>
+                                            <div className="d-flex gap-2">
+                                                <Button
+                                                    variant="primary"
+                                                    size="sm"
+                                                    onClick={() => setShowAddPrescriptionModal(true)}
+                                                    className="d-flex align-items-center"
+                                                >
+                                                    <Plus className="me-1" size={16} />
+                                                    Thêm chỉ định mới
+                                                </Button>
+                                                <Button
+                                                    variant="success"
+                                                    size="sm"
+                                                    onClick={handlePrintInvoice}
+                                                    className="d-flex align-items-center"
+                                                >
+                                                    <Printer className="me-1" size={16} />
+                                                    In hóa đơn
+                                                </Button>
+                                            </div>
                                         </div>
                                         {paidServices.length > 0 ? (
                                             <Table striped bordered hover responsive>
@@ -701,20 +674,34 @@ Lời dặn:
                                                             <td>{service.assignedDoctor || 'Chưa chỉ định'}</td>
 
                                                             <td>
-                                                                <Button
-                                                                    variant="outline-primary"
-                                                                    size="sm"
-                                                                    onClick={() => handleEditPrescription(service.id)}
-                                                                    className="d-flex align-items-center"
-                                                                    title="Chỉnh sửa thông tin chỉ định"
-                                                                    disabled={loadingLabOrderDetail}
-                                                                >
-                                                                    {loadingLabOrderDetail ? (
-                                                                        <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                                                                    ) : (
-                                                                        <PencilSquare size={16} />
+                                                                <div className="d-flex gap-1">
+                                                                    {/* Nút chỉnh sửa - hiển thị cho tất cả */}
+                                                                    <Button
+                                                                        variant="outline-primary"
+                                                                        size="sm"
+                                                                        onClick={() => handleEditPrescription(service.id)}
+                                                                        title="Xem chi tiết chỉ định"
+                                                                        disabled={loadingLabOrderDetail}
+                                                                    >
+                                                                        {loadingLabOrderDetail ? (
+                                                                            <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                                                        ) : (
+                                                                            <PencilSquare size={16} />
+                                                                        )}
+                                                                    </Button>
+
+                                                                    {/* Nút xem kết quả - chỉ hiển thị khi đã hoàn thành hoặc đang thực hiện */}
+                                                                    {service.executionStatus && ['DANG_THUC_HIEN', 'HOAN_THANH'].includes(service.executionStatus) && (
+                                                                        <Button
+                                                                            variant="outline-success"
+                                                                            size="sm"
+                                                                            onClick={() => handleViewResult(service.id)}
+                                                                            title="Xem kết quả dịch vụ"
+                                                                        >
+                                                                            <FileText size={16} />
+                                                                        </Button>
                                                                     )}
-                                                                </Button>
+                                                                </div>
                                                             </td>
                                                         </tr>
                                                     ))}
@@ -732,79 +719,6 @@ Lời dặn:
                                                 <Receipt size={48} className="mb-2" />
                                                 <p className="mb-0">Chưa có dịch vụ nào được thêm vào lần khám này.</p>
                                                 <small className="text-muted">Dịch vụ sẽ được hiển thị tại đây sau khi bệnh nhân đăng ký.</small>
-                                            </Alert>
-                                        )}
-                                    </div>
-
-                                    <hr className="my-4" />
-
-                                    {/* Phần Chỉ định mới */}
-                                    <div className="mb-3">
-                                        <div className="d-flex justify-content-between align-items-center mb-3">
-                                            <h6>
-                                                <FileText className="me-2" />
-                                                Chỉ định bổ sung
-                                            </h6>
-                                            <Button
-                                                variant="primary"
-                                                size="sm"
-                                                onClick={() => setShowAddPrescriptionModal(true)}
-                                            >
-                                                <Plus className="me-1" />
-                                                Thêm chỉ định mới
-                                            </Button>
-                                        </div>
-
-                                        {newPrescriptions.length > 0 ? (
-                                            <Table striped bordered hover responsive>
-                                                <thead>
-                                                    <tr>
-                                                        <th>Tên dịch vụ</th>
-                                                        <th>Lý do chỉ định</th>
-                                                        <th>Bác sĩ chỉ định</th>
-                                                        <th>Ghi chú</th>
-                                                        <th>Trạng thái</th>
-                                                        <th>Thao tác</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {newPrescriptions.map(prescription => (
-                                                        <tr key={prescription.id}>
-                                                            <td>{prescription.serviceName}</td>
-                                                            <td>{prescription.reason}</td>
-                                                            <td>{user?.name || 'Chưa chọn'}</td>
-                                                            <td>{prescription.notes || '-'}</td>
-                                                            <td>
-                                                                <Badge bg="warning">Chờ xác nhận</Badge>
-                                                            </td>
-                                                            <td>
-                                                                <div className="d-flex gap-1">
-                                                                    <Button
-                                                                        variant="outline-primary"
-                                                                        size="sm"
-                                                                        onClick={() => handleEditPrescription(prescription.id)}
-                                                                        title="Chỉnh sửa chỉ định"
-                                                                    >
-                                                                        <i className="bi bi-pencil"></i>
-                                                                    </Button>
-                                                                    <Button
-                                                                        variant="outline-danger"
-                                                                        size="sm"
-                                                                        onClick={() => handleDeletePrescription(prescription.id)}
-                                                                    >
-                                                                        <X className="me-1" />
-                                                                        Xóa
-                                                                    </Button>
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </Table>
-                                        ) : (
-                                            <Alert variant="info">
-                                                <FileText className="me-2" />
-                                                Chưa có chỉ định bổ sung nào. Nhấn "Thêm chỉ định mới" để thêm.
                                             </Alert>
                                         )}
                                     </div>
@@ -834,117 +748,87 @@ Lời dặn:
             </Row>
 
             {/* Modal thêm chỉ định mới */}
-            <Modal show={showAddPrescriptionModal} onHide={() => setShowAddPrescriptionModal(false)} size="lg">
+            <Modal show={showAddPrescriptionModal} onHide={() => {
+                setShowAddPrescriptionModal(false);
+                setSelectedService(null);
+                setSelectedDoctorId(null);
+                setPrescriptionReason('');
+                setPrescriptionNotes('');
+                setServiceDetail(null);
+            }} size="lg">
                 <Modal.Header closeButton>
                     <Modal.Title>Thêm chỉ định mới</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
                     <Form>
+                        {/* Tìm kiếm dịch vụ */}
                         <Form.Group className="mb-3">
-                            <Form.Label>Chọn dịch vụ <span className="text-danger">*</span></Form.Label>
-                            <Form.Select
-                                value={selectedService || ''}
-                                onChange={(e) => setSelectedService(Number(e.target.value) || null)}
-                            >
-                                <option value="">-- Chọn dịch vụ --</option>
-                                {availableServices.map(service => (
-                                    <option key={service.id} value={service.id}>
-                                        {service.name} - {service.price.toLocaleString()} đ ({service.category})
-                                    </option>
-                                ))}
-                            </Form.Select>
-                        </Form.Group>
-
-                        <Form.Group className="mb-3">
-                            <Form.Label>Lý do chỉ định <span className="text-danger">*</span></Form.Label>
-                            <Form.Control
-                                as="textarea"
-                                rows={3}
-                                placeholder="Nhập lý do chỉ định dịch vụ này..."
-                                value={prescriptionReason}
-                                onChange={(e) => setPrescriptionReason(e.target.value)}
+                            <Form.Label>Tìm kiếm dịch vụ <span className="text-danger">*</span></Form.Label>
+                            <ServiceSearchInput
+                                onServiceSelect={handleServiceSelect}
+                                placeholder="Nhập tên dịch vụ để tìm kiếm..."
+                                selectedService={selectedService}
                             />
-                        </Form.Group>
-
-                        <Form.Group className="mb-3">
-                            <Form.Label>Ghi chú</Form.Label>
-                            <Form.Control
-                                as="textarea"
-                                rows={2}
-                                placeholder="Ghi chú thêm (nếu có)..."
-                                value={prescriptionNotes}
-                                onChange={(e) => setPrescriptionNotes(e.target.value)}
-                            />
-                        </Form.Group>
-                    </Form>
-                </Modal.Body>
-                <Modal.Footer>
-                    <Button variant="secondary" onClick={() => setShowAddPrescriptionModal(false)}>
-                        Hủy
-                    </Button>
-                    <Button variant="primary" onClick={handleAddPrescription}>
-                        <Plus className="me-1" />
-                        Thêm chỉ định
-                    </Button>
-                </Modal.Footer>
-            </Modal>
-
-            {/* Modal sửa chỉ định */}
-            <Modal show={showEditPrescriptionModal} onHide={() => setShowEditPrescriptionModal(false)} size="lg">
-                <Modal.Header closeButton>
-                    <Modal.Title>Chỉnh sửa chỉ định</Modal.Title>
-                </Modal.Header>
-                <Modal.Body>
-                    <Form>
-                        <Form.Group className="mb-3">
-                            <Form.Label>Chọn dịch vụ <span className="text-danger">*</span></Form.Label>
-                            <Form.Select
-                                value={selectedService || ''}
-                                onChange={(e) => setSelectedService(Number(e.target.value) || null)}
-                            >
-                                <option value="">-- Chọn dịch vụ --</option>
-                                {availableServices.map(service => (
-                                    <option key={service.id} value={service.id}>
-                                        {service.name} - {service.price.toLocaleString()} đ ({service.category})
-                                    </option>
-                                ))}
-                            </Form.Select>
-                        </Form.Group>
-
-                        <Form.Group className="mb-3">
-                            <Form.Label>Bác sĩ chỉ định</Form.Label>
-                            <Form.Select
-                                value={selectedDoctor}
-                                onChange={(e) => setSelectedDoctor(e.target.value)}
-                            >
-                                <option value="">-- Chọn bác sĩ chỉ định --</option>
-                                <option value={user?.name || ''}>
-                                    {user?.name} (Hiện tại)
-                                </option>
-                                {availableDoctors.map(doctor => (
-                                    <option key={doctor.id} value={doctor.name}>
-                                        {doctor.name} - {doctor.specialty}
-                                    </option>
-                                ))}
-                            </Form.Select>
                             <Form.Text className="text-muted">
-                                Chọn bác sĩ sẽ thực hiện dịch vụ được chỉ định
+                                Nhập ít nhất 2 ký tự để bắt đầu tìm kiếm
                             </Form.Text>
                         </Form.Group>
 
+                        {/* Hiển thị thông tin dịch vụ đã chọn */}
+                        {selectedService && (
+                            <Alert variant="info" className="mb-3">
+                                <div className="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <strong>Dịch vụ đã chọn:</strong> {selectedService.name}<br />
+                                        <small className="text-muted">
+                                            Mã: {selectedService.code} | Phòng: {selectedService.roomName}
+                                        </small>
+                                    </div>
+                                    <div className="text-end">
+                                        <strong className="text-primary">{selectedService.price.toLocaleString('vi-VN')}đ</strong>
+                                    </div>
+                                </div>
+                            </Alert>
+                        )}
+
+                        {/* Chọn bác sĩ thực hiện */}
+                        {selectedService && serviceDetail && (
+                            <Form.Group className="mb-3">
+                                <Form.Label>Bác sĩ thực hiện <span className="text-danger">*</span></Form.Label>
+                                <Form.Select
+                                    value={selectedDoctorId || ''}
+                                    onChange={(e) => setSelectedDoctorId(Number(e.target.value) || null)}
+                                    disabled={loadingServiceDetail || !serviceDetail.doctorsAssigned?.length}
+                                >
+                                    <option value="">-- Chọn bác sĩ thực hiện --</option>
+                                    {serviceDetail.doctorsAssigned?.map(doctor => (
+                                        <option key={doctor.id} value={doctor.id}>
+                                            {doctor.fullName} - {doctor.position} ({doctor.shift === 'SANG' ? 'Ca sáng' : 'Ca chiều'})
+                                            {!doctor.available && ' - Không khả dụng'}
+                                        </option>
+                                    ))}
+                                </Form.Select>
+                                <Form.Text className="text-muted">
+                                    Danh sách bác sĩ được phân công cho dịch vụ này
+                                </Form.Text>
+                            </Form.Group>
+                        )}
+
+                        {/* Lý do chỉ định */}
                         <Form.Group className="mb-3">
-                            <Form.Label>Lý do chỉ định <span className="text-danger">*</span></Form.Label>
+                            <Form.Label>Lý do chỉ định / Chẩn đoán <span className="text-danger">*</span></Form.Label>
                             <Form.Control
                                 as="textarea"
                                 rows={3}
-                                placeholder="Nhập lý do chỉ định dịch vụ này..."
+                                placeholder="Nhập lý do chỉ định dịch vụ này hoặc chẩn đoán liên quan..."
                                 value={prescriptionReason}
                                 onChange={(e) => setPrescriptionReason(e.target.value)}
                             />
                         </Form.Group>
 
+                        {/* Ghi chú */}
                         <Form.Group className="mb-3">
-                            <Form.Label>Ghi chú</Form.Label>
+                            <Form.Label>Ghi chú bổ sung</Form.Label>
                             <Form.Control
                                 as="textarea"
                                 rows={2}
@@ -953,15 +837,59 @@ Lời dặn:
                                 onChange={(e) => setPrescriptionNotes(e.target.value)}
                             />
                         </Form.Group>
+
+                        {/* Preview thông tin chỉ định */}
+                        {selectedService && selectedDoctorId && prescriptionReason && (
+                            <Alert variant="success" className="mb-0">
+                                <h6 className="alert-heading">
+                                    <Check className="me-2" />
+                                    Xem trước chỉ định
+                                </h6>
+                                <hr />
+                                <Row>
+                                    <Col md={6}>
+                                        <small><strong>Dịch vụ:</strong> {selectedService.name}</small>
+                                    </Col>
+                                    <Col md={6}>
+                                        <small><strong>Giá:</strong> {selectedService.price.toLocaleString('vi-VN')}đ</small>
+                                    </Col>
+                                    <Col md={6} className="mt-2">
+                                        <small><strong>Bác sĩ thực hiện:</strong> {serviceDetail?.doctorsAssigned?.find(d => d.id === selectedDoctorId)?.fullName || 'N/A'}</small>
+                                    </Col>
+                                    <Col md={6} className="mt-2">
+                                        <small><strong>Phòng:</strong> {selectedService.roomName}</small>
+                                    </Col>
+                                    <Col md={12} className="mt-2">
+                                        <small><strong>Lý do:</strong> {prescriptionReason}</small>
+                                    </Col>
+                                    {prescriptionNotes && (
+                                        <Col md={12} className="mt-2">
+                                            <small><strong>Ghi chú:</strong> {prescriptionNotes}</small>
+                                        </Col>
+                                    )}
+                                </Row>
+                            </Alert>
+                        )}
                     </Form>
                 </Modal.Body>
                 <Modal.Footer>
-                    <Button variant="secondary" onClick={() => setShowEditPrescriptionModal(false)}>
+                    <Button variant="secondary" onClick={() => {
+                        setShowAddPrescriptionModal(false);
+                        setSelectedService(null);
+                        setSelectedDoctorId(null);
+                        setPrescriptionReason('');
+                        setPrescriptionNotes('');
+                        setServiceDetail(null);
+                    }}>
                         Hủy
                     </Button>
-                    <Button variant="primary" onClick={handleUpdatePrescription}>
-                        <Check className="me-1" />
-                        Cập nhật chỉ định
+                    <Button
+                        variant="primary"
+                        onClick={handleAddPrescription}
+                        disabled={!selectedService || !selectedDoctorId || !prescriptionReason.trim() || saving}
+                    >
+                        <Plus className="me-1" />
+                        {saving ? 'Đang thêm...' : 'Thêm chỉ định'}
                     </Button>
                 </Modal.Footer>
             </Modal>
@@ -1090,14 +1018,17 @@ Lời dặn:
                                                 labOrderDetail.status === 'HOAN_THANH' ? 'Hoàn thành' : 'Hủy'}
                                     </Badge>
                                 </div>
-                                <div className="col-md-6 mt-2">
+                                {/* <div className="col-md-6 mt-2">
                                     <strong>Trạng thái thanh toán:</strong>{' '}
                                     <Badge bg={labOrderDetail.statusPayment === 'DA_THANH_TOAN' ? 'success' : 'warning'}>
                                         {labOrderDetail.statusPayment === 'DA_THANH_TOAN' ? 'Đã thanh toán' : 'Chưa thanh toán'}
                                     </Badge>
-                                </div>
+                                </div> */}
                                 <div className="col-12 mt-2">
                                     <strong>Ngày chỉ định:</strong> {new Date(labOrderDetail.orderDate).toLocaleString('vi-VN')}
+                                </div>
+                                <div className="col-12 mt-2">
+                                    <strong>Chuẩn đoán:</strong> {labOrderDetail.diagnosis || 'Chưa có'}
                                 </div>
                                 {labOrderDetail.expectedResultDate && (
                                     <div className="col-12 mt-2">
@@ -1134,77 +1065,96 @@ Lời dặn:
                     )}
 
                     <Form>
-                        {/* Dropdown chọn bác sĩ chỉ định */}
-                        <Form.Group className="mb-3">
-                            <Form.Label>Chọn bác sĩ chỉ định</Form.Label>
-                            <Form.Select
-                                value={selectedDoctor}
-                                onChange={(e) => setSelectedDoctor(e.target.value)}
-                                disabled={loadingLabOrderDetail}
-                            >
-                                <option value="">-- Chọn bác sĩ chỉ định --</option>
+                        {/* Chỉ hiển thị các trường edit khi trạng thái cho phép (CHO_THUC_HIEN) */}
+                        {labOrderDetail?.status === 'CHO_THUC_HIEN' && (
+                            <>
+                                {/* Dropdown chọn bác sĩ chỉ định */}
+                                <Form.Group className="mb-3">
+                                    <Form.Label>Chọn bác sĩ chỉ định</Form.Label>
+                                    <Form.Select
+                                        value={selectedDoctor}
+                                        onChange={(e) => setSelectedDoctor(e.target.value)}
+                                        disabled={loadingLabOrderDetail}
+                                    >
+                                        <option value="">-- Chọn bác sĩ chỉ định --</option>
 
-                                {/* Bác sĩ hiện tại đang khám */}
-                                {/* <option value={user?.name || ''}>
-                                    {user?.name} (Bác sĩ hiện tại - Đang khám)
-                                </option> */}
-
-                                {/* Bác sĩ từ chỉ định hiện tại (nếu có) */}
-                                {labOrderDetail?.doctorOrdered && labOrderDetail.doctorOrdered !== user?.name && (
-                                    <option value={labOrderDetail.doctorOrdered}>
-                                        {labOrderDetail.doctorOrdered} (Bác sĩ đã chỉ định)
-                                    </option>
-                                )}
-
-                                {labOrderDetail?.doctorPerformed && labOrderDetail.doctorPerformed !== user?.name && labOrderDetail.doctorPerformed !== labOrderDetail.doctorOrdered && (
-                                    <option value={labOrderDetail.doctorPerformed}>
-                                        {labOrderDetail.doctorPerformed} (Bác sĩ đã thực hiện)
-                                    </option>
-                                )}
-
-                                {/* Bác sĩ được phân công cho dịch vụ này */}
-                                {availableDoctorsForAssignment.length > 0 && (
-                                    <>
-                                        {availableDoctorsForAssignment.map(doctor => (
-                                            <option key={`assigned-${doctor.id}`} value={doctor.fullName}>
-                                                {doctor.fullName}
+                                        {/* Bác sĩ từ chỉ định hiện tại (nếu có) */}
+                                        {labOrderDetail?.doctorOrdered && labOrderDetail.doctorOrdered !== user?.name && (
+                                            <option value={labOrderDetail.doctorOrdered}>
+                                                {labOrderDetail.doctorOrdered} (Bác sĩ đã chỉ định)
                                             </option>
-                                        ))}
-                                    </>
-                                )}
-                            </Form.Select>
+                                        )}
 
-                        </Form.Group>
+                                        {labOrderDetail?.doctorPerformed && labOrderDetail.doctorPerformed !== user?.name && labOrderDetail.doctorPerformed !== labOrderDetail.doctorOrdered && (
+                                            <option value={labOrderDetail.doctorPerformed}>
+                                                {labOrderDetail.doctorPerformed} (Bác sĩ đã thực hiện)
+                                            </option>
+                                        )}
 
-                        <Form.Group className="mb-3">
-                            <Form.Label>Ghi chú bổ sung</Form.Label>
-                            <Form.Control
-                                as="textarea"
-                                rows={3}
-                                placeholder="Thêm ghi chú cho chỉ định này..."
-                                value={prescriptionNotes}
-                                onChange={(e) => setPrescriptionNotes(e.target.value)}
-                            />
-                        </Form.Group>
+                                        {/* Bác sĩ được phân công cho dịch vụ này */}
+                                        {availableDoctorsForAssignment.length > 0 && (
+                                            <>
+                                                {availableDoctorsForAssignment.map(doctor => (
+                                                    <option key={`assigned-${doctor.id}`} value={doctor.fullName}>
+                                                        {doctor.fullName}
+                                                    </option>
+                                                ))}
+                                            </>
+                                        )}
+                                    </Form.Select>
+                                </Form.Group>
+
+                                <Form.Group className="mb-3">
+                                    <Form.Label>Ghi chú bổ sung</Form.Label>
+                                    <Form.Control
+                                        as="textarea"
+                                        rows={3}
+                                        placeholder="Thêm ghi chú cho chỉ định này..."
+                                        value={prescriptionNotes}
+                                        onChange={(e) => setPrescriptionNotes(e.target.value)}
+                                    />
+                                </Form.Group>
+                            </>
+                        )}
+
+                        {/* Hiển thị thông báo khi không thể chỉnh sửa */}
+                        {labOrderDetail?.status && ['DANG_THUC_HIEN', 'HOAN_THANH', 'HUY'].includes(labOrderDetail.status) && (
+                            <Alert variant="info">
+                                <InfoCircle className="me-2" />
+                                <strong>Trạng thái:</strong> {
+                                    labOrderDetail.status === 'DANG_THUC_HIEN' ? 'Đang thực hiện' :
+                                        labOrderDetail.status === 'HOAN_THANH' ? 'Đã hoàn thành' :
+                                            labOrderDetail.status === 'HUY' ? 'Đã hủy' : labOrderDetail.status
+                                }
+                                <br />
+                                <small className="text-muted">
+                                    Không thể chỉnh sửa thông tin bác sĩ chỉ định khi dịch vụ đã bắt đầu thực hiện hoặc hoàn thành.
+                                </small>
+                            </Alert>
+                        )}
                     </Form>
                 </Modal.Body>
                 <Modal.Footer>
                     <Button variant="secondary" onClick={() => setShowEditPrescriptionModal(false)}>
                         Đóng
                     </Button>
-                    <Button
-                        variant="primary"
-                        onClick={() => {
-                            // TODO: Thêm function để cập nhật bác sĩ chỉ định
-                            console.log('Cập nhật bác sĩ chỉ định:', selectedDoctor);
-                            setAlert({ type: 'success', message: `Đã cập nhật bác sĩ chỉ định: ${selectedDoctor}` });
-                            setShowEditPrescriptionModal(false);
-                        }}
-                        disabled={!selectedDoctor || loadingLabOrderDetail}
-                    >
-                        <Check className="me-1" />
-                        Cập nhật bác sĩ chỉ định
-                    </Button>
+
+                    {/* Chỉ hiển thị nút cập nhật khi trạng thái cho phép */}
+                    {labOrderDetail?.status === 'CHO_THUC_HIEN' && (
+                        <Button
+                            variant="primary"
+                            onClick={() => {
+                                // TODO: Thêm function để cập nhật bác sĩ chỉ định
+                                console.log('Cập nhật bác sĩ chỉ định:', selectedDoctor);
+                                setAlert({ type: 'success', message: `Đã cập nhật bác sĩ chỉ định: ${selectedDoctor}` });
+                                setShowEditPrescriptionModal(false);
+                            }}
+                            disabled={!selectedDoctor || loadingLabOrderDetail}
+                        >
+                            <Check className="me-1" />
+                            Cập nhật bác sĩ chỉ định
+                        </Button>
+                    )}
                 </Modal.Footer>
             </Modal>
         </div>

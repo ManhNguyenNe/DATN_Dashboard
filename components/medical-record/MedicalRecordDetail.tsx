@@ -227,6 +227,36 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
         }
     };
 
+    const getLabOrderStatusBadgeVariant = (status: string) => {
+        switch (status) {
+            case 'CHO_THUC_HIEN':
+                return 'warning';
+            case 'DANG_THUC_HIEN':
+                return 'info';
+            case 'HOAN_THANH':
+                return 'success';
+            case 'HUY':
+                return 'danger';
+            default:
+                return 'secondary';
+        }
+    };
+
+    const getLabOrderStatusText = (status: string) => {
+        switch (status) {
+            case 'CHO_THUC_HIEN':
+                return 'Chờ thực hiện';
+            case 'DANG_THUC_HIEN':
+                return 'Đang thực hiện';
+            case 'HOAN_THANH':
+                return 'Hoàn thành';
+            case 'HUY':
+                return 'Hủy';
+            default:
+                return status;
+        }
+    };
+
     if (loading) {
         return (
             <Card>
@@ -360,6 +390,8 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
                                                     <th>Dịch vụ</th>
                                                     <th>Bác sĩ</th>
                                                     <th>Phòng</th>
+                                                    <th>Trạng thái</th>
+                                                    <th>Ngày chỉ định</th>
                                                     <th className="text-end">Giá</th>
                                                 </tr>
                                             </thead>
@@ -373,8 +405,30 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
                                                                 {service.healthPlanName}
                                                                 {isExamFee && <Badge bg="info" className="ms-2">Phí khám</Badge>}
                                                             </td>
-                                                            <td>{service.doctorPerformed || service.doctorOrdered || 'Chưa xác định'}</td>
+                                                            <td>
+                                                                {service.doctorPerformed || service.doctorOrdered || 'Chưa xác định'}
+                                                            </td>
                                                             <td>{service.room || 'Chưa xác định'}</td>
+                                                            <td>
+                                                                <Badge bg={getLabOrderStatusBadgeVariant(service.status)}>
+                                                                    {getLabOrderStatusText(service.status)}
+                                                                </Badge>
+                                                            </td>
+                                                            <td>
+                                                                {/* Ưu tiên orderDate, nếu không có thì dùng createdAt, không có nữa thì dùng date của medical record */}
+                                                                {service.orderDate
+                                                                    ? new Date(service.orderDate).toLocaleDateString('vi-VN')
+                                                                    : service.createdAt
+                                                                        ? new Date(service.createdAt).toLocaleDateString('vi-VN')
+                                                                        : medicalRecord.date
+                                                                            ? new Date(medicalRecord.date).toLocaleDateString('vi-VN')
+                                                                            : 'N/A'}
+                                                                {service.expectedResultDate && (
+                                                                    <div className="text-muted small">
+                                                                        Dự kiến: {new Date(service.expectedResultDate).toLocaleDateString('vi-VN')}
+                                                                    </div>
+                                                                )}
+                                                            </td>
                                                             <td className="text-end fw-bold text-success">
                                                                 {service.price.toLocaleString('vi-VN')}đ
                                                             </td>
@@ -412,6 +466,8 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
                                                     <th>Dịch vụ</th>
                                                     <th>Bác sĩ</th>
                                                     <th>Phòng</th>
+                                                    <th>Trạng thái</th>
+                                                    <th>Ngày chỉ định</th>
                                                     <th className="text-end">Giá</th>
                                                 </tr>
                                             </thead>
@@ -430,6 +486,19 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
                                                             <td>{service.healthPlanName}</td>
                                                             <td>{service.doctorPerformed || service.doctorOrdered || 'Chưa xác định'}</td>
                                                             <td>{service.room || 'Chưa xác định'}</td>
+                                                            <td>
+                                                                <Badge bg={getLabOrderStatusBadgeVariant(service.status)}>
+                                                                    {getLabOrderStatusText(service.status)}
+                                                                </Badge>
+                                                            </td>
+                                                            <td>
+                                                                {service.orderDate ? new Date(service.orderDate).toLocaleDateString('vi-VN') : 'N/A'}
+                                                                {service.expectedResultDate && (
+                                                                    <div className="text-muted small">
+                                                                        Dự kiến: {new Date(service.expectedResultDate).toLocaleDateString('vi-VN')}
+                                                                    </div>
+                                                                )}
+                                                            </td>
                                                             <td className="text-end fw-bold text-warning">
                                                                 {service.price.toLocaleString('vi-VN')}đ
                                                             </td>

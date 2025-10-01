@@ -7,7 +7,7 @@ export interface MedicalService {
 }
 
 export interface AppointmentService {
-    id: number;
+    id: number | null; // null cho các dịch vụ như tiền khám
     serviceId: number;
     serviceName: string;
     price: number;
@@ -17,6 +17,7 @@ export interface AppointmentService {
     notes?: string;
     assignedDoctor?: string; // Bác sĩ được chỉ định thực hiện dịch vụ
     reason?: string; // Lý do chỉ định dịch vụ
+    executionStatus?: 'CHO_THUC_HIEN' | 'DANG_THUC_HIEN' | 'HOAN_THANH' | 'HUY'; // Trạng thái thực hiện
 }
 
 export interface NewPrescription {
