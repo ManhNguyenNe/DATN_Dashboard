@@ -167,6 +167,13 @@ request
 {
 	"recordId": 69,
     "healthPlanId": 2,
-    "performingDoctor": 20,
+    "performingDoctorId": 20,
     "diagnosis": "abcdxyzt"
+}
+## PUT - cập nhật chỉ định
+**api** /api/lab-orders
+request
+{
+    "id": 74,
+    "performingDoctorId": 21
 }

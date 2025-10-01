@@ -12,6 +12,7 @@ import {
   IconClipboardCheck,
   IconUserCheck,
   IconReportMedical,
+  IconUser,
 } from "@tabler/icons-react";
 
 //import custom type
@@ -43,6 +44,12 @@ export const LeTanMenu: MenuItemType[] = [
     title: "Quản lý bệnh nhân",
     link: "/le-tan/benh-nhan",
     icon: <IconUsers size={20} strokeWidth={1.5} />,
+  },
+  {
+    id: uuid(),
+    title: "Thông tin cá nhân",
+    link: "/le-tan/profile",
+    icon: <IconUser size={20} strokeWidth={1.5} />,
   }
 ];
 
@@ -77,6 +84,12 @@ export const BacSiMenu: MenuItemType[] = [
     title: "Báo cáo khám",
     link: "/bac-si/bao-cao",
     icon: <IconReportMedical size={20} strokeWidth={1.5} />,
+  },
+  {
+    id: uuid(),
+    title: "Thông tin cá nhân",
+    link: "/bac-si/profile",
+    icon: <IconUser size={20} strokeWidth={1.5} />,
   }
 ];
 

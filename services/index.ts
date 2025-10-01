@@ -79,3 +79,13 @@ export {
 // Medical Service Service
 export { default as medicalServiceService } from './medicalServiceService';
 export type { MedicalServiceFilter } from './medicalServiceService';
+
+// User Service
+export { default as userService } from './userService';
+export type {
+  UserProfile,
+  UserProfileUpdateData,
+  ChangePasswordData,
+  UserMeResponse,
+  DoctorInfo
+} from './userService';

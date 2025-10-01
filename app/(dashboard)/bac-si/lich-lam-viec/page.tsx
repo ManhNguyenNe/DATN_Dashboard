@@ -219,56 +219,208 @@ const DoctorSchedulePage = () => {
             </Row>
 
             {/* Weekly Calendar Grid */}
-            <Row>
-                {weekDates.map((date) => (
-                    <Col key={date} lg={Math.floor(12 / 7)} md={6} sm={12} className="mb-3">
-                        <Card className={`shadow-sm h-100 ${isToday(date) ? 'border-primary' : ''}`}>
-                            <Card.Header className={`text-center ${isToday(date) ? 'bg-primary text-white' : 'bg-light'}`}>
-                                <div className="fw-bold">{getDayName(date)}</div>
-                                <small>{new Date(date).toLocaleDateString('vi-VN')}</small>
-                                {isToday(date) && (
-                                    <Badge bg="light" text="primary" className="ms-2">Hôm nay</Badge>
-                                )}
-                            </Card.Header>
-                            <Card.Body className="p-2">
-                                {schedule[date]?.length === 0 ? (
-                                    <div className="text-center text-muted py-3">
-                                        <small>Không có lịch hẹn</small>
+            {/* Desktop View */}
+            <Card className="shadow-sm d-none d-lg-block">
+                <Card.Body className="p-0">
+                    <div className="row g-0">
+                        {weekDates.map((date, index) => (
+                            <div key={date} className="col">
+                                <div className={`h-100 ${index < weekDates.length - 1 ? 'border-end' : ''} ${isToday(date) ? 'bg-primary bg-opacity-5' : ''}`}>
+                                    {/* Day Header */}
+                                    <div className={`text-center py-3 border-bottom ${isToday(date) ? 'bg-primary text-white' : 'bg-light'}`}>
+                                        <div className="fw-bold">{getDayName(date)}</div>
+                                        <small className={isToday(date) ? 'text-white' : 'text-muted'}>
+                                            {new Date(date).toLocaleDateString('vi-VN')}
+                                        </small>
+                                        {isToday(date) && (
+                                            <div className="mt-1">
+                                                <Badge bg="light" text="primary" className="small">Hôm nay</Badge>
+                                            </div>
+                                        )}
                                     </div>
-                                ) : (
-                                    <div className="d-flex flex-column gap-2">
-                                        {schedule[date]?.map((appointment) => (
-                                            <div
-                                                key={appointment.id}
-                                                className="border rounded p-2"
-                                                style={{ fontSize: '0.85rem' }}
-                                            >
-                                                <div className="d-flex justify-content-between align-items-start mb-1">
-                                                    <strong className="text-primary">{appointment.time}</strong>
-                                                    <Badge bg={getStatusBadgeVariant(appointment.status)}>
+
+                                    {/* Day Content */}
+                                    <div className="p-3" style={{ minHeight: '400px', maxHeight: '500px', overflowY: 'auto' }}>
+                                        {schedule[date]?.length === 0 ? (
+                                            <div className="text-center text-muted py-4">
+                                                <Calendar size={32} className="mb-2 opacity-50" />
+                                                <div><small>Không có lịch hẹn</small></div>
+                                            </div>
+                                        ) : (
+                                            <div className="d-flex flex-column gap-2">
+                                                {schedule[date]?.map((appointment) => (
+                                                    <div
+                                                        key={appointment.id}
+                                                        className="border rounded-3 p-2 bg-white shadow-sm hover-shadow"
+                                                        style={{
+                                                            fontSize: '0.875rem',
+                                                            transition: 'all 0.2s ease',
+                                                            cursor: 'pointer'
+                                                        }}
+                                                        onMouseEnter={(e) => {
+                                                            e.currentTarget.style.transform = 'translateY(-1px)';
+                                                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+                                                        }}
+                                                        onMouseLeave={(e) => {
+                                                            e.currentTarget.style.transform = 'translateY(0)';
+                                                            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                                                        }}
+                                                    >
+                                                        <div className="d-flex justify-content-between align-items-start mb-2">
+                                                            <div className="fw-bold text-primary d-flex align-items-center">
+                                                                <Clock size={14} className="me-1" />
+                                                                {appointment.time}
+                                                            </div>
+                                                            <Badge
+                                                                bg={getStatusBadgeVariant(appointment.status)}
+                                                                className="small"
+                                                            >
+                                                                {getStatusText(appointment.status)}
+                                                            </Badge>
+                                                        </div>
+
+                                                        <div className="mb-2">
+                                                            <div className="fw-semibold d-flex align-items-center mb-1" title={appointment.fullName}>
+                                                                <PersonFill size={14} className="me-1 text-secondary" />
+                                                                <span className="text-truncate">{appointment.fullName}</span>
+                                                            </div>
+                                                            {appointment.phone && (
+                                                                <div className="text-muted small text-truncate" title={appointment.phone}>
+                                                                    📞 {appointment.phone}
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        {appointment.symptoms && (
+                                                            <div className="mb-2">
+                                                                <div className="text-muted small border-start border-3 border-info ps-2" title={appointment.symptoms}>
+                                                                    <div className="text-truncate">{appointment.symptoms}</div>
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        <div className="mt-2">
+                                                            {appointment.status === 'DA_XAC_NHAN' && (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="primary"
+                                                                    className="w-100 d-flex align-items-center justify-content-center"
+                                                                    onClick={() => router.push(`/bac-si/kham-benh/${appointment.id}`)}
+                                                                >
+                                                                    <PersonFill size={14} className="me-1" />
+                                                                    Bắt đầu khám
+                                                                </Button>
+                                                            )}
+                                                            {appointment.status === 'DA_DEN' && (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline-success"
+                                                                    className="w-100 d-flex align-items-center justify-content-center"
+                                                                    onClick={() => router.push(`/dat-lich?id=${appointment.id}`)}
+                                                                >
+                                                                    <Calendar size={14} className="me-1" />
+                                                                    Xem chi tiết
+                                                                </Button>
+                                                            )}
+                                                            {appointment.status === 'CHO_XAC_NHAN' && (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline-warning"
+                                                                    className="w-100 d-flex align-items-center justify-content-center"
+                                                                    disabled
+                                                                >
+                                                                    <Clock size={14} className="me-1" />
+                                                                    Chờ xác nhận
+                                                                </Button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </Card.Body>
+            </Card>
+
+            {/* Mobile/Tablet View */}
+            <div className="d-lg-none">
+                {weekDates.map((date) => (
+                    <Card key={date} className={`shadow-sm mb-3 ${isToday(date) ? 'border-primary' : ''}`}>
+                        {/* Day Header */}
+                        <Card.Header className={`d-flex justify-content-between align-items-center ${isToday(date) ? 'bg-primary text-white' : 'bg-light'}`}>
+                            <div>
+                                <div className="fw-bold">{getDayName(date)}</div>
+                                <small className={isToday(date) ? 'text-white' : 'text-muted'}>
+                                    {new Date(date).toLocaleDateString('vi-VN')}
+                                </small>
+                            </div>
+                            <div className="d-flex align-items-center gap-2">
+                                {isToday(date) && (
+                                    <Badge bg="light" text="primary" className="small">Hôm nay</Badge>
+                                )}
+                                <Badge bg="secondary">{schedule[date]?.length || 0} lịch hẹn</Badge>
+                            </div>
+                        </Card.Header>
+
+                        {/* Day Content */}
+                        <Card.Body>
+                            {schedule[date]?.length === 0 ? (
+                                <div className="text-center text-muted py-4">
+                                    <Calendar size={32} className="mb-2 opacity-50" />
+                                    <div>Không có lịch hẹn</div>
+                                </div>
+                            ) : (
+                                <div className="row g-3">
+                                    {schedule[date]?.map((appointment) => (
+                                        <div key={appointment.id} className="col-md-6 col-12">
+                                            <div className="border rounded-3 p-3 bg-light h-100">
+                                                <div className="d-flex justify-content-between align-items-start mb-2">
+                                                    <div className="fw-bold text-primary d-flex align-items-center">
+                                                        <Clock size={18} className="me-1" />
+                                                        {appointment.time}
+                                                    </div>
+                                                    <Badge
+                                                        bg={getStatusBadgeVariant(appointment.status)}
+                                                        className="small"
+                                                    >
                                                         {getStatusText(appointment.status)}
                                                     </Badge>
                                                 </div>
-                                                <div className="text-truncate" title={appointment.fullName}>
-                                                    <PersonFill size={12} className="me-1" />
-                                                    {appointment.fullName}
+
+                                                <div className="mb-3">
+                                                    <div className="fw-semibold d-flex align-items-center mb-2">
+                                                        <PersonFill size={16} className="me-2 text-secondary" />
+                                                        {appointment.fullName}
+                                                    </div>
+                                                    {appointment.phone && (
+                                                        <div className="text-muted">
+                                                            📞 {appointment.phone}
+                                                        </div>
+                                                    )}
                                                 </div>
-                                                <div className="text-muted text-truncate" title={appointment.phone}>
-                                                    {appointment.phone}
-                                                </div>
+
                                                 {appointment.symptoms && (
-                                                    <div className="text-muted text-truncate mt-1" title={appointment.symptoms}>
-                                                        <small>{appointment.symptoms}</small>
+                                                    <div className="mb-3">
+                                                        <div className="text-muted border-start border-3 border-info ps-3">
+                                                            <small className="text-uppercase fw-bold text-secondary">Triệu chứng</small>
+                                                            <div>{appointment.symptoms}</div>
+                                                        </div>
                                                     </div>
                                                 )}
-                                                <div className="mt-2">
+
+                                                <div className="mt-auto">
                                                     {appointment.status === 'DA_XAC_NHAN' && (
                                                         <Button
                                                             size="sm"
-                                                            variant="outline-primary"
-                                                            className="w-100"
+                                                            variant="primary"
+                                                            className="w-100 d-flex align-items-center justify-content-center"
                                                             onClick={() => router.push(`/bac-si/kham-benh/${appointment.id}`)}
                                                         >
+                                                            <PersonFill size={16} className="me-1" />
                                                             Bắt đầu khám
                                                         </Button>
                                                     )}
@@ -276,22 +428,34 @@ const DoctorSchedulePage = () => {
                                                         <Button
                                                             size="sm"
                                                             variant="outline-success"
-                                                            className="w-100"
+                                                            className="w-100 d-flex align-items-center justify-content-center"
                                                             onClick={() => router.push(`/dat-lich?id=${appointment.id}`)}
                                                         >
+                                                            <Calendar size={16} className="me-1" />
                                                             Xem chi tiết
+                                                        </Button>
+                                                    )}
+                                                    {appointment.status === 'CHO_XAC_NHAN' && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline-warning"
+                                                            className="w-100 d-flex align-items-center justify-content-center"
+                                                            disabled
+                                                        >
+                                                            <Clock size={16} className="me-1" />
+                                                            Chờ xác nhận
                                                         </Button>
                                                     )}
                                                 </div>
                                             </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </Card.Body>
-                        </Card>
-                    </Col>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </Card.Body>
+                    </Card>
                 ))}
-            </Row>
+            </div>
         </div>
     );
 };

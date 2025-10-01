@@ -8,8 +8,8 @@ export interface LabOrderDetail {
     healthPlanName: string;
     room: string | null;
     doctorPerformed: string | null;
+    doctorPerformedId?: number | null;  // ID bác sĩ thực hiện
     doctorOrdered: string | null;
-    diagnosis: string | null;
     status: 'CHO_THUC_HIEN' | 'DANG_THUC_HIEN' | 'HOAN_THANH' | 'HUY';
     statusPayment: 'DA_THANH_TOAN' | 'CHUA_THANH_TOAN' | null;
     price: number;
@@ -65,15 +65,37 @@ const labOrderService = {
             console.error('Error creating lab order:', error);
             throw error;
         }
+    },
+
+    /**
+     * Cập nhật chỉ định (thay đổi bác sĩ thực hiện)
+     * @param data - Dữ liệu cập nhật chỉ định
+     * @returns Promise với response từ API
+     */
+    updateLabOrder: async (data: UpdateLabOrderRequest): Promise<ApiResponse<LabOrderDetail>> => {
+        try {
+            const response = await apiClient.put<ApiResponse<LabOrderDetail>>('/api/lab-orders', data);
+            console.log('Updated lab order:', response.data);
+            return response.data;
+        } catch (error) {
+            console.error('Error updating lab order:', error);
+            throw error;
+        }
     }
 };
 
 // Interface cho request tạo chỉ định mới
 export interface CreateLabOrderRequest {
-    recordId: number;           // ID phiếu khám
-    healthPlanId: number;       // ID dịch vụ/kế hoạch khám
-    performingDoctor: number;   // ID bác sĩ thực hiện
-    diagnosis: string;          // Chẩn đoán/lý do chỉ định
+    recordId: number;               // ID phiếu khám
+    healthPlanId: number;           // ID dịch vụ/kế hoạch khám
+    performingDoctorId: number;     // ID bác sĩ thực hiện
+    diagnosis: string;              // Chẩn đoán/lý do chỉ định
+}
+
+// Interface cho request cập nhật chỉ định
+export interface UpdateLabOrderRequest {
+    id: number;                     // ID chỉ định cần cập nhật
+    performingDoctorId: number;     // ID bác sĩ thực hiện mới
 }
 
 export default labOrderService;

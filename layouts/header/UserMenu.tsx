@@ -85,7 +85,11 @@ const UserMenu = () => {
           </div>
         </div>
         <div className="p-3 d-flex flex-column gap-1">
-          <Dropdown.Item className="d-flex align-items-center gap-2">
+          <Dropdown.Item
+            as={Link}
+            href={user?.role === 'BAC_SI' ? '/bac-si/profile' : '/le-tan/profile'}
+            className="d-flex align-items-center gap-2"
+          >
             <IconUser size={16} />
             <span>Thông tin cá nhân</span>
           </Dropdown.Item>

@@ -8,7 +8,7 @@ import { Appointment } from "../../../../../services/appointmentService";
 import Loading from "../../../../../components/common/Loading";
 import { AppointmentService, NewPrescription, MedicalService, ServiceStatus, PrescriptionStatus } from "../../../../../types/MedicalServiceType";
 import { medicalRecordService, type MedicalRecordDetail, type LabOrderResponse } from "../../../../../services";
-import labOrderService, { LabOrderDetail, CreateLabOrderRequest } from "../../../../../services/labOrderService";
+import labOrderService, { LabOrderDetail, CreateLabOrderRequest, UpdateLabOrderRequest } from "../../../../../services/labOrderService";
 import medicalServiceService, { ServiceDetailResponse, AssignedDoctor, ServiceSearchResult } from "../../../../../services/medicalServiceService";
 import ServiceSearchInput from "../../../../../components/common/ServiceSearchInput";
 
@@ -125,18 +125,21 @@ const ExaminationDetailPage = () => {
                 });
 
                 // Chuyển đổi labOrdersResponses thành AppointmentService format
-                const services: AppointmentService[] = record.labOrdersResponses.map((labOrder) => ({
-                    id: labOrder.id,
-                    serviceId: labOrder.healthPlanId,
-                    serviceName: labOrder.healthPlanName,
-                    price: labOrder.price,
-                    status: labOrder.statusPayment === 'DA_THANH_TOAN' ? ServiceStatus.DA_THANH_TOAN : ServiceStatus.CHUA_THANH_TOAN,
-                    paymentDate: labOrder.statusPayment === 'DA_THANH_TOAN' ? record.date : undefined,
-                    assignedDoctor: labOrder.doctorPerformed || 'Chưa phân công',
-                    reason: `Chỉ định thực hiện tại ${labOrder.room || 'phòng chưa xác định'}`,
-                    // Thêm trạng thái thực hiện để kiểm tra UI
-                    executionStatus: labOrder.status // CHO_THUC_HIEN, DANG_THUC_HIEN, HOAN_THANH, HUY
-                }));
+                // Chỉ lấy các chỉ định đã thanh toán
+                const services: AppointmentService[] = record.labOrdersResponses
+                    .filter(labOrder => labOrder.statusPayment === 'DA_THANH_TOAN') // ✅ Lọc chỉ dịch vụ đã thanh toán
+                    .map((labOrder) => ({
+                        id: labOrder.id,
+                        serviceId: labOrder.healthPlanId,
+                        serviceName: labOrder.healthPlanName,
+                        price: labOrder.price,
+                        status: ServiceStatus.DA_THANH_TOAN, // Đã filter nên luôn đã thanh toán
+                        paymentDate: record.date,
+                        assignedDoctor: labOrder.doctorPerformed || 'Chưa phân công',
+                        reason: `Chỉ định thực hiện tại ${labOrder.room || 'phòng chưa xác định'}`,
+                        // Thêm trạng thái thực hiện để kiểm tra UI
+                        executionStatus: labOrder.status // CHO_THUC_HIEN, DANG_THUC_HIEN, HOAN_THANH, HUY
+                    }));
 
                 setPaidServices(services);
 
@@ -255,7 +258,7 @@ const ExaminationDetailPage = () => {
             const createRequest: CreateLabOrderRequest = {
                 recordId: parseInt(medicalRecord.id),
                 healthPlanId: selectedService.id,
-                performingDoctor: selectedDoctorId,
+                performingDoctorId: selectedDoctorId,
                 diagnosis: prescriptionReason
             };
 
@@ -319,6 +322,63 @@ const ExaminationDetailPage = () => {
         // TODO: Implement xem kết quả dịch vụ (mở modal hoặc navigate)
         setAlert({ type: 'success', message: `Đang mở kết quả cho dịch vụ ID: ${serviceId}` });
         console.log('Xem kết quả dịch vụ:', serviceId);
+    };
+
+    // Xử lý cập nhật bác sĩ chỉ định
+    const handleUpdateLabOrder = async () => {
+        if (!labOrderDetail?.id || !selectedDoctor) {
+            setAlert({ type: 'danger', message: 'Vui lòng chọn bác sĩ chỉ định' });
+            return;
+        }
+
+        // Tìm ID bác sĩ từ tên được chọn
+        let performingDoctorId: number | null = null;
+
+        // Kiểm tra trong danh sách bác sĩ được phân công
+        const assignedDoctor = availableDoctorsForAssignment.find(doctor => doctor.fullName === selectedDoctor);
+        if (assignedDoctor) {
+            performingDoctorId = assignedDoctor.id;
+        } else if (labOrderDetail.doctorPerformedId && labOrderDetail.doctorPerformed === selectedDoctor) {
+            // Sử dụng ID bác sĩ đang thực hiện hiện tại
+            performingDoctorId = labOrderDetail.doctorPerformedId;
+        }
+
+        if (!performingDoctorId) {
+            setAlert({ type: 'danger', message: 'Không tìm thấy ID bác sĩ được chọn' });
+            return;
+        }
+
+        try {
+            setSaving(true);
+
+            const updateRequest: UpdateLabOrderRequest = {
+                id: labOrderDetail.id,
+                performingDoctorId: performingDoctorId
+            };
+
+            console.log('🔄 Đang cập nhật chỉ định:', updateRequest);
+
+            // Gọi API cập nhật
+            await labOrderService.updateLabOrder(updateRequest);
+
+            console.log('✅ Cập nhật chỉ định thành công');
+
+            // Đóng modal và hiển thị thông báo thành công
+            setShowEditPrescriptionModal(false);
+            setAlert({ type: 'success', message: `Đã cập nhật bác sĩ chỉ định: ${selectedDoctor}` });
+
+            // Refresh danh sách để cập nhật UI
+            await fetchMedicalRecordDetails();
+
+        } catch (error: any) {
+            console.error('❌ Lỗi khi cập nhật chỉ định:', error);
+            setAlert({
+                type: 'danger',
+                message: error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật bác sĩ chỉ định'
+            });
+        } finally {
+            setSaving(false);
+        }
     };
 
     const handleEditService = (serviceId: number) => {
@@ -629,9 +689,12 @@ const ExaminationDetailPage = () => {
                                     {/* Phần Dịch vụ hiện tại */}
                                     <div className="mb-4">
                                         <div className="d-flex justify-content-between align-items-center mb-3">
-                                            <h6>
+                                            <h6 className="mb-0">
                                                 <Activity className="me-2" />
-                                                Dịch vụ trong lần khám
+                                                Dịch vụ đã thanh toán trong lần khám
+                                                <Badge bg="success" className="ms-2">
+                                                    {paidServices.length} dịch vụ
+                                                </Badge>
                                             </h6>
                                             <div className="d-flex gap-2">
                                                 <Button
@@ -717,8 +780,8 @@ const ExaminationDetailPage = () => {
                                         ) : (
                                             <Alert variant="info" className="text-center py-4">
                                                 <Receipt size={48} className="mb-2" />
-                                                <p className="mb-0">Chưa có dịch vụ nào được thêm vào lần khám này.</p>
-                                                <small className="text-muted">Dịch vụ sẽ được hiển thị tại đây sau khi bệnh nhân đăng ký.</small>
+                                                <p className="mb-0">Chưa có dịch vụ nào đã thanh toán trong lần khám này.</p>
+                                                <small className="text-muted">Bệnh nhân cần thanh toán dịch vụ trước khi bác sĩ có thể thực hiện khám.</small>
                                             </Alert>
                                         )}
                                     </div>
@@ -1027,9 +1090,6 @@ const ExaminationDetailPage = () => {
                                 <div className="col-12 mt-2">
                                     <strong>Ngày chỉ định:</strong> {new Date(labOrderDetail.orderDate).toLocaleString('vi-VN')}
                                 </div>
-                                <div className="col-12 mt-2">
-                                    <strong>Chuẩn đoán:</strong> {labOrderDetail.diagnosis || 'Chưa có'}
-                                </div>
                                 {labOrderDetail.expectedResultDate && (
                                     <div className="col-12 mt-2">
                                         <strong>Ngày dự kiến có kết quả:</strong> {new Date(labOrderDetail.expectedResultDate).toLocaleString('vi-VN')}
@@ -1068,30 +1128,17 @@ const ExaminationDetailPage = () => {
                         {/* Chỉ hiển thị các trường edit khi trạng thái cho phép (CHO_THUC_HIEN) */}
                         {labOrderDetail?.status === 'CHO_THUC_HIEN' && (
                             <>
-                                {/* Dropdown chọn bác sĩ chỉ định */}
+                                {/* Dropdown chọn bác sĩ thực hiện */}
                                 <Form.Group className="mb-3">
-                                    <Form.Label>Chọn bác sĩ chỉ định</Form.Label>
+                                    <Form.Label>Bác sĩ thực hiện</Form.Label>
                                     <Form.Select
                                         value={selectedDoctor}
                                         onChange={(e) => setSelectedDoctor(e.target.value)}
                                         disabled={loadingLabOrderDetail}
                                     >
-                                        <option value="">-- Chọn bác sĩ chỉ định --</option>
+                                        <option value="">-- Chọn bác sĩ thực hiện --</option>
 
-                                        {/* Bác sĩ từ chỉ định hiện tại (nếu có) */}
-                                        {labOrderDetail?.doctorOrdered && labOrderDetail.doctorOrdered !== user?.name && (
-                                            <option value={labOrderDetail.doctorOrdered}>
-                                                {labOrderDetail.doctorOrdered} (Bác sĩ đã chỉ định)
-                                            </option>
-                                        )}
-
-                                        {labOrderDetail?.doctorPerformed && labOrderDetail.doctorPerformed !== user?.name && labOrderDetail.doctorPerformed !== labOrderDetail.doctorOrdered && (
-                                            <option value={labOrderDetail.doctorPerformed}>
-                                                {labOrderDetail.doctorPerformed} (Bác sĩ đã thực hiện)
-                                            </option>
-                                        )}
-
-                                        {/* Bác sĩ được phân công cho dịch vụ này */}
+                                        {/* Chỉ hiển thị bác sĩ được phân công cho dịch vụ này */}
                                         {availableDoctorsForAssignment.length > 0 && (
                                             <>
                                                 {availableDoctorsForAssignment.map(doctor => (
@@ -1143,16 +1190,11 @@ const ExaminationDetailPage = () => {
                     {labOrderDetail?.status === 'CHO_THUC_HIEN' && (
                         <Button
                             variant="primary"
-                            onClick={() => {
-                                // TODO: Thêm function để cập nhật bác sĩ chỉ định
-                                console.log('Cập nhật bác sĩ chỉ định:', selectedDoctor);
-                                setAlert({ type: 'success', message: `Đã cập nhật bác sĩ chỉ định: ${selectedDoctor}` });
-                                setShowEditPrescriptionModal(false);
-                            }}
-                            disabled={!selectedDoctor || loadingLabOrderDetail}
+                            onClick={handleUpdateLabOrder}
+                            disabled={!selectedDoctor || loadingLabOrderDetail || saving}
                         >
                             <Check className="me-1" />
-                            Cập nhật bác sĩ chỉ định
+                            {saving ? 'Đang cập nhật...' : 'Cập nhật bác sĩ chỉ định'}
                         </Button>
                     )}
                 </Modal.Footer>
