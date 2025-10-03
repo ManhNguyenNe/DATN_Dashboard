@@ -85,6 +85,7 @@ export interface LabOrderResponse {
   room: string;
   healthPlanResponse: any | null;
   doctorPerformed: string | null;
+  doctorPerformedId?: number | null;  // Thêm ID bác sĩ thực hiện
   doctorOrdered: string | null;
   status: 'CHO_THUC_HIEN' | 'DANG_THUC_HIEN' | 'HOAN_THANH' | 'HUY';
   statusPayment: 'DA_THANH_TOAN' | 'CHUA_THANH_TOAN' | null;
@@ -92,6 +93,8 @@ export interface LabOrderResponse {
   createdAt?: string | null;  // Optional - không phải tất cả response đều có
   orderDate?: string | null;  // Optional - chỉ có trong GET all, không có trong GET detail
   expectedResultDate?: string | null;  // Optional - có thể null hoặc không có
+  diagnosis?: string | null;  // Thêm chẩn đoán cho lab order
+  serviceParent?: string | null;  // Tên gói dịch vụ mà dịch vụ này thuộc về
 }
 
 // Interface cho Medical Record Service (mapping từ LabOrderResponse)
@@ -116,6 +119,9 @@ export interface MedicalRecordDetail {
   note: string | null;
   total: number;
   patientName: string;
+  patientPhone: string | null;
+  patientAddress: string;
+  patientGender: string;
   date: string;
   status: MedicalRecordStatus | string;
   labOrdersResponses: LabOrderResponse[];

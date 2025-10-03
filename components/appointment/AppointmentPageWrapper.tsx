@@ -11,7 +11,11 @@ import AppointmentManagement from "./AppointmentManagement";
 
 const AppointmentPageWrapper = () => {
   const [currentFilters, setCurrentFilters] = useState<AppointmentFilter>({});
-  const [activeTab, setActiveTab] = useState<string>(() => {
+  const [activeTab, setActiveTab] = useState<string>("list");
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // useEffect để xử lý logic chuyển tab
+  useEffect(() => {
     // Check localStorage for active tab
     if (typeof window !== 'undefined') {
       const savedTab = localStorage.getItem('medicalRecordActiveTab');
@@ -22,14 +26,26 @@ const AppointmentPageWrapper = () => {
         hasSavedPatient: !!savedPatient
       });
 
-      if (savedTab) {
-        localStorage.removeItem('medicalRecordActiveTab');
+      if (savedTab && savedPatient) {
         console.log('✅ Setting activeTab to:', savedTab);
-        return savedTab;
+        setActiveTab(savedTab);
+        // Clean up localStorage after setting tab
+        localStorage.removeItem('medicalRecordActiveTab');
+      }
+      setIsInitialized(true);
+    }
+  }, []);
+
+  // Force update tab if not already switched after initialization
+  useEffect(() => {
+    if (isInitialized && typeof window !== 'undefined') {
+      const savedPatient = localStorage.getItem('selectedPatientForMedicalRecord');
+      if (savedPatient && activeTab === "list") {
+        console.log('🔄 Force switching to medical-record tab');
+        setActiveTab("medical-record");
       }
     }
-    return "list";
-  });
+  }, [isInitialized, activeTab]);
 
   const handleSearch = (filters: AppointmentFilter) => {
     setCurrentFilters(filters);

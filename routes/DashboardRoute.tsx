@@ -75,9 +75,9 @@ export const BacSiMenu: MenuItemType[] = [
   },
   {
     id: uuid(),
-    title: "Bệnh nhân của tôi",
-    link: "/bac-si/benh-nhan-cua-toi",
-    icon: <IconUserCheck size={20} strokeWidth={1.5} />,
+    title: "Chỉ định xét nghiệm",
+    link: "/bac-si/chi-dinh-xet-nghiem",
+    icon: <IconReportMedical size={20} strokeWidth={1.5} />,
   },
   {
     id: uuid(),

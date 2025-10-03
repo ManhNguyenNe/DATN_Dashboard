@@ -10,11 +10,39 @@ export interface LabOrderDetail {
     doctorPerformed: string | null;
     doctorPerformedId?: number | null;  // ID bác sĩ thực hiện
     doctorOrdered: string | null;
-    status: 'CHO_THUC_HIEN' | 'DANG_THUC_HIEN' | 'HOAN_THANH' | 'HUY';
+    status: 'CHO_THUC_HIEN' | 'DANG_THUC_HIEN' | 'HOAN_THANH' | 'HUY_BO';
     statusPayment: 'DA_THANH_TOAN' | 'CHUA_THANH_TOAN' | null;
     price: number;
     orderDate: string;
     expectedResultDate: string | null;
+    diagnosis?: string | null;  // Chẩn đoán
+    serviceParent?: string | null;  // Gói dịch vụ cha
+}
+
+// Interface cho Lab Order của bác sĩ hiện tại 
+export interface DoctorLabOrder {
+    id: number;
+    recordId: number;
+    healthPlanId: number;
+    healthPlanName: string;
+    room: string;
+    doctorPerformed: string | null;
+    doctorPerformedId: number | null;
+    doctorOrdered: string;
+    status: 'CHO_THUC_HIEN' | 'DANG_THUC_HIEN' | 'HOAN_THANH' | 'HUY_BO';
+    statusPayment: 'DA_THANH_TOAN' | 'CHUA_THANH_TOAN' | null;
+    price: number;
+    orderDate: string;
+    diagnosis: string | null;
+    expectedResultDate: string | null;
+    serviceParent: string | null;
+}
+
+// Interface cho filter params
+export interface DoctorLabOrderFilter {
+    keyword?: string;
+    date?: string;  // Format: YYYY-MM-DD
+    status?: 'CHO_THUC_HIEN' | 'DANG_THUC_HIEN' | 'HOAN_THANH' | 'HUY_BO';
 }
 
 /**
@@ -33,6 +61,35 @@ const labOrderService = {
             return response.data;
         } catch (error) {
             console.error('Error fetching lab order detail:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Lấy tất cả chỉ định của bác sĩ hiện tại
+     * @param params - Bộ lọc tìm kiếm
+     * @returns Promise với response từ API
+     */
+    getDoctorLabOrders: async (params?: DoctorLabOrderFilter): Promise<ApiResponse<DoctorLabOrder[]>> => {
+        try {
+            const queryParams = new URLSearchParams();
+
+            if (params?.keyword) {
+                queryParams.append('keyword', params.keyword);
+            }
+            if (params?.date) {
+                queryParams.append('date', params.date);
+            }
+            if (params?.status) {
+                queryParams.append('status', params.status);
+            }
+
+            const url = `/api/lab-orders/doctor/me${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+            const response = await apiClient.get<ApiResponse<DoctorLabOrder[]>>(url);
+            console.log('Fetched doctor lab orders:', response.data);
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching doctor lab orders:', error);
             throw error;
         }
     },

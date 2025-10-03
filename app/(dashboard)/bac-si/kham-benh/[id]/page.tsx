@@ -502,11 +502,13 @@ const ExaminationDetailPage = () => {
                 </div>
                 
                 <div class="patient-info">
-                    <p><strong>Bệnh nhân:</strong> ${appointment.fullName}</p>
-                    <p><strong>Số điện thoại:</strong> ${appointment.phone}</p>
-                    <p><strong>Ngày sinh:</strong> ${appointment.birth}</p>
-                    <p><strong>Địa chỉ:</strong> ${appointment.address || 'Không có'}</p>
-                    <p><strong>Ngày khám:</strong> ${appointment.date} ${appointment.time}</p>
+                    <p><strong>Mã phiếu khám:</strong> ${medicalRecord?.code || 'N/A'}</p>
+                    <p><strong>Bệnh nhân:</strong> ${medicalRecord?.patientName || appointment.fullName}</p>
+                    <p><strong>Số điện thoại:</strong> ${medicalRecord?.patientPhone || appointment.phone || 'Không có'}</p>
+                    <p><strong>Ngày sinh:</strong> ${appointment.birth || 'Không có'}</p>
+                    <p><strong>Giới tính:</strong> ${medicalRecord?.patientGender === 'NAM' ? 'Nam' : medicalRecord?.patientGender === 'NU' ? 'Nữ' : appointment.gender || 'Không xác định'}</p>
+                    <p><strong>Địa chỉ:</strong> ${medicalRecord?.patientAddress || appointment.address || 'Không có'}</p>
+                    <p><strong>Ngày khám:</strong> ${medicalRecord?.date ? new Date(medicalRecord.date).toLocaleString('vi-VN') : `${appointment.date} ${appointment.time}`}</p>
                 </div>
 
                 <table class="services-table">
@@ -559,7 +561,7 @@ const ExaminationDetailPage = () => {
         <div className="container-fluid">
             <style>{printStyles}</style>
             <div className="d-flex justify-content-between align-items-center mb-4 no-print">
-                <h2>Khám bệnh - {appointment.fullName}</h2>
+                <h2>Khám bệnh - {medicalRecord?.patientName || appointment.fullName}</h2>
                 <Button
                     variant="outline-secondary"
                     onClick={() => router.push('/bac-si/kham-benh')}
@@ -589,26 +591,29 @@ const ExaminationDetailPage = () => {
                         </Card.Header>
                         <Card.Body>
                             <div className="mb-3">
-                                <strong>Họ tên:</strong> {appointment.fullName}
+                                <strong>Họ tên:</strong> {medicalRecord?.patientName || appointment.fullName}
                             </div>
                             <div className="mb-3">
-                                <strong>Số điện thoại:</strong> {appointment.phone}
+                                <strong>Số điện thoại:</strong> {medicalRecord?.patientPhone || appointment.phone || 'Không có'}
                             </div>
                             <div className="mb-3">
-                                <strong>Ngày sinh:</strong> {appointment.birth}
+                                <strong>Ngày sinh:</strong> {appointment.birth || 'Không có'}
                             </div>
                             <div className="mb-3">
-                                <strong>Giới tính:</strong> {appointment.gender || 'Không xác định'}
+                                <strong>Giới tính:</strong> {medicalRecord?.patientGender === 'NAM' ? 'Nam' : medicalRecord?.patientGender === 'NU' ? 'Nữ' : appointment.gender || 'Không xác định'}
                             </div>
                             <div className="mb-3">
-                                <strong>Địa chỉ:</strong> {appointment.address || 'Không có'}
+                                <strong>Địa chỉ:</strong> {medicalRecord?.patientAddress || appointment.address || 'Không có'}
                             </div>
                             <div className="mb-3">
-                                <strong>Thời gian hẹn:</strong> {appointment.time} - {appointment.date}
+                                <strong>Mã phiếu khám:</strong> {medicalRecord?.code || 'Đang tạo...'}
+                            </div>
+                            <div className="mb-3">
+                                <strong>Thời gian khám:</strong> {medicalRecord?.date ? new Date(medicalRecord.date).toLocaleString('vi-VN') : (appointment.time && appointment.date ? `${appointment.time} - ${appointment.date}` : 'Không có')}
                             </div>
                             <div>
                                 <strong>Triệu chứng ban đầu:</strong><br />
-                                <span className="text-muted">{appointment.symptoms || 'Không có'}</span>
+                                <span className="text-muted">{medicalRecord?.symptoms || appointment.symptoms || 'Không có'}</span>
                             </div>
                         </Card.Body>
                     </Card>
@@ -706,15 +711,6 @@ const ExaminationDetailPage = () => {
                                                     <Plus className="me-1" size={16} />
                                                     Thêm chỉ định mới
                                                 </Button>
-                                                <Button
-                                                    variant="success"
-                                                    size="sm"
-                                                    onClick={handlePrintInvoice}
-                                                    className="d-flex align-items-center"
-                                                >
-                                                    <Printer className="me-1" size={16} />
-                                                    In hóa đơn
-                                                </Button>
                                             </div>
                                         </div>
                                         {paidServices.length > 0 ? (
@@ -723,8 +719,7 @@ const ExaminationDetailPage = () => {
                                                     <tr>
                                                         <th>STT</th>
                                                         <th>Tên dịch vụ</th>
-                                                        <th>Giá</th>
-                                                        <th>Bác sĩ chỉ định</th>
+                                                        <th>Bác sĩ thực hiện</th>
                                                         <th>Thao tác</th>
                                                     </tr>
                                                 </thead>
@@ -733,8 +728,7 @@ const ExaminationDetailPage = () => {
                                                         <tr key={service.id}>
                                                             <td>{index + 1}</td>
                                                             <td>{service.serviceName}</td>
-                                                            <td>{service.price.toLocaleString()} đ</td>
-                                                            <td>{service.assignedDoctor || 'Chưa chỉ định'}</td>
+                                                            <td>{service.assignedDoctor || 'Chưa có'}</td>
 
                                                             <td>
                                                                 <div className="d-flex gap-1">
@@ -769,13 +763,6 @@ const ExaminationDetailPage = () => {
                                                         </tr>
                                                     ))}
                                                 </tbody>
-                                                <tfoot>
-                                                    <tr className="table-warning">
-                                                        <td colSpan={2}><strong>Tổng cộng</strong></td>
-                                                        <td><strong>{paidServices.reduce((total, service) => total + service.price, 0).toLocaleString()} đ</strong></td>
-                                                        <td colSpan={5}></td>
-                                                    </tr>
-                                                </tfoot>
                                             </Table>
                                         ) : (
                                             <Alert variant="info" className="text-center py-4">
@@ -1074,7 +1061,7 @@ const ExaminationDetailPage = () => {
                                     <Badge bg={
                                         labOrderDetail.status === 'HOAN_THANH' ? 'success' :
                                             labOrderDetail.status === 'DANG_THUC_HIEN' ? 'warning' :
-                                                labOrderDetail.status === 'HUY' ? 'danger' : 'secondary'
+                                                labOrderDetail.status === 'HUY_BO' ? 'danger' : 'secondary'
                                     }>
                                         {labOrderDetail.status === 'CHO_THUC_HIEN' ? 'Chờ thực hiện' :
                                             labOrderDetail.status === 'DANG_THUC_HIEN' ? 'Đang thực hiện' :
@@ -1165,13 +1152,13 @@ const ExaminationDetailPage = () => {
                         )}
 
                         {/* Hiển thị thông báo khi không thể chỉnh sửa */}
-                        {labOrderDetail?.status && ['DANG_THUC_HIEN', 'HOAN_THANH', 'HUY'].includes(labOrderDetail.status) && (
+                        {labOrderDetail?.status && ['DANG_THUC_HIEN', 'HOAN_THANH', 'HUY_BO'].includes(labOrderDetail.status) && (
                             <Alert variant="info">
                                 <InfoCircle className="me-2" />
                                 <strong>Trạng thái:</strong> {
                                     labOrderDetail.status === 'DANG_THUC_HIEN' ? 'Đang thực hiện' :
                                         labOrderDetail.status === 'HOAN_THANH' ? 'Đã hoàn thành' :
-                                            labOrderDetail.status === 'HUY' ? 'Đã hủy' : labOrderDetail.status
+                                            labOrderDetail.status === 'HUY_BO' ? 'Đã hủy' : labOrderDetail.status
                                 }
                                 <br />
                                 <small className="text-muted">

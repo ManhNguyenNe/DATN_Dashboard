@@ -81,6 +81,16 @@ export {
 export { default as medicalServiceService } from './medicalServiceService';
 export type { MedicalServiceFilter } from './medicalServiceService';
 
+// Lab Order Service
+export { default as labOrderService } from './labOrderService';
+export type {
+  LabOrderDetail,
+  DoctorLabOrder,
+  DoctorLabOrderFilter,
+  CreateLabOrderRequest,
+  UpdateLabOrderRequest
+} from './labOrderService';
+
 // User Service
 export { default as userService } from './userService';
 export type {

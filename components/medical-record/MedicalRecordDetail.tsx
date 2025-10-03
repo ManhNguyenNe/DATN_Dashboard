@@ -472,13 +472,22 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
                                 <Card.Body>
                                     <h6 className="mb-3">
                                         <IconUser size={16} className="me-2" />
-                                        Thông tin phiếu khám
+                                        Thông tin bệnh nhân
                                     </h6>
                                     <div className="mb-2">
                                         <strong>Mã phiếu khám:</strong> {medicalRecord.code}
                                     </div>
                                     <div className="mb-2">
                                         <strong>Bệnh nhân:</strong> {medicalRecord.patientName}
+                                    </div>
+                                    <div className="mb-2">
+                                        <strong>Số điện thoại:</strong> {medicalRecord.patientPhone || 'Không có'}
+                                    </div>
+                                    <div className="mb-2">
+                                        <strong>Giới tính:</strong> {medicalRecord.patientGender === 'NAM' ? 'Nam' : medicalRecord.patientGender === 'NU' ? 'Nữ' : 'Không xác định'}
+                                    </div>
+                                    <div className="mb-2">
+                                        <strong>Địa chỉ:</strong> {medicalRecord.patientAddress || 'Không có'}
                                     </div>
                                     <div className="mb-2">
                                         <strong>Ngày khám:</strong> {new Date(medicalRecord.date).toLocaleString('vi-VN')}
@@ -544,6 +553,7 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
                                             <thead className="table-success">
                                                 <tr>
                                                     <th>Dịch vụ</th>
+                                                    <th>Gói dịch vụ</th>
                                                     <th>Bác sĩ</th>
                                                     <th>Phòng</th>
                                                     <th>Trạng thái</th>
@@ -560,6 +570,16 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
                                                             <td>
                                                                 {service.healthPlanName}
                                                                 {isExamFee && <Badge bg="info" className="ms-2">Phí khám</Badge>}
+                                                            </td>
+                                                            <td>
+                                                                {service.serviceParent ? (
+                                                                    <span className="text-muted">
+                                                                        <i className="bi bi-box me-1"></i>
+                                                                        {service.serviceParent}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="text-muted">Dịch vụ lẻ</span>
+                                                                )}
                                                             </td>
                                                             <td>
                                                                 {service.doctorPerformed || service.doctorOrdered || 'Chưa xác định'}
@@ -594,7 +614,7 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
                                             </tbody>
                                             <tfoot className="table-light">
                                                 <tr>
-                                                    <td colSpan={5} className="text-end fw-bold">Tổng tiền đã thanh toán:</td>
+                                                    <td colSpan={6} className="text-end fw-bold">Tổng tiền đã thanh toán:</td>
                                                     <td className="text-end fw-bold text-success">
                                                         {paidServicesWithExamFee.reduce((total, service) => total + service.price, 0).toLocaleString('vi-VN')}đ
                                                     </td>
@@ -646,6 +666,7 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
                                                     <tr>
                                                         <th style={{ width: '50px' }}>Chọn</th>
                                                         <th>Dịch vụ</th>
+                                                        <th>Gói dịch vụ</th>
                                                         <th>Bác sĩ</th>
                                                         <th>Phòng</th>
                                                         <th>Trạng thái</th>
@@ -666,6 +687,16 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
                                                                     />
                                                                 </td>
                                                                 <td>{service.healthPlanName}</td>
+                                                                <td>
+                                                                    {service.serviceParent ? (
+                                                                        <span className="text-muted">
+                                                                            <i className="bi bi-box me-1"></i>
+                                                                            {service.serviceParent}
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="text-muted">Dịch vụ lẻ</span>
+                                                                    )}
+                                                                </td>
                                                                 <td>{service.doctorPerformed || service.doctorOrdered || 'Chưa xác định'}</td>
                                                                 <td>{service.room || 'Chưa xác định'}</td>
                                                                 <td>
@@ -690,7 +721,7 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
                                                 </tbody>
                                                 <tfoot className="table-light">
                                                     <tr>
-                                                        <td colSpan={6} className="text-end fw-bold">Tổng tiền chưa thanh toán:</td>
+                                                        <td colSpan={7} className="text-end fw-bold">Tổng tiền chưa thanh toán:</td>
                                                         <td className="text-end fw-bold text-warning">
                                                             {unpaidServices.reduce((total, service) => total + service.price, 0).toLocaleString('vi-VN')}đ
                                                         </td>

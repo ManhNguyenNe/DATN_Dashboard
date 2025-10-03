@@ -1,3 +1,51 @@
+## GET - lấy tất cả chỉ định của bác sĩ 
+**api** /api/lab-orders/doctor/me?keyword&date&status
+- Status có CHO_THUC_HIEN, DANG_THUC_HIEN, HOAN_THANH, HUY_BO - mặc định lúc tìm kiếm sẽ là chờ thực hiện
+- ngày mặc định là ngày hôm nay
+- keyword để nhập từ khóa
+
+response
+{
+    "data": [
+        {
+            "id": 81,
+            "recordId": 70,
+            "healthPlanId": 2,
+            "healthPlanName": "Xét nghiệm máu cơ bản",
+            "room": "Phòng xét nghiệm  - 204A",
+            "doctorPerformed": "ThS. LE THI CC",
+            "doctorPerformedId": null,
+            "doctorOrdered": "PGS. Phạm Tiến",
+            "status": "CHO_THUC_HIEN",
+            "statusPayment": null,
+            "price": 2000.00,
+            "orderDate": "2025-10-02T19:20:13",
+            "diagnosis": "sakldfj",
+            "expectedResultDate": null,
+            "serviceParent": null
+        },
+        {
+            "id": 82,
+            "recordId": 71,
+            "healthPlanId": 2,
+            "healthPlanName": "Xét nghiệm máu cơ bản",
+            "room": "Phòng xét nghiệm  - 204A",
+            "doctorPerformed": "ThS. LE THI CC",
+            "doctorPerformedId": null,
+            "doctorOrdered": "PGS. Phạm Tiến",
+            "status": "CHO_THUC_HIEN",
+            "statusPayment": null,
+            "price": 2000.00,
+            "orderDate": "2025-10-02T21:08:34",
+            "diagnosis": null,
+            "expectedResultDate": null,
+            "serviceParent": null
+        }
+    ],
+    "message": "Get all lab orders of doctor successfully"
+}
+
+
 ## GET - lấy tất cả chỉ định
 **api** /api/lab-orders
 - response
@@ -177,3 +225,4 @@ request
     "id": 74,
     "performingDoctorId": 21
 }
+

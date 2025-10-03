@@ -57,12 +57,18 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
 
   // Auto-navigate to medical-record tab if we have a selected appointment or patient from localStorage
   useEffect(() => {
+    // Chỉ auto-navigate nếu không có external active tab được set
     if ((selectedAppointment || selectedPatient) && !externalActiveTab) {
       console.log('🔄 Auto-navigating to medical-record tab', {
         hasAppointment: !!selectedAppointment,
-        hasPatient: !!selectedPatient
+        hasPatient: !!selectedPatient,
+        currentActiveTab: activeTab
       });
-      setInternalActiveTab("medical-record");
+
+      // Delay để đảm bảo component đã render xong
+      setTimeout(() => {
+        setInternalActiveTab("medical-record");
+      }, 100);
     }
   }, [selectedAppointment, selectedPatient, externalActiveTab]);
 
@@ -70,6 +76,17 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
   useEffect(() => {
     console.log('🔍 selectedPatient state changed:', selectedPatient);
   }, [selectedPatient]);
+
+  // Debug log when activeTab changes
+  useEffect(() => {
+    console.log('📑 activeTab changed:', {
+      activeTab,
+      externalActiveTab,
+      internalActiveTab,
+      hasSelectedPatient: !!selectedPatient,
+      hasSelectedAppointment: !!selectedAppointment
+    });
+  }, [activeTab, externalActiveTab, internalActiveTab, selectedPatient, selectedAppointment]);
 
   // Load appointments with filters
   const handleSearch = async (filters: AppointmentFilter) => {
