@@ -63,7 +63,8 @@ import {
     type MedicalRecordDetail as MedicalRecordDetailType,
     type LabOrderResponse,
     type PaymentLinkRequest,
-    type PaymentLinkResponse
+    type PaymentLinkResponse,
+    type CashPaymentRequest
 } from "../../services";
 
 // Import components
@@ -75,6 +76,7 @@ interface MedicalRecordDetailProps {
 }
 
 interface SelectedService {
+    id: number;
     serviceName: string;
     doctorName: string;
     price: number;
@@ -115,14 +117,20 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
             setLoading(true);
             setError(null);
 
+            console.log('Loading medical record detail for ID:', medicalRecordId);
+
             const response = await medicalRecordService.getMedicalRecordDetail(medicalRecordId);
+
+            console.log('Medical record detail response:', response);
 
             if (response && response.data) {
                 setMedicalRecord(response.data);
+                console.log('Lab orders:', response.data.labOrdersResponses);
             } else {
                 throw new Error('Không thể tải thông tin phiếu khám');
             }
         } catch (err: any) {
+            console.error('Error loading medical record detail:', err);
             setError(err.message || 'Lỗi khi tải thông tin phiếu khám');
         } finally {
             setLoading(false);
@@ -132,6 +140,7 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
     // Chuyển đổi labOrdersResponses sang format services để maintain backward compatibility
     const convertToServices = (labOrders: LabOrderResponse[]): SelectedService[] => {
         return labOrders.map(order => ({
+            id: order.id !== null ? order.id : 0, // Chỉ set 0 nếu thực sự null
             serviceName: order.healthPlanName,
             doctorName: order.doctorPerformed || order.doctorOrdered || 'Chưa xác định',
             price: order.price,
@@ -140,7 +149,9 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
     };
 
     const getUnpaidServices = (): LabOrderResponse[] => {
-        return medicalRecord?.labOrdersResponses?.filter(service => service.statusPayment === 'CHUA_THANH_TOAN') || [];
+        const unpaid = medicalRecord?.labOrdersResponses?.filter(service => service.statusPayment === 'CHUA_THANH_TOAN') || [];
+        console.log('Unpaid services:', unpaid);
+        return unpaid;
     };
 
     const getPaidServices = (): LabOrderResponse[] => {
@@ -158,6 +169,7 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
         } else {
             // Select all
             setSelectedServices(unpaidServices.map(service => ({
+                id: service.id !== null ? service.id : 0, // Chỉ set 0 nếu thực sự null
                 serviceName: service.healthPlanName,
                 doctorName: service.doctorPerformed || service.doctorOrdered || 'Chưa xác định',
                 price: service.price,
@@ -167,19 +179,25 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
     };
 
     const handleServiceSelection = (service: LabOrderResponse) => {
-        const isSelected = selectedServices.some(s => s.serviceName === service.healthPlanName);
+        console.log('Service selection triggered for:', service);
+        const isSelected = selectedServices.some(s => s.id === service.id);
+        console.log('Is selected:', isSelected);
+        console.log('Current selected services:', selectedServices);
 
         if (isSelected) {
             // Remove from selection
-            setSelectedServices(prev => prev.filter(s => s.serviceName !== service.healthPlanName));
+            setSelectedServices(prev => prev.filter(s => s.id !== service.id));
         } else {
             // Add to selection
-            setSelectedServices(prev => [...prev, {
+            const newService = {
+                id: service.id !== null ? service.id : 0, // Chỉ set 0 nếu thực sự null
                 serviceName: service.healthPlanName,
                 doctorName: service.doctorPerformed || service.doctorOrdered || 'Chưa xác định',
                 price: service.price,
                 room: service.room || 'Chưa xác định'
-            }]);
+            };
+            console.log('Adding service:', newService);
+            setSelectedServices(prev => [...prev, newService]);
         }
     };
 
@@ -195,10 +213,59 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
 
         if (paymentMethod === 'cash') {
             // Handle cash payment
-            alert('Xác nhận thanh toán tiền mặt (Chức năng này sẽ được triển khai sau)');
+            await handleCashPayment();
         } else {
             // Handle QR payment
             await handleCreateQRPayment();
+        }
+    };
+
+    const handleCashPayment = async () => {
+        try {
+            setPaymentLoading(true);
+            setError(null);
+
+            // Debug: Log selected services
+            console.log('Processing cash payment for services:', selectedServices);
+
+            // Lấy danh sách ID của các dịch vụ đã chọn
+            const selectedLabOrderIds = selectedServices
+                .map(service => service.id)
+                .filter(id => id !== null && id !== undefined && id !== 0); // Lọc bỏ null, undefined và 0
+
+            console.log('Selected lab order IDs for cash payment:', selectedLabOrderIds);
+
+            // Kiểm tra xem có ID hợp lệ không
+            if (selectedLabOrderIds.length === 0) {
+                throw new Error('Không có dịch vụ hợp lệ để thanh toán');
+            }
+
+            const cashPaymentRequest: CashPaymentRequest = {
+                medicalRecordId: parseInt(medicalRecordId),
+                labOrderIds: selectedLabOrderIds
+            };
+
+            console.log('Cash payment request:', cashPaymentRequest);
+
+            const response = await paymentService.payCash(cashPaymentRequest);
+
+            console.log('Cash payment API response:', response);
+            console.log('Response type:', typeof response);
+            console.log('Response keys:', response ? Object.keys(response) : 'null');
+
+            // Logic xử lý response linh hoạt
+            // Nếu API call thành công (không throw error), coi như thanh toán thành công
+            setSuccess('Thanh toán tiền mặt thành công!');
+            // Clear selected services
+            setSelectedServices([]);
+            // Reload medical record to get updated payment status
+            await loadMedicalRecordDetail();
+        } catch (err: any) {
+            console.error('Error processing cash payment:', err);
+            console.error('Error details:', err.response?.data);
+            setError(err.response?.data?.message || err.message || 'Lỗi khi xử lý thanh toán tiền mặt');
+        } finally {
+            setPaymentLoading(false);
         }
     };
 
@@ -207,34 +274,63 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
             setPaymentLoading(true);
             setError(null);
 
+            // Debug: Log selected services
+            console.log('Selected services:', selectedServices);
+
+            // Lấy danh sách ID của các dịch vụ đã chọn
+            const selectedLabOrderIds = selectedServices
+                .map(service => service.id)
+                .filter(id => id !== null && id !== undefined && id !== 0); // Lọc bỏ null, undefined và 0
+
+            console.log('Selected lab order IDs:', selectedLabOrderIds);
+
+            // Kiểm tra xem có ID hợp lệ không
+            if (selectedLabOrderIds.length === 0) {
+                throw new Error('Không có dịch vụ hợp lệ để thanh toán');
+            }
+
+            // Tính tổng số tiền
+            const totalAmount = getTotalSelectedAmount();
+            console.log('Total amount:', totalAmount);
+
             const paymentRequest: PaymentLinkRequest = {
                 medicalRecordId: parseInt(medicalRecordId),
-                healthPlanIds: [],
-                doctorId: null
+                labOrderIds: selectedLabOrderIds,
+                healthPlanIds: null,
+                doctorId: null,
+                totalAmount: totalAmount
             };
+
+            console.log('Payment request:', paymentRequest);
 
             const response = await paymentService.createPaymentLink(paymentRequest);
 
+            console.log('Payment API response:', response);
+
             if (response && response.data) {
+                console.log('Payment data received:', response.data);
                 setPaymentData({
                     invoiceId: response.data.invoiceId,
                     qrCode: response.data.qrCode
                 });
                 setShowPaymentModal(true);
             } else {
+                console.error('Invalid response from payment API:', response);
                 throw new Error('Không thể tạo mã QR thanh toán');
             }
         } catch (err: any) {
-            setError(err.message || 'Lỗi khi tạo mã QR thanh toán');
+            console.error('Error creating QR payment:', err);
+            console.error('Error details:', err.response?.data);
+            setError(err.response?.data?.message || err.message || 'Lỗi khi tạo mã QR thanh toán');
         } finally {
             setPaymentLoading(false);
         }
     };
 
-    const handlePaymentSuccess = () => {
+    const handlePaymentSuccess = async () => {
         setSuccess('Thanh toán thành công!');
         // Reload medical record to get updated payment status
-        loadMedicalRecordDetail();
+        await loadMedicalRecordDetail();
         // Clear selected services
         setSelectedServices([]);
     };
@@ -559,7 +655,7 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
                                                 </thead>
                                                 <tbody>
                                                     {unpaidServices.map((service, index) => {
-                                                        const isSelected = selectedServices.some(s => s.serviceName === service.healthPlanName);
+                                                        const isSelected = selectedServices.some(s => s.id === service.id);
                                                         return (
                                                             <tr key={index} className={isSelected ? 'selected-row' : ''}>
                                                                 <td>

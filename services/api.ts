@@ -19,8 +19,16 @@ export interface SimpleApiResponse<T = any> {
 // Interface cho payment request
 export interface PaymentLinkRequest {
   medicalRecordId: number | null;
-  healthPlanIds?: number[];
+  labOrderIds?: number[] | null;
+  healthPlanIds?: number[] | null;
   doctorId: number | null;
+  totalAmount?: number;
+}
+
+// Interface cho cash payment request
+export interface CashPaymentRequest {
+  medicalRecordId: number;
+  labOrderIds: number[];
 }
 
 // Interface cho payment response
@@ -100,6 +108,25 @@ export const paymentService = {
       return response.data;
     } catch (error: any) {
       console.error('Error creating payment link:', error);
+      throw error;
+    }
+  },
+
+  // Thanh toán tiền mặt
+  payCash: async (request: CashPaymentRequest): Promise<SimpleApiResponse> => {
+    try {
+      console.log('Sending cash payment request:', request);
+      const response = await apiClient.post<SimpleApiResponse>('/api/invoices/pay-cash', request);
+      console.log('Full API response:', response);
+      console.log('Response data:', response.data);
+      console.log('Response status:', response.status);
+      console.log('Response statusText:', response.statusText);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error processing cash payment:', error);
+      console.error('Error response:', error.response);
+      console.error('Error status:', error.response?.status);
+      console.error('Error data:', error.response?.data);
       throw error;
     }
   },

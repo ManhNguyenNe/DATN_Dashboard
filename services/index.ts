@@ -5,7 +5,8 @@ export {
   type SimpleApiResponse,
   type PaymentLinkRequest,
   type PaymentLinkResponse,
-  type PaymentStatusResponse
+  type PaymentStatusResponse,
+  type CashPaymentRequest
 } from './api';
 
 // Auth Service
