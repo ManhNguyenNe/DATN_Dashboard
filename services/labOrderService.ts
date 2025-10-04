@@ -3,6 +3,7 @@ import apiClient, { ApiResponse } from './api';
 // Interface cho Lab Order Detail
 export interface LabOrderDetail {
     id: number;
+    code?: string;  // Mã chỉ định
     recordId: number | null;
     healthPlanId: number;
     healthPlanName: string;
@@ -17,6 +18,14 @@ export interface LabOrderDetail {
     expectedResultDate: string | null;
     diagnosis?: string | null;  // Chẩn đoán
     serviceParent?: string | null;  // Gói dịch vụ cha
+    labResultResponse?: {  // Kết quả xét nghiệm
+        id: number;
+        date: string;
+        status: string;
+        resultDetails: string;
+        note?: string;
+        explanation?: string;
+    };
 }
 
 // Interface cho Lab Order của bác sĩ hiện tại 

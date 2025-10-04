@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, Col, Row, Form, Button, Alert, Table, Badge, InputGroup } from 'react-bootstrap';
-import { Search, Calendar, Filter, ArrowClockwise, Eye, FileText } from 'react-bootstrap-icons';
+import { Search, Calendar, Filter, ArrowClockwise, FileText } from 'react-bootstrap-icons';
 import { useAuth } from '../../../../contexts/AuthContext';
 import labOrderService, { DoctorLabOrder, DoctorLabOrderFilter } from '../../../../services/labOrderService';
+import labResultService from '../../../../services/labResultService';
 
 // Helper function to get today's date in YYYY-MM-DD format
 const getTodayDate = (): string => {
@@ -17,6 +19,7 @@ const getTodayDate = (): string => {
 
 const ChiDinhXetNghiemPage = () => {
     const { user } = useAuth();
+    const router = useRouter();
     const [labOrders, setLabOrders] = useState<DoctorLabOrder[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [alert, setAlert] = useState<{ type: 'success' | 'danger' | 'info'; message: string } | null>(null);
@@ -135,22 +138,46 @@ const ChiDinhXetNghiemPage = () => {
         }
     };
 
-    const handleViewDetail = (labOrder: DoctorLabOrder) => {
-        // TODO: Implement view detail functionality
-        console.log('View detail for lab order:', labOrder);
-        setAlert({
-            type: 'info',
-            message: `Xem chi tiết chỉ định: ${labOrder.healthPlanName}`
-        });
+    const handleViewResult = (labOrder: DoctorLabOrder) => {
+        // Điều hướng đến trang xem kết quả xét nghiệm
+        router.push(`/bac-si/ket-qua-xet-nghiem/${labOrder.id}`);
     };
 
-    const handleViewResult = (labOrder: DoctorLabOrder) => {
-        // TODO: Implement view result functionality
-        console.log('View result for lab order:', labOrder);
-        setAlert({
-            type: 'info',
-            message: `Xem kết quả: ${labOrder.healthPlanName}`
-        });
+    const handleExecuteTest = (labOrder: DoctorLabOrder) => {
+        // Điều hướng đến trang thực hiện xét nghiệm
+        router.push(`/bac-si/xet-nghiem/${labOrder.id}`);
+    };
+
+    const handleCancelTest = async (labOrder: DoctorLabOrder) => {
+        if (!window.confirm(`Bạn có chắc chắn muốn hủy xét nghiệm "${labOrder.healthPlanName}"?`)) {
+            return;
+        }
+
+        try {
+            setAlert(null);
+            await labResultService.updateLabOrderStatus({
+                id: labOrder.id,
+                status: 'HUY_BO'
+            });
+
+            setAlert({
+                type: 'success',
+                message: `Đã hủy xét nghiệm "${labOrder.healthPlanName}" thành công`
+            });
+
+            // Refresh danh sách sau khi hủy
+            const currentFilters: DoctorLabOrderFilter = {};
+            if (keyword.trim()) currentFilters.keyword = keyword.trim();
+            if (date) currentFilters.date = date;
+            if (status) currentFilters.status = status as any;
+            fetchLabOrders(currentFilters);
+
+        } catch (error: any) {
+            setAlert({
+                type: 'danger',
+                message: error.response?.data?.message || 'Có lỗi xảy ra khi hủy xét nghiệm'
+            });
+        }
     };
 
     return (
@@ -306,7 +333,6 @@ const ChiDinhXetNghiemPage = () => {
                                                 <th>STT</th>
                                                 <th>Dịch vụ</th>
                                                 <th>Phòng</th>
-                                                <th>Bác sĩ thực hiện</th>
                                                 <th>Trạng thái</th>
                                                 <th>Ngày chỉ định</th>
                                                 <th>Chẩn đoán</th>
@@ -329,7 +355,6 @@ const ChiDinhXetNghiemPage = () => {
                                                         </div>
                                                     </td>
                                                     <td>{labOrder.room || 'Chưa xác định'}</td>
-                                                    <td>{labOrder.doctorPerformed || 'Chưa phân công'}</td>
                                                     <td>
                                                         <Badge bg={getStatusBadgeVariant(labOrder.status)}>
                                                             {getStatusText(labOrder.status)}
@@ -345,14 +370,26 @@ const ChiDinhXetNghiemPage = () => {
                                                     </td>
                                                     <td>
                                                         <div className="d-flex gap-1">
-                                                            <Button
-                                                                variant="outline-primary"
-                                                                size="sm"
-                                                                onClick={() => handleViewDetail(labOrder)}
-                                                                title="Xem chi tiết"
-                                                            >
-                                                                <Eye size={14} />
-                                                            </Button>
+                                                            {labOrder.status === 'CHO_THUC_HIEN' && (
+                                                                <>
+                                                                    <Button
+                                                                        variant="outline-warning"
+                                                                        size="sm"
+                                                                        onClick={() => handleExecuteTest(labOrder)}
+                                                                        title="Thực hiện xét nghiệm"
+                                                                    >
+                                                                        Thực hiện
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant="outline-danger"
+                                                                        size="sm"
+                                                                        onClick={() => handleCancelTest(labOrder)}
+                                                                        title="Hủy xét nghiệm"
+                                                                    >
+                                                                        Hủy
+                                                                    </Button>
+                                                                </>
+                                                            )}
                                                             {['DANG_THUC_HIEN', 'HOAN_THANH'].includes(labOrder.status) && (
                                                                 <Button
                                                                     variant="outline-success"
@@ -360,7 +397,7 @@ const ChiDinhXetNghiemPage = () => {
                                                                     onClick={() => handleViewResult(labOrder)}
                                                                     title="Xem kết quả"
                                                                 >
-                                                                    <FileText size={14} />
+                                                                    Xem kết quả
                                                                 </Button>
                                                             )}
                                                         </div>

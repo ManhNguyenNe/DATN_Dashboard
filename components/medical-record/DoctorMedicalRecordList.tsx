@@ -70,12 +70,20 @@ const DoctorMedicalRecordList: React.FC<DoctorMedicalRecordListProps> = ({
 
     const canStartExamination = (status: MedicalRecordStatus | string | undefined) => {
         const statusStr = status as string;
-        return statusStr === MedicalRecordStatus.DANG_KHAM || statusStr === 'CHO_KHAM' || !statusStr;
+        return statusStr === MedicalRecordStatus.DANG_KHAM || statusStr === MedicalRecordStatus.CHO_XET_NGHIEM || statusStr === 'CHO_KHAM' || !statusStr;
     };
 
     const isCompleted = (status: MedicalRecordStatus | string | undefined) => {
         const statusStr = status as string;
         return statusStr === MedicalRecordStatus.HOAN_THANH;
+    };
+
+    const getButtonText = (status: MedicalRecordStatus | string | undefined) => {
+        const statusStr = status as string;
+        if (statusStr === MedicalRecordStatus.CHO_XET_NGHIEM) {
+            return "Khám bệnh";
+        }
+        return "Bắt đầu khám";
     };
 
     if (loading) {
@@ -153,7 +161,7 @@ const DoctorMedicalRecordList: React.FC<DoctorMedicalRecordListProps> = ({
                                                 className="d-flex align-items-center"
                                             >
                                                 <i className="bi bi-stethoscope me-1"></i>
-                                                Bắt đầu khám
+                                                {getButtonText(record.status)}
                                             </Button>
                                         )}
                                         {isCompleted(record.status) && (

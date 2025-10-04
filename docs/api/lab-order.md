@@ -102,111 +102,39 @@ response
 response
 {
     "data": {
-        "id": "69",
-        "code": "PK1759304689",
-        "symptoms": "viêm họng, đau đầu",
-        "clinicalExamination": null,
+        "id": 135,
+        "code": "XN1759559228428",
+        "recordId": 84,
+        "healthPlanId": 14,
+        "healthPlanName": "Siêu âm ổ bụng tổng quát",
+        "room": "Phòng khám Sản phụ khoa - 104A",
+        "doctorPerformed": "ThS. LE THI CC",
+        "doctorPerformedId": null,
+        "doctorOrdered": "PGS. Phạm Tiến",
+        "status": "HOAN_THANH",
+        "statusPayment": null,
+        "price": 2345.00,
+        "orderDate": "2025-10-04T13:27:08",
         "diagnosis": null,
-        "treatmentPlan": null,
-        "note": null,
-        "total": 7000.00,
-        "patientName": "Nguyen Van A",
-        "date": "2025-10-01T14:44:50",
-        "status": "DANG_KHAM",
-        "labOrdersResponses": [
-            {
-                "id": 60,
-                "recordId": null,
-                "healthPlanId": 1,
-                "healthPlanName": "khám bệnh",
-                "room": "Phòng khám Nội tổng quát - 101A",
-                "doctorPerformed": "tien",
-                "doctorPerformedId": 1,
-                "doctorOrdered": "tien",
-                "status": "CHO_THUC_HIEN",
-                "statusPayment": "DA_THANH_TOAN",
-                "price": 0.00,
-                "orderDate": "2025-10-01T14:44:50",
-                "expectedResultDate": null
-            },
-            {
-                "id": 61,
-                "recordId": null,
-                "healthPlanId": 11,
-                "healthPlanName": "Xét nghiệm công thức máu",
-                "room": "Phòng khám Nội tổng quát - 101A",
-                "doctorPerformed": "BS. NGUYEN VAN J",
-                "doctorPerformedId": 13,
-                "doctorOrdered": "tien",
-                "status": "CHO_THUC_HIEN",
-                "statusPayment": "DA_THANH_TOAN",
-                "price": 120000.00,
-                "orderDate": "2025-10-01T14:44:50",
-                "expectedResultDate": null
-            },
-            {
-                "id": 62,
-                "recordId": null,
-                "healthPlanId": 12,
-                "healthPlanName": "Nội soi dạ dày",
-                "room": "Phòng khám Ngoại chấn thương - 102A",
-                "doctorPerformed": "BS. VU VAN I",
-                "doctorPerformedId": 12,
-                "doctorOrdered": "tien",
-                "status": "CHO_THUC_HIEN",
-                "statusPayment": "DA_THANH_TOAN",
-                "price": 900000.00,
-                "orderDate": "2025-10-01T14:44:50",
-                "expectedResultDate": null
-            },
-            {
-                "id": 63,
-                "recordId": null,
-                "healthPlanId": 13,
-                "healthPlanName": "Chụp X-quang ngực",
-                "room": "Phòng khám Nhi khoa - 103A",
-                "doctorPerformed": "BS. NGO THI H",
-                "doctorPerformedId": 11,
-                "doctorOrdered": "tien",
-                "status": "CHO_THUC_HIEN",
-                "statusPayment": "DA_THANH_TOAN",
-                "price": 150000.00,
-                "orderDate": "2025-10-01T14:44:50",
-                "expectedResultDate": null
-            },
-            {
-                "id": 64,
-                "recordId": null,
-                "healthPlanId": 14,
-                "healthPlanName": "Siêu âm ổ bụng tổng quát",
-                "room": "Phòng khám Sản phụ khoa - 104A",
-                "doctorPerformed": "BS. HOANG VAN G",
-                "doctorPerformedId": 10,
-                "doctorOrdered": "tien",
-                "status": "CHO_THUC_HIEN",
-                "statusPayment": "DA_THANH_TOAN",
-                "price": 250000.00,
-                "orderDate": "2025-10-01T14:44:50",
-                "expectedResultDate": null
-            },
-            {
-                "id": 66,
-                "recordId": null,
-                "healthPlanId": 2,
-                "healthPlanName": "Xét nghiệm máu cơ bản",
-                "room": "Phòng xét nghiệm  - 204A",
-                "doctorPerformed": "BS. NGO THI Q",
-                "doctorPerformedId": 20,
-                "doctorOrdered": "tien",
-                "status": "CHO_THUC_HIEN",
-                "statusPayment": "DA_THANH_TOAN",
-                "price": 2000.00,
-                "orderDate": "2025-10-01T15:07:27",
-                "expectedResultDate": null
-            }
-        ]
+        "expectedResultDate": null,
+        "serviceParent": null,
+        "labResultResponse": {
+            "id": 16,
+            "date": "2025-10-04T13:38:23",
+            "status": "HOAN_THANH",
+            "resultDetails": "qư",
+            "note": "qew",
+            "explanation": "eqw"
+        }
     },
-    "message": "Get medical record by id successfully"
+    "message": "Get lab order by id successfully"
+}
+## PUT - cap nhat trang thai
+**api** /api/lab-orders/status
+request
+{
+    "id": 123,
+    "status": "DANG_THUC_HIEN"
 }
 
 ## POST - thêm chỉ định

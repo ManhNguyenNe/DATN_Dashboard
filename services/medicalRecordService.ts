@@ -54,6 +54,22 @@ export interface SimpleMedicalRecordCreateData {
   invoiceId?: number;
 }
 
+// Interface cho việc cập nhật phiếu khám theo API docs
+export interface MedicalRecordUpdateFields {
+  id: number;
+  symptoms: string;
+  clinicalExamination: string;
+  diagnosis: string;
+  treatmentPlan: string;
+  note: string;
+}
+
+// Interface cho việc cập nhật trạng thái phiếu khám
+export interface MedicalRecordStatusUpdate {
+  id: number;
+  status: MedicalRecordStatus | string;
+}
+
 // Interface cho Medical Record List item từ API
 export interface MedicalRecordListItem {
   id: string;
@@ -246,7 +262,54 @@ const medicalRecordService = {
       console.error('Error fetching medical record detail:', error);
       throw error;
     }
-  }
-};
+  },
 
-export default medicalRecordService;
+  /**
+   * Cập nhật các trường thông tin phiếu khám (lưu tạm)
+   * @param updateData - Dữ liệu cập nhật phiếu khám theo API docs
+   * @returns Promise với response từ API
+   */
+  updateMedicalRecordFields: async (updateData: MedicalRecordUpdateFields): Promise<ApiResponse<any>> => {
+    try {
+      console.log('Updating medical record with data:', updateData);
+      const response = await apiClient.put<ApiResponse<any>>('/api/medical-record', updateData);
+      console.log('Medical record update response:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error updating medical record fields:', error);
+
+      // Log chi tiết error để debug
+      if (error.response) {
+        console.error('Response data:', error.response.data);
+        console.error('Response status:', error.response.status);
+      }
+
+
+      throw error;
+    }
+  },
+
+  /**
+   * Cập nhật trạng thái phiếu khám
+   * @param statusData - Dữ liệu cập nhật trạng thái phiếu khám
+   * @returns Promise với response từ API
+   */
+  updateMedicalRecordStatus: async (statusData: MedicalRecordStatusUpdate): Promise<ApiResponse<any>> => {
+    try {
+      console.log('Updating medical record status with data:', statusData);
+      const response = await apiClient.put<ApiResponse<any>>('/api/medical-record/status', statusData);
+      console.log('Medical record status update response:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error updating medical record status:', error);
+
+      // Log chi tiết error để debug
+      if (error.response) {
+        console.error('Response data:', error.response.data);
+        console.error('Response status:', error.response.status);
+      }
+
+      throw error;
+    }
+  }
+}; export default medicalRecordService;

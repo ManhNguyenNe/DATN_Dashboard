@@ -11,41 +11,49 @@ import AppointmentManagement from "./AppointmentManagement";
 
 const AppointmentPageWrapper = () => {
   const [currentFilters, setCurrentFilters] = useState<AppointmentFilter>({});
-  const [activeTab, setActiveTab] = useState<string>("list");
+
+  // Khởi tạo activeTab thông minh dựa trên localStorage
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const savedTab = localStorage.getItem('medicalRecordActiveTab');
+      const savedPatient = localStorage.getItem('selectedPatientForMedicalRecord');
+      if (savedTab && savedPatient) {
+        return savedTab;
+      }
+    }
+    return "list";
+  });
+
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // useEffect để xử lý logic chuyển tab
+  // useEffect để cleanup localStorage
   useEffect(() => {
-    // Check localStorage for active tab
     if (typeof window !== 'undefined') {
       const savedTab = localStorage.getItem('medicalRecordActiveTab');
       const savedPatient = localStorage.getItem('selectedPatientForMedicalRecord');
 
       console.log('🎯 AppointmentPageWrapper initializing:', {
         savedTab,
-        hasSavedPatient: !!savedPatient
+        hasSavedPatient: !!savedPatient,
+        currentActiveTab: activeTab
       });
 
+      // Cleanup localStorage ngay sau khi đã sử dụng để khởi tạo state
       if (savedTab && savedPatient) {
-        console.log('✅ Setting activeTab to:', savedTab);
-        setActiveTab(savedTab);
-        // Clean up localStorage after setting tab
+        console.log('✅ Cleanup medicalRecordActiveTab after use');
         localStorage.removeItem('medicalRecordActiveTab');
+      } else if (!savedPatient) {
+        // Không có dữ liệu gì → cleanup toàn bộ
+        console.log('🧹 No relevant data → cleanup all');
+        localStorage.removeItem('medicalRecordActiveTab');
+        localStorage.removeItem('selectedPatientForMedicalRecord');
       }
+
       setIsInitialized(true);
     }
   }, []);
 
-  // Force update tab if not already switched after initialization
-  useEffect(() => {
-    if (isInitialized && typeof window !== 'undefined') {
-      const savedPatient = localStorage.getItem('selectedPatientForMedicalRecord');
-      if (savedPatient && activeTab === "list") {
-        console.log('🔄 Force switching to medical-record tab');
-        setActiveTab("medical-record");
-      }
-    }
-  }, [isInitialized, activeTab]);
+  // Xóa useEffect thứ 2 vì không cần thiết và có thể gây lỗi
 
   const handleSearch = (filters: AppointmentFilter) => {
     setCurrentFilters(filters);

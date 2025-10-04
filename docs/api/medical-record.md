@@ -226,3 +226,21 @@ request
   "invoiceId": null
 }
 - Khi bấm xác nhận thanh toán (tiền mặt) thì invoiceId sẽ là null
+
+## PUT cập nhật phiếu khám
+**api** /api/medical-record
+request
+{
+  "id": 85,
+  "symptoms": "Sốt cao, ho khan, đau đầu",
+  "clinicalExamination": "Khám tổng quát, nghe tim phổi, đo huyết áp",
+  "diagnosis": "Viêm phế quản cấp",
+  "treatmentPlan": "Dùng kháng sinh, hạ sốt, nghỉ ngơi",
+  "note": "Theo dõi nhiệt độ hàng ngày"
+}
+# PUT cập nhật trạng thái
+**api** /api/medical-record/status
+request
+{
+
+}

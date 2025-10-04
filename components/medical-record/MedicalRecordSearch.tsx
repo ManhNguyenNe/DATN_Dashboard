@@ -20,7 +20,7 @@ const MedicalRecordSearch: React.FC<MedicalRecordSearchProps> = ({
 }) => {
     const [keyword, setKeyword] = useState<string>("");
     const [date, setDate] = useState<string>("");
-    const [status, setStatus] = useState<string>("");
+    const [status, setStatus] = useState<string>(MedicalRecordStatus.CHO_XET_NGHIEM); // Mặc định chờ xét nghiệm
     const isInitialMount = useRef<boolean>(true);
 
     // Set default date to today on mount
@@ -29,11 +29,14 @@ const MedicalRecordSearch: React.FC<MedicalRecordSearchProps> = ({
         setDate(today);
     }, []); // Chỉ chạy khi mount
 
-    // Initial search với ngày hôm nay khi component đã mount và có date
+    // Initial search với ngày hôm nay và trạng thái mặc định khi component đã mount và có date
     useEffect(() => {
         if (date && isInitialMount.current) {
-            // Search ban đầu với ngày hôm nay
-            onSearch({ date });
+            // Search ban đầu với ngày hôm nay và trạng thái mặc định
+            onSearch({
+                date,
+                status: MedicalRecordStatus.CHO_XET_NGHIEM
+            });
         }
     }, [date, onSearch]); // Trigger khi có date hoặc onSearch thay đổi
 
@@ -73,10 +76,13 @@ const MedicalRecordSearch: React.FC<MedicalRecordSearchProps> = ({
         setKeyword("");
         const today = getTodayDate();
         setDate(today);
-        setStatus("");
+        setStatus(MedicalRecordStatus.CHO_XET_NGHIEM); // Reset về trạng thái mặc định
 
-        // Search with default date only
-        onSearch({ date: today });
+        // Search with default date and status
+        onSearch({
+            date: today,
+            status: MedicalRecordStatus.CHO_XET_NGHIEM
+        });
     };
 
     return (

@@ -13,6 +13,8 @@ export interface AppointmentService {
     price: number;
     status: 'CHO_THANH_TOAN' | 'DA_THANH_TOAN' | 'CHUA_THANH_TOAN' | 'HUY';
     paymentDate?: string;
+    orderDate?: string; // Ngày chỉ định
+    room?: string; // Phòng chỉ định
     result?: string;
     notes?: string;
     assignedDoctor?: string; // Bác sĩ được chỉ định thực hiện dịch vụ

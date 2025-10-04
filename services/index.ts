@@ -70,6 +70,8 @@ export {
   type MedicalRecordCreateData,
   type MedicalRecordUpdateData,
   type SimpleMedicalRecordCreateData,
+  type MedicalRecordUpdateFields,
+  type MedicalRecordStatusUpdate,
   type MedicalRecordListItem,
   type MedicalRecordFilter,
   type MedicalRecordDetail,
@@ -90,6 +92,14 @@ export type {
   CreateLabOrderRequest,
   UpdateLabOrderRequest
 } from './labOrderService';
+
+// Lab Result Service
+export { default as labResultService } from './labResultService';
+export type {
+  LabResult,
+  LabResultRequest,
+  LabOrderStatusUpdate
+} from './labResultService';
 
 // User Service
 export { default as userService } from './userService';

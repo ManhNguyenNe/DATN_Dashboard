@@ -2,12 +2,12 @@
 import { Card, Col, Row, Form, Button, Alert, Tab, Tabs, Table, Badge, Modal } from "react-bootstrap";
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { PersonFill, ClipboardData, Save, Plus, Check, X, Activity, FileText, Printer, Receipt, PencilSquare, InfoCircle, Gear } from "react-bootstrap-icons";
+import { PersonFill, ClipboardData, Save, Plus, Check, X, Activity, FileText, Printer, Receipt, InfoCircle, Gear } from "react-bootstrap-icons";
 import { useAuth } from "../../../../../contexts/AuthContext";
 import { Appointment } from "../../../../../services/appointmentService";
 import Loading from "../../../../../components/common/Loading";
 import { AppointmentService, NewPrescription, MedicalService, ServiceStatus, PrescriptionStatus } from "../../../../../types/MedicalServiceType";
-import { medicalRecordService, type MedicalRecordDetail, type LabOrderResponse } from "../../../../../services";
+import { medicalRecordService, type MedicalRecordDetail, type LabOrderResponse, type MedicalRecordUpdateFields, type MedicalRecordStatusUpdate, MedicalRecordStatus } from "../../../../../services";
 import labOrderService, { LabOrderDetail, CreateLabOrderRequest, UpdateLabOrderRequest } from "../../../../../services/labOrderService";
 import medicalServiceService, { ServiceDetailResponse, AssignedDoctor, ServiceSearchResult } from "../../../../../services/medicalServiceService";
 import ServiceSearchInput from "../../../../../components/common/ServiceSearchInput";
@@ -72,6 +72,11 @@ const ExaminationDetailPage = () => {
     const [serviceNotes, setServiceNotes] = useState('');
     const [serviceDoctor, setServiceDoctor] = useState('');
 
+    // States cho modal xem kết quả xét nghiệm
+    const [showResultModal, setShowResultModal] = useState(false);
+    const [selectedLabResult, setSelectedLabResult] = useState<LabOrderDetail | null>(null);
+    const [loadingLabResult, setLoadingLabResult] = useState(false);
+
     const [examinationData, setExaminationData] = useState<ExaminationData>({
         chanDoan: '',
         trieuChung: '',
@@ -135,8 +140,10 @@ const ExaminationDetailPage = () => {
                         price: labOrder.price,
                         status: ServiceStatus.DA_THANH_TOAN, // Đã filter nên luôn đã thanh toán
                         paymentDate: record.date,
+                        orderDate: labOrder.orderDate || undefined, // ✅ Lấy ngày chỉ định từ labOrder
+                        room: labOrder.room || '', // ✅ Lấy phòng chỉ định từ labOrder
                         assignedDoctor: labOrder.doctorPerformed || 'Chưa phân công',
-                        reason: `Chỉ định thực hiện tại ${labOrder.room || 'phòng chưa xác định'}`,
+                        reason: labOrder.diagnosis || '', // ✅ Chỉ hiển thị chẩn đoán
                         // Thêm trạng thái thực hiện để kiểm tra UI
                         executionStatus: labOrder.status // CHO_THUC_HIEN, DANG_THUC_HIEN, HOAN_THANH, HUY
                     }));
@@ -313,15 +320,39 @@ const ExaminationDetailPage = () => {
     };
 
     // Xử lý xem kết quả dịch vụ
-    const handleViewResult = (serviceId: number | null) => {
+    const handleViewResult = async (serviceId: number | null) => {
         if (serviceId === null) {
             setAlert({ type: 'danger', message: 'Không thể xem kết quả cho dịch vụ này' });
             return;
         }
 
-        // TODO: Implement xem kết quả dịch vụ (mở modal hoặc navigate)
-        setAlert({ type: 'success', message: `Đang mở kết quả cho dịch vụ ID: ${serviceId}` });
-        console.log('Xem kết quả dịch vụ:', serviceId);
+        try {
+            setLoadingLabResult(true);
+            setShowResultModal(true);
+
+            console.log('🔍 Đang lấy kết quả xét nghiệm cho labOrderId:', serviceId);
+
+            // Gọi API lấy chi tiết kết quả xét nghiệm
+            const response = await labOrderService.getLabOrderDetail(serviceId);
+
+            if (response && response.data) {
+                setSelectedLabResult(response.data);
+                console.log('✅ Đã lấy kết quả xét nghiệm:', response.data);
+            } else {
+                setAlert({ type: 'danger', message: 'Không có dữ liệu kết quả xét nghiệm' });
+                setShowResultModal(false);
+            }
+
+        } catch (error: any) {
+            console.error('❌ Lỗi khi lấy kết quả xét nghiệm:', error);
+            setAlert({
+                type: 'danger',
+                message: error.response?.data?.message || 'Có lỗi xảy ra khi lấy kết quả xét nghiệm'
+            });
+            setShowResultModal(false);
+        } finally {
+            setLoadingLabResult(false);
+        }
     };
 
     // Xử lý cập nhật bác sĩ chỉ định
@@ -441,31 +472,140 @@ const ExaminationDetailPage = () => {
                 return;
             }
 
-            // TODO: Gọi API để lưu kết quả khám
-            // await medicalExaminationService.saveExamination(appointmentId, examinationData);
-
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
-            setAlert({ type: 'success', message: 'Đã lưu kết quả khám thành công' });
-
-            // Update appointment status to completed
-            if (appointment) {
-                setAppointment({ ...appointment, status: 'DA_DEN' });
+            if (!medicalRecord?.id) {
+                setAlert({ type: 'danger', message: 'Không tìm thấy ID phiếu khám' });
+                return;
             }
 
-        } catch (error) {
-            console.error('Lỗi khi lưu kết quả khám:', error);
-            setAlert({ type: 'danger', message: 'Có lỗi xảy ra khi lưu kết quả khám' });
+            // Chuẩn bị dữ liệu cập nhật theo API docs
+            const updateData: MedicalRecordUpdateFields = {
+                id: parseInt(medicalRecord.id),
+                symptoms: examinationData.trieuChung,
+                clinicalExamination: "", // Có thể thêm field này nếu cần
+                diagnosis: examinationData.chanDoan,
+                treatmentPlan: examinationData.huongDieuTri,
+                note: examinationData.ghiChu
+            };
+
+            console.log('Đang cập nhật phiếu khám với dữ liệu:', updateData);
+
+            // Gọi API để cập nhật phiếu khám
+            const response = await medicalRecordService.updateMedicalRecordFields(updateData);
+
+            if (response && response.message) {
+                // Sau khi lưu tạm thành công, cập nhật trạng thái sang CHO_XET_NGHIEM
+                try {
+                    const statusUpdate: MedicalRecordStatusUpdate = {
+                        id: parseInt(medicalRecord.id),
+                        status: MedicalRecordStatus.CHO_XET_NGHIEM
+                    };
+
+                    console.log('Đang cập nhật trạng thái phiếu khám:', statusUpdate);
+
+                    const statusResponse = await medicalRecordService.updateMedicalRecordStatus(statusUpdate);
+
+                    if (statusResponse && statusResponse.message) {
+                        setAlert({ type: 'success', message: 'Đã lưu tạm kết quả khám thành công. Phiếu khám đã chuyển sang trạng thái chờ xét nghiệm.' });
+                        console.log('✅ Cập nhật trạng thái phiếu khám thành công:', statusResponse);
+
+                        // Cập nhật trạng thái local để UI hiển thị đúng
+                        if (medicalRecord) {
+                            setMedicalRecord({ ...medicalRecord, status: MedicalRecordStatus.CHO_XET_NGHIEM });
+                        }
+                    } else {
+                        throw new Error('Không thể cập nhật trạng thái phiếu khám');
+                    }
+                } catch (statusError: any) {
+                    console.error('❌ Lỗi khi cập nhật trạng thái:', statusError);
+                    setAlert({ type: 'danger', message: 'Đã lưu tạm thành công nhưng không thể cập nhật trạng thái. Vui lòng thử lại.' });
+                }
+
+                console.log('✅ Cập nhật phiếu khám thành công:', response);
+            } else {
+                throw new Error('Không có phản hồi từ server');
+            }
+
+        } catch (error: any) {
+            console.error('❌ Lỗi khi lưu kết quả khám:', error);
+
+            const errorMessage = error.response?.data?.message || error.message || 'Có lỗi xảy ra khi lưu kết quả khám';
+            setAlert({ type: 'danger', message: errorMessage });
         } finally {
             setSaving(false);
         }
     };
 
     const handleCompleteExamination = async () => {
-        await handleSaveExamination();
-        // Redirect back to examination list
-        router.push('/bac-si/kham-benh');
+        try {
+            setSaving(true);
+
+            // Validate required fields
+            if (!examinationData.chanDoan.trim()) {
+                setAlert({ type: 'danger', message: 'Vui lòng nhập chẩn đoán trước khi hoàn thành khám' });
+                return;
+            }
+
+            if (!medicalRecord?.id) {
+                setAlert({ type: 'danger', message: 'Không tìm thấy ID phiếu khám' });
+                return;
+            }
+
+            // Bước 1: Lưu thông tin khám bệnh
+            const updateData: MedicalRecordUpdateFields = {
+                id: parseInt(medicalRecord.id),
+                symptoms: examinationData.trieuChung,
+                clinicalExamination: "", // Có thể thêm field này nếu cần
+                diagnosis: examinationData.chanDoan,
+                treatmentPlan: examinationData.huongDieuTri,
+                note: examinationData.ghiChu
+            };
+
+            console.log('Đang hoàn thành khám với dữ liệu:', updateData);
+
+            // Gọi API để cập nhật phiếu khám
+            const response = await medicalRecordService.updateMedicalRecordFields(updateData);
+
+            if (response && response.message) {
+                // Bước 2: Cập nhật trạng thái sang HOAN_THANH
+                const statusUpdate: MedicalRecordStatusUpdate = {
+                    id: parseInt(medicalRecord.id),
+                    status: MedicalRecordStatus.HOAN_THANH
+                };
+
+                console.log('Đang cập nhật trạng thái hoàn thành:', statusUpdate);
+
+                const statusResponse = await medicalRecordService.updateMedicalRecordStatus(statusUpdate);
+
+                if (statusResponse && statusResponse.message) {
+                    setAlert({ type: 'success', message: 'Đã hoàn thành khám bệnh thành công!' });
+                    console.log('✅ Hoàn thành khám bệnh thành công:', statusResponse);
+
+                    // Cập nhật trạng thái local để UI hiển thị đúng
+                    if (medicalRecord) {
+                        setMedicalRecord({ ...medicalRecord, status: MedicalRecordStatus.HOAN_THANH });
+                    }
+
+                    // Redirect về danh sách sau 2 giây để user có thể thấy thông báo
+                    setTimeout(() => {
+                        router.push('/bac-si/kham-benh');
+                    }, 2000);
+                } else {
+                    throw new Error('Không thể cập nhật trạng thái hoàn thành');
+                }
+
+                console.log('✅ Cập nhật thông tin khám thành công:', response);
+            } else {
+                throw new Error('Không có phản hồi từ server');
+            }
+
+        } catch (error: any) {
+            console.error('❌ Lỗi khi hoàn thành khám:', error);
+
+            const errorMessage = error.response?.data?.message || error.message || 'Có lỗi xảy ra khi hoàn thành khám';
+            setAlert({ type: 'danger', message: errorMessage });
+        } finally {
+            setSaving(false);
+        }
     };
 
     if (loading) return <Loading />;
@@ -582,45 +722,64 @@ const ExaminationDetailPage = () => {
             )}
 
             <Row>
-                {/* Thông tin bệnh nhân */}
-                <Col lg={4}>
+                {/* Thông tin bệnh nhân - Toàn chiều rộng */}
+                <Col lg={12}>
                     <Card className="shadow-sm mb-4">
                         <Card.Header className="bg-primary text-white">
                             <PersonFill className="me-2" />
                             Thông tin bệnh nhân
                         </Card.Header>
                         <Card.Body>
-                            <div className="mb-3">
-                                <strong>Họ tên:</strong> {medicalRecord?.patientName || appointment.fullName}
-                            </div>
-                            <div className="mb-3">
-                                <strong>Số điện thoại:</strong> {medicalRecord?.patientPhone || appointment.phone || 'Không có'}
-                            </div>
-                            <div className="mb-3">
-                                <strong>Ngày sinh:</strong> {appointment.birth || 'Không có'}
-                            </div>
-                            <div className="mb-3">
-                                <strong>Giới tính:</strong> {medicalRecord?.patientGender === 'NAM' ? 'Nam' : medicalRecord?.patientGender === 'NU' ? 'Nữ' : appointment.gender || 'Không xác định'}
-                            </div>
-                            <div className="mb-3">
-                                <strong>Địa chỉ:</strong> {medicalRecord?.patientAddress || appointment.address || 'Không có'}
-                            </div>
-                            <div className="mb-3">
-                                <strong>Mã phiếu khám:</strong> {medicalRecord?.code || 'Đang tạo...'}
-                            </div>
-                            <div className="mb-3">
-                                <strong>Thời gian khám:</strong> {medicalRecord?.date ? new Date(medicalRecord.date).toLocaleString('vi-VN') : (appointment.time && appointment.date ? `${appointment.time} - ${appointment.date}` : 'Không có')}
-                            </div>
-                            <div>
-                                <strong>Triệu chứng ban đầu:</strong><br />
-                                <span className="text-muted">{medicalRecord?.symptoms || appointment.symptoms || 'Không có'}</span>
-                            </div>
+                            <Row>
+                                <Col md={3}>
+                                    <div className="mb-3">
+                                        <strong>Họ tên:</strong><br />
+                                        {medicalRecord?.patientName || appointment.fullName}
+                                    </div>
+                                    <div className="mb-3">
+                                        <strong>Số điện thoại:</strong><br />
+                                        {medicalRecord?.patientPhone || appointment.phone || 'Không có'}
+                                    </div>
+                                </Col>
+                                <Col md={3}>
+                                    <div className="mb-3">
+                                        <strong>Ngày sinh:</strong><br />
+                                        {appointment.birth || 'Không có'}
+                                    </div>
+                                    <div className="mb-3">
+                                        <strong>Giới tính:</strong><br />
+                                        {medicalRecord?.patientGender === 'NAM' ? 'Nam' : medicalRecord?.patientGender === 'NU' ? 'Nữ' : appointment.gender || 'Không xác định'}
+                                    </div>
+                                </Col>
+                                <Col md={3}>
+                                    <div className="mb-3">
+                                        <strong>Địa chỉ:</strong><br />
+                                        {medicalRecord?.patientAddress || appointment.address || 'Không có'}
+                                    </div>
+                                    <div className="mb-3">
+                                        <strong>Mã phiếu khám:</strong><br />
+                                        {medicalRecord?.code || 'Đang tạo...'}
+                                    </div>
+                                </Col>
+                                <Col md={3}>
+                                    <div className="mb-3">
+                                        <strong>Thời gian khám:</strong><br />
+                                        {medicalRecord?.date ? new Date(medicalRecord.date).toLocaleString('vi-VN') : (appointment.time && appointment.date ? `${appointment.time} - ${appointment.date}` : 'Không có')}
+                                    </div>
+                                    <div className="mb-3">
+                                        <strong>Triệu chứng ban đầu:</strong><br />
+                                        <span className="text-muted">{medicalRecord?.symptoms || appointment.symptoms || 'Không có'}</span>
+                                    </div>
+                                </Col>
+                            </Row>
                         </Card.Body>
                     </Card>
                 </Col>
+            </Row>
 
-                {/* Form khám bệnh */}
-                <Col lg={8}>
+            <Row>
+                {/* Form khám bệnh - Toàn chiều rộng */}
+                <Col lg={12}>
                     <Card className="shadow-sm">
                         <Card.Header>
                             <ClipboardData className="me-2" />
@@ -644,6 +803,7 @@ const ExaminationDetailPage = () => {
                                                         placeholder="Mô tả triệu chứng chi tiết..."
                                                         value={examinationData.trieuChung}
                                                         onChange={(e) => handleInputChange('trieuChung', e.target.value)}
+                                                        readOnly={medicalRecord?.status === MedicalRecordStatus.HOAN_THANH}
                                                     />
                                                 </Form.Group>
                                             </Col>
@@ -656,6 +816,7 @@ const ExaminationDetailPage = () => {
                                                         placeholder="Kết quả chẩn đoán..."
                                                         value={examinationData.chanDoan}
                                                         onChange={(e) => handleInputChange('chanDoan', e.target.value)}
+                                                        readOnly={medicalRecord?.status === MedicalRecordStatus.HOAN_THANH}
                                                     />
                                                 </Form.Group>
                                             </Col>
@@ -669,6 +830,7 @@ const ExaminationDetailPage = () => {
                                                 placeholder="Hướng điều trị và lời khuyên..."
                                                 value={examinationData.huongDieuTri}
                                                 onChange={(e) => handleInputChange('huongDieuTri', e.target.value)}
+                                                readOnly={medicalRecord?.status === MedicalRecordStatus.HOAN_THANH}
                                             />
                                         </Form.Group>
 
@@ -680,6 +842,7 @@ const ExaminationDetailPage = () => {
                                                 placeholder="Ghi chú thêm..."
                                                 value={examinationData.ghiChu}
                                                 onChange={(e) => handleInputChange('ghiChu', e.target.value)}
+                                                readOnly={medicalRecord?.status === MedicalRecordStatus.HOAN_THANH}
                                             />
                                         </Form.Group>
                                     </Form>
@@ -701,26 +864,32 @@ const ExaminationDetailPage = () => {
                                                     {paidServices.length} dịch vụ
                                                 </Badge>
                                             </h6>
-                                            <div className="d-flex gap-2">
-                                                <Button
-                                                    variant="primary"
-                                                    size="sm"
-                                                    onClick={() => setShowAddPrescriptionModal(true)}
-                                                    className="d-flex align-items-center"
-                                                >
-                                                    <Plus className="me-1" size={16} />
-                                                    Thêm chỉ định mới
-                                                </Button>
-                                            </div>
+                                            {/* Chỉ hiển thị nút thêm chỉ định khi chưa hoàn thành */}
+                                            {medicalRecord?.status !== MedicalRecordStatus.HOAN_THANH && (
+                                                <div className="d-flex gap-2">
+                                                    <Button
+                                                        variant="primary"
+                                                        size="sm"
+                                                        onClick={() => setShowAddPrescriptionModal(true)}
+                                                        className="d-flex align-items-center"
+                                                    >
+                                                        <Plus className="me-1" size={16} />
+                                                        Thêm chỉ định mới
+                                                    </Button>
+                                                </div>
+                                            )}
                                         </div>
                                         {paidServices.length > 0 ? (
                                             <Table striped bordered hover responsive>
                                                 <thead>
                                                     <tr>
-                                                        <th>STT</th>
-                                                        <th>Tên dịch vụ</th>
-                                                        <th>Bác sĩ thực hiện</th>
-                                                        <th>Thao tác</th>
+                                                        <th style={{ width: '50px' }}>STT</th>
+                                                        <th style={{ width: '220px' }}>Tên dịch vụ</th>
+                                                        <th style={{ width: '130px' }}>Bác sĩ thực hiện</th>
+                                                        <th style={{ width: '150px' }}>Phòng chỉ định</th>
+                                                        <th style={{ width: '110px' }}>Trạng thái chỉ định</th>
+                                                        <th style={{ width: '130px' }}>Ngày chỉ định</th>
+                                                        <th style={{ width: '150px' }}>Thao tác</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -729,10 +898,42 @@ const ExaminationDetailPage = () => {
                                                             <td>{index + 1}</td>
                                                             <td>{service.serviceName}</td>
                                                             <td>{service.assignedDoctor || 'Chưa có'}</td>
+                                                            <td>
+                                                                <span className="text-dark" style={{ fontSize: '0.9em' }}>
+                                                                    {service.room && service.room.trim() !== '' ?
+                                                                        service.room :
+                                                                        <span className="text-muted fst-italic">Chưa xác định</span>
+                                                                    }
+                                                                </span>
+                                                            </td>
+                                                            <td>
+                                                                <Badge bg={
+                                                                    service.executionStatus === 'HOAN_THANH' ? 'success' :
+                                                                        service.executionStatus === 'DANG_THUC_HIEN' ? 'warning' :
+                                                                            service.executionStatus === 'HUY' ? 'danger' : 'secondary'
+                                                                }>
+                                                                    {service.executionStatus === 'CHO_THUC_HIEN' ? 'Chờ thực hiện' :
+                                                                        service.executionStatus === 'DANG_THUC_HIEN' ? 'Đang thực hiện' :
+                                                                            service.executionStatus === 'HOAN_THANH' ? 'Hoàn thành' :
+                                                                                service.executionStatus === 'HUY' ? 'Hủy' : 'Chưa xác định'}
+                                                                </Badge>
+                                                            </td>
+                                                            <td>
+                                                                {service.orderDate ?
+                                                                    new Date(service.orderDate).toLocaleString('vi-VN', {
+                                                                        day: '2-digit',
+                                                                        month: '2-digit',
+                                                                        year: 'numeric',
+                                                                        hour: '2-digit',
+                                                                        minute: '2-digit'
+                                                                    }) :
+                                                                    'Chưa có'
+                                                                }
+                                                            </td>
 
                                                             <td>
                                                                 <div className="d-flex gap-1">
-                                                                    {/* Nút chỉnh sửa - hiển thị cho tất cả */}
+                                                                    {/* Nút xem chi tiết - hiển thị cho tất cả */}
                                                                     <Button
                                                                         variant="outline-primary"
                                                                         size="sm"
@@ -743,7 +944,7 @@ const ExaminationDetailPage = () => {
                                                                         {loadingLabOrderDetail ? (
                                                                             <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                                                                         ) : (
-                                                                            <PencilSquare size={16} />
+                                                                            'Chi tiết'
                                                                         )}
                                                                     </Button>
 
@@ -755,7 +956,7 @@ const ExaminationDetailPage = () => {
                                                                             onClick={() => handleViewResult(service.id)}
                                                                             title="Xem kết quả dịch vụ"
                                                                         >
-                                                                            <FileText size={16} />
+                                                                            Xem kết quả
                                                                         </Button>
                                                                     )}
                                                                 </div>
@@ -775,23 +976,38 @@ const ExaminationDetailPage = () => {
                                 </Tab>
                             </Tabs>
 
-                            <div className="d-flex justify-content-end gap-2">
-                                <Button
-                                    variant="outline-primary"
-                                    onClick={handleSaveExamination}
-                                    disabled={saving}
-                                >
-                                    <Save className="me-1" />
-                                    {saving ? 'Đang lưu...' : 'Lưu tạm'}
-                                </Button>
-                                <Button
-                                    variant="success"
-                                    onClick={handleCompleteExamination}
-                                    disabled={saving || !examinationData.chanDoan.trim()}
-                                >
-                                    Hoàn thành khám
-                                </Button>
-                            </div>
+                            {/* Chỉ hiển thị các nút khi chưa hoàn thành */}
+                            {medicalRecord?.status !== MedicalRecordStatus.HOAN_THANH && (
+                                <div className="d-flex justify-content-end gap-2">
+                                    <Button
+                                        variant="outline-primary"
+                                        onClick={handleSaveExamination}
+                                        disabled={saving}
+                                    >
+                                        <Save className="me-1" />
+                                        {saving ? 'Đang lưu...' : 'Lưu tạm'}
+                                    </Button>
+                                    <Button
+                                        variant="success"
+                                        onClick={handleCompleteExamination}
+                                        disabled={saving || !examinationData.chanDoan.trim()}
+                                    >
+                                        Hoàn thành khám
+                                    </Button>
+                                </div>
+                            )}
+
+                            {/* Hiển thị thông báo khi đã hoàn thành */}
+                            {medicalRecord?.status === MedicalRecordStatus.HOAN_THANH && (
+                                <div className="text-center py-3 border-top">
+                                    <Alert variant="success" className="mb-0">
+                                        <i className="bi bi-check-circle-fill me-2"></i>
+                                        <strong>Phiếu khám đã được hoàn thành</strong>
+                                        <br />
+                                        <small>Bạn có thể xem lại thông tin khám bệnh nhưng không thể chỉnh sửa.</small>
+                                    </Alert>
+                                </div>
+                            )}
                         </Card.Body>
                     </Card>
                 </Col>
@@ -1184,6 +1400,126 @@ const ExaminationDetailPage = () => {
                             {saving ? 'Đang cập nhật...' : 'Cập nhật bác sĩ chỉ định'}
                         </Button>
                     )}
+                </Modal.Footer>
+            </Modal>
+
+            {/* Modal xem kết quả xét nghiệm */}
+            <Modal
+                show={showResultModal}
+                onHide={() => setShowResultModal(false)}
+                size="lg"
+                centered
+            >
+                <Modal.Header closeButton>
+                    <Modal.Title>
+                        <FileText className="me-2" />
+                        Kết quả xét nghiệm
+                    </Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    {loadingLabResult ? (
+                        <div className="text-center py-4">
+                            <div className="spinner-border text-primary" role="status">
+                                <span className="visually-hidden">Đang tải...</span>
+                            </div>
+                            <p className="mt-2 text-muted">Đang tải kết quả xét nghiệm...</p>
+                        </div>
+                    ) : selectedLabResult ? (
+                        <div>
+                            {/* Thông tin chỉ định */}
+                            <Card className="mb-3">
+                                <Card.Header className="bg-light">
+                                    <h6 className="mb-0">Thông tin chỉ định</h6>
+                                </Card.Header>
+                                <Card.Body>
+                                    <Row>
+                                        <Col md={6}>
+                                            <p><strong>Dịch vụ:</strong> {selectedLabResult.healthPlanName}</p>
+                                            <p><strong>Mã chỉ định:</strong> {selectedLabResult.code || `#${selectedLabResult.id}`}</p>
+                                            <p><strong>Phòng:</strong> {selectedLabResult.room || 'Chưa xác định'}</p>
+                                        </Col>
+                                        <Col md={6}>
+                                            <p><strong>Bác sĩ chỉ định:</strong> {selectedLabResult.doctorOrdered || 'Chưa xác định'}</p>
+                                            <p><strong>Bác sĩ thực hiện:</strong> {selectedLabResult.doctorPerformed || 'Chưa xác định'}</p>
+                                            <p><strong>Ngày chỉ định:</strong> {new Date(selectedLabResult.orderDate).toLocaleString('vi-VN')}</p>
+                                        </Col>
+                                    </Row>
+                                    {selectedLabResult.diagnosis && (
+                                        <p><strong>Chẩn đoán:</strong> {selectedLabResult.diagnosis}</p>
+                                    )}
+                                    <p><strong>Trạng thái:</strong>
+                                        <Badge
+                                            bg={selectedLabResult.status === 'HOAN_THANH' ? 'success' : 'info'}
+                                            className="ms-2"
+                                        >
+                                            {selectedLabResult.status === 'HOAN_THANH' ? 'Hoàn thành' :
+                                                selectedLabResult.status === 'DANG_THUC_HIEN' ? 'Đang thực hiện' :
+                                                    selectedLabResult.status}
+                                        </Badge>
+                                    </p>
+                                </Card.Body>
+                            </Card>
+
+                            {/* Kết quả xét nghiệm */}
+                            {selectedLabResult.labResultResponse ? (
+                                <Card>
+                                    <Card.Header className="bg-success text-white">
+                                        <h6 className="mb-0">Kết quả xét nghiệm</h6>
+                                    </Card.Header>
+                                    <Card.Body>
+                                        <div className="mb-3">
+                                            <strong>Ngày thực hiện:</strong>
+                                            <p className="mt-1">
+                                                {new Date(selectedLabResult.labResultResponse.date).toLocaleString('vi-VN')}
+                                            </p>
+                                        </div>
+
+                                        <div className="mb-3">
+                                            <strong>Chi tiết kết quả:</strong>
+                                            <div className="mt-1 p-3 bg-light rounded">
+                                                {selectedLabResult.labResultResponse.resultDetails}
+                                            </div>
+                                        </div>
+
+                                        {selectedLabResult.labResultResponse.note && selectedLabResult.labResultResponse.note.trim() !== '' && (
+                                            <div className="mb-3">
+                                                <strong>Ghi chú:</strong>
+                                                <div className="mt-1 p-3 bg-light rounded">
+                                                    {selectedLabResult.labResultResponse.note}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {selectedLabResult.labResultResponse.explanation && selectedLabResult.labResultResponse.explanation.trim() !== '' && (
+                                            <div className="mb-3">
+                                                <strong>Giải thích:</strong>
+                                                <div className="mt-1 p-3 bg-light rounded">
+                                                    {selectedLabResult.labResultResponse.explanation}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </Card.Body>
+                                </Card>
+                            ) : (
+                                <Alert variant="info" className="text-center">
+                                    <FileText size={48} className="mb-3" />
+                                    <h6>Chưa có kết quả</h6>
+                                    <p className="mb-0">Kết quả xét nghiệm chưa được cập nhật</p>
+                                </Alert>
+                            )}
+                        </div>
+                    ) : (
+                        <Alert variant="danger" className="text-center">
+                            <X size={48} className="mb-3" />
+                            <h6>Không tìm thấy dữ liệu</h6>
+                            <p className="mb-0">Không thể tải thông tin kết quả xét nghiệm</p>
+                        </Alert>
+                    )}
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={() => setShowResultModal(false)}>
+                        Đóng
+                    </Button>
                 </Modal.Footer>
             </Modal>
         </div>
