@@ -3,6 +3,7 @@ import { Card, Col, Row, Form, Button, Alert, Tab, Tabs, Table, Badge, Modal } f
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { PersonFill, ClipboardData, Save, Plus, Check, X, Activity, FileText, Printer, Receipt, InfoCircle, Gear } from "react-bootstrap-icons";
+import { IconHistory } from "@tabler/icons-react";
 import { useAuth } from "../../../../../contexts/AuthContext";
 import { Appointment } from "../../../../../services/appointmentService";
 import Loading from "../../../../../components/common/Loading";
@@ -11,6 +12,7 @@ import { medicalRecordService, type MedicalRecordDetail, type LabOrderResponse, 
 import labOrderService, { LabOrderDetail, CreateLabOrderRequest, UpdateLabOrderRequest } from "../../../../../services/labOrderService";
 import medicalServiceService, { ServiceDetailResponse, AssignedDoctor, ServiceSearchResult } from "../../../../../services/medicalServiceService";
 import ServiceSearchInput from "../../../../../components/common/ServiceSearchInput";
+import MedicalRecordHistory from "../../../../../components/medical-record/MedicalRecordHistory";
 
 // CSS cho print
 const printStyles = `
@@ -76,6 +78,9 @@ const ExaminationDetailPage = () => {
     const [showResultModal, setShowResultModal] = useState(false);
     const [selectedLabResult, setSelectedLabResult] = useState<LabOrderDetail | null>(null);
     const [loadingLabResult, setLoadingLabResult] = useState(false);
+
+    // States cho modal lịch sử khám bệnh
+    const [showHistoryModal, setShowHistoryModal] = useState(false);
 
     const [examinationData, setExaminationData] = useState<ExaminationData>({
         chanDoan: '',
@@ -702,12 +707,23 @@ const ExaminationDetailPage = () => {
             <style>{printStyles}</style>
             <div className="d-flex justify-content-between align-items-center mb-4 no-print">
                 <h2>Khám bệnh - {medicalRecord?.patientName || appointment.fullName}</h2>
-                <Button
-                    variant="outline-secondary"
-                    onClick={() => router.push('/bac-si/kham-benh')}
-                >
-                    Quay lại danh sách
-                </Button>
+                <div className="d-flex gap-2">
+                    {medicalRecord?.patientId && (
+                        <Button
+                            variant="outline-info"
+                            onClick={() => setShowHistoryModal(true)}
+                        >
+                            <IconHistory size={16} className="me-2" />
+                            Lịch sử khám bệnh
+                        </Button>
+                    )}
+                    <Button
+                        variant="outline-secondary"
+                        onClick={() => router.push('/bac-si/kham-benh')}
+                    >
+                        Quay lại danh sách
+                    </Button>
+                </div>
             </div>
 
             {alert && (
@@ -1522,6 +1538,21 @@ const ExaminationDetailPage = () => {
                     </Button>
                 </Modal.Footer>
             </Modal>
+
+            {/* Medical Record History Modal */}
+            {medicalRecord?.patientId && (
+                <MedicalRecordHistory
+                    show={showHistoryModal}
+                    onHide={() => setShowHistoryModal(false)}
+                    patientId={medicalRecord.patientId}
+                    patientName={medicalRecord.patientName}
+                    onViewDetail={(recordId) => {
+                        // Navigate to the selected medical record
+                        setShowHistoryModal(false);
+                        router.push(`/bac-si/kham-benh/${recordId}`);
+                    }}
+                />
+            )}
         </div>
     );
 };

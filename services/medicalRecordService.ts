@@ -80,6 +80,7 @@ export interface MedicalRecordListItem {
   treatmentPlan: string | null;
   note: string | null;
   total: number;
+  patientId?: number; // Thêm trường patientId
   patientName: string;
   date: string;
   status: MedicalRecordStatus | string;
@@ -134,6 +135,7 @@ export interface MedicalRecordDetail {
   treatmentPlan: string | null;
   note: string | null;
   total: number;
+  patientId?: number; // Thêm trường patientId
   patientName: string;
   patientPhone: string | null;
   patientAddress: string;
@@ -141,6 +143,7 @@ export interface MedicalRecordDetail {
   date: string;
   status: MedicalRecordStatus | string;
   labOrdersResponses: LabOrderResponse[];
+  invoiceId?: number; // Thêm trường invoiceId từ API response
   // Computed field để backward compatibility
   services?: MedicalRecordService[];
 }
@@ -285,6 +288,21 @@ const medicalRecordService = {
       }
 
 
+      throw error;
+    }
+  },
+
+  /**
+   * Lấy danh sách phiếu khám của bệnh nhân theo ID
+   * @param patientId - ID của bệnh nhân
+   * @returns Promise với danh sách phiếu khám của bệnh nhân
+   */
+  getMedicalRecordByPatientId: async (patientId: number): Promise<ApiResponse<MedicalRecordListItem[]>> => {
+    try {
+      const response = await apiClient.get<ApiResponse<MedicalRecordListItem[]>>(`/api/medical-record/patient/${patientId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching medical records by patient ID:', error);
       throw error;
     }
   },

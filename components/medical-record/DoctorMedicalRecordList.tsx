@@ -3,10 +3,13 @@
 //import node module libraries
 import { useState } from "react";
 import { Table, Badge, Button, Card, Alert } from "react-bootstrap";
-import { IconRefresh, IconChevronDown, IconChevronUp } from "@tabler/icons-react";
+import { IconRefresh, IconChevronDown, IconChevronUp, IconHistory } from "@tabler/icons-react";
 
 //import services  
 import { type MedicalRecordListItem, MedicalRecordStatus } from "../../services";
+
+//import components
+import MedicalRecordHistory from "./MedicalRecordHistory";
 
 interface DoctorMedicalRecordListProps {
     medicalRecords: MedicalRecordListItem[];
@@ -25,6 +28,11 @@ const DoctorMedicalRecordList: React.FC<DoctorMedicalRecordListProps> = ({
 }) => {
     const [showAll, setShowAll] = useState<boolean>(false);
     const INITIAL_DISPLAY_COUNT = 10;
+
+    // Medical Record History state
+    const [showHistoryModal, setShowHistoryModal] = useState<boolean>(false);
+    const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
+    const [selectedPatientName, setSelectedPatientName] = useState<string>("");
 
     // Determine which medical records to display
     const displayedMedicalRecords = showAll
@@ -66,6 +74,12 @@ const DoctorMedicalRecordList: React.FC<DoctorMedicalRecordListProps> = ({
         } catch {
             return dateStr;
         }
+    };
+
+    const handleViewHistory = (patientId: number, patientName: string) => {
+        setSelectedPatientId(patientId);
+        setSelectedPatientName(patientName);
+        setShowHistoryModal(true);
     };
 
     const canStartExamination = (status: MedicalRecordStatus | string | undefined) => {
@@ -112,112 +126,139 @@ const DoctorMedicalRecordList: React.FC<DoctorMedicalRecordListProps> = ({
     }
 
     return (
-        <Card>
-            <Card.Header className="d-flex justify-content-between align-items-center">
-                <h5 className="mb-0">
-                    Danh sách phiếu khám ({medicalRecords.length})
-                </h5>
-                <Button variant="outline-primary" size="sm" onClick={onRefresh}>
-                    <IconRefresh size={16} className="me-1" />
-                    Tải lại
-                </Button>
-            </Card.Header>
-            <Card.Body className="p-0">
-                <Table responsive striped className="mb-0">
-                    <thead>
-                        <tr>
-                            <th>Mã phiếu</th>
-                            <th>Bệnh nhân</th>
-                            <th>Ngày tạo</th>
-                            <th>Bác sĩ</th>
-                            <th>Trạng thái</th>
-                            <th>Thao tác</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {displayedMedicalRecords.map((record, index) => (
-                            <tr key={record.id || index}>
-                                <td className="fw-semibold text-primary">{record.id}</td>
-                                <td>
-                                    <div>
-                                        <div className="fw-semibold">{record.patientName}</div>
-                                        <small className="text-muted">Mã: {record.code}</small>
-                                    </div>
-                                </td>
-                                <td>{formatDateTime(record.date)}</td>
-                                <td>
-                                    <span className="text-muted">
-                                        Bác sĩ khám
-                                    </span>
-                                </td>
-                                <td>{getStatusBadge(record.status)}</td>
-                                <td>
-                                    <div className="d-flex gap-2">
-                                        {canStartExamination(record.status) && (
-                                            <Button
-                                                variant="primary"
-                                                size="sm"
-                                                onClick={() => onStartExamination?.(record.id)}
-                                                className="d-flex align-items-center"
-                                            >
-                                                <i className="bi bi-stethoscope me-1"></i>
-                                                {getButtonText(record.status)}
-                                            </Button>
-                                        )}
-                                        {isCompleted(record.status) && (
-                                            <Button
-                                                variant="outline-success"
-                                                size="sm"
-                                                onClick={() => onViewDetail?.(record.id)}
-                                                className="d-flex align-items-center"
-                                            >
-                                                <i className="bi bi-eye me-1"></i>
-                                                Xem kết quả
-                                            </Button>
-                                        )}
-                                        {!canStartExamination(record.status) && !isCompleted(record.status) && (
-                                            <Button
-                                                variant="outline-primary"
-                                                size="sm"
-                                                onClick={() => onViewDetail?.(record.id)}
-                                                className="d-flex align-items-center"
-                                            >
-                                                <i className="bi bi-eye me-1"></i>
-                                                Xem chi tiết
-                                            </Button>
-                                        )}
-                                    </div>
-                                </td>
+        <>
+            <Card>
+                <Card.Header className="d-flex justify-content-between align-items-center">
+                    <h5 className="mb-0">
+                        Danh sách phiếu khám ({medicalRecords.length})
+                    </h5>
+                    <Button variant="outline-primary" size="sm" onClick={onRefresh}>
+                        <IconRefresh size={16} className="me-1" />
+                        Tải lại
+                    </Button>
+                </Card.Header>
+                <Card.Body className="p-0">
+                    <Table responsive striped className="mb-0">
+                        <thead>
+                            <tr>
+                                <th>Mã phiếu</th>
+                                <th>Bệnh nhân</th>
+                                <th>Ngày tạo</th>
+                                <th>Bác sĩ</th>
+                                <th>Trạng thái</th>
+                                <th>Thao tác</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </Table>
+                        </thead>
+                        <tbody>
+                            {displayedMedicalRecords.map((record, index) => (
+                                <tr key={record.id || index}>
+                                    <td className="fw-semibold text-primary">{record.id}</td>
+                                    <td>
+                                        <div>
+                                            <div className="fw-semibold">{record.patientName}</div>
+                                            <small className="text-muted">Mã: {record.code}</small>
+                                        </div>
+                                    </td>
+                                    <td>{formatDateTime(record.date)}</td>
+                                    <td>
+                                        <span className="text-muted">
+                                            Bác sĩ khám
+                                        </span>
+                                    </td>
+                                    <td>{getStatusBadge(record.status)}</td>
+                                    <td>
+                                        <div className="d-flex gap-2">
+                                            {canStartExamination(record.status) && (
+                                                <Button
+                                                    variant="primary"
+                                                    size="sm"
+                                                    onClick={() => onStartExamination?.(record.id)}
+                                                    className="d-flex align-items-center"
+                                                >
+                                                    <i className="bi bi-stethoscope me-1"></i>
+                                                    {getButtonText(record.status)}
+                                                </Button>
+                                            )}
+                                            {isCompleted(record.status) && (
+                                                <Button
+                                                    variant="outline-success"
+                                                    size="sm"
+                                                    onClick={() => onViewDetail?.(record.id)}
+                                                    className="d-flex align-items-center"
+                                                >
+                                                    <i className="bi bi-eye me-1"></i>
+                                                    Xem kết quả
+                                                </Button>
+                                            )}
+                                            {!canStartExamination(record.status) && !isCompleted(record.status) && (
+                                                <Button
+                                                    variant="outline-primary"
+                                                    size="sm"
+                                                    onClick={() => onViewDetail?.(record.id)}
+                                                    className="d-flex align-items-center"
+                                                >
+                                                    <i className="bi bi-eye me-1"></i>
+                                                    Xem chi tiết
+                                                </Button>
+                                            )}
+                                            {record.patientId && (
+                                                <Button
+                                                    variant="outline-info"
+                                                    size="sm"
+                                                    onClick={() => handleViewHistory(record.patientId!, record.patientName)}
+                                                    title="Xem lịch sử khám bệnh"
+                                                >
+                                                    <IconHistory size={16} />
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </Table>
 
-                {/* Show More/Less Button */}
-                {hasMoreRecords && (
-                    <div className="text-center py-3 border-top">
-                        <Button
-                            variant="outline-secondary"
-                            size="sm"
-                            onClick={() => setShowAll(!showAll)}
-                            className="d-flex align-items-center mx-auto"
-                        >
-                            {showAll ? (
-                                <>
-                                    <IconChevronUp size={16} className="me-1" />
-                                    Ẩn bớt
-                                </>
-                            ) : (
-                                <>
-                                    <IconChevronDown size={16} className="me-1" />
-                                    Xem thêm ({medicalRecords.length - INITIAL_DISPLAY_COUNT} phiếu khám)
-                                </>
-                            )}
-                        </Button>
-                    </div>
-                )}
-            </Card.Body>
-        </Card>
+                    {/* Show More/Less Button */}
+                    {hasMoreRecords && (
+                        <div className="text-center py-3 border-top">
+                            <Button
+                                variant="outline-secondary"
+                                size="sm"
+                                onClick={() => setShowAll(!showAll)}
+                                className="d-flex align-items-center mx-auto"
+                            >
+                                {showAll ? (
+                                    <>
+                                        <IconChevronUp size={16} className="me-1" />
+                                        Ẩn bớt
+                                    </>
+                                ) : (
+                                    <>
+                                        <IconChevronDown size={16} className="me-1" />
+                                        Xem thêm ({medicalRecords.length - INITIAL_DISPLAY_COUNT} phiếu khám)
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+                    )}
+                </Card.Body>
+            </Card>
+
+            {/* Medical Record History Modal */}
+            {selectedPatientId && (
+                <MedicalRecordHistory
+                    show={showHistoryModal}
+                    onHide={() => setShowHistoryModal(false)}
+                    patientId={selectedPatientId}
+                    patientName={selectedPatientName}
+                    onViewDetail={(recordId) => {
+                        // Điều hướng đến trang chi tiết của phiếu khám được chọn
+                        onViewDetail?.(recordId);
+                        setShowHistoryModal(false);
+                    }}
+                />
+            )}
+        </>
     );
 };
 

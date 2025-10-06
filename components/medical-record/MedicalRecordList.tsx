@@ -3,7 +3,7 @@
 //import node module libraries
 import { useState } from "react";
 import { Table, Badge, Button, Card, Alert } from "react-bootstrap";
-import { IconRefresh, IconChevronDown, IconChevronUp } from "@tabler/icons-react";
+import { IconRefresh, IconChevronDown, IconChevronUp, IconEye } from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
 
 //import services  
@@ -91,115 +91,120 @@ const MedicalRecordList: React.FC<MedicalRecordListProps> = ({
     }
 
     return (
-        <Card>
-            <Card.Header className="d-flex justify-content-between align-items-center">
-                <h5 className="mb-0">
-                    Danh sách phiếu khám ({medicalRecords.length})
-                </h5>
-                {onRefresh && (
-                    <Button variant="outline-primary" size="sm" onClick={onRefresh}>
-                        <IconRefresh size={16} />
-                    </Button>
-                )}
-            </Card.Header>
-            <Card.Body className="p-0">
-                <Table responsive className="mb-0">
-                    <thead className="table-light">
-                        <tr>
-                            <th>Mã phiếu khám</th>
-                            <th>Bệnh nhân</th>
-                            <th>Ngày khám</th>
-                            <th>Triệu chứng</th>
-                            <th>Trạng thái</th>
-                            <th>Thao tác</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {displayedMedicalRecords.map((record) => (
-                            <tr key={record.id}>
-                                <td>
-                                    <div className="fw-semibold text-primary">
-                                        {record.code}
-                                    </div>
-                                </td>
-                                <td>
-                                    <div className="fw-semibold">
-                                        {record.patientName || 'Chưa xác định'}
-                                    </div>
-                                </td>
-                                <td>
-                                    <small>
-                                        {formatDateTime(record.date)}
-                                    </small>
-                                </td>
-                                <td>
-                                    <small className="text-muted">
-                                        {record.symptoms
-                                            ? (record.symptoms.length > 50
-                                                ? `${record.symptoms.substring(0, 50)}...`
-                                                : record.symptoms)
-                                            : 'Không có'
-                                        }
-                                    </small>
-                                </td>
-                                <td>{getStatusBadge(record.status)}</td>
-                                <td>
-                                    <div className="d-flex gap-2">
-                                        {userRole === 'BAC_SI' ? (
-                                            // Bác sĩ: chỉ có nút khám bệnh
-                                            <Button
-                                                variant={record.status === 'HOAN_THANH' ? 'success' : 'primary'}
-                                                size="sm"
-                                                onClick={() => router.push(`/bac-si/kham-benh/${record.id}`)}
-                                                className="d-flex align-items-center"
-                                            >
-                                                <i className={`bi ${record.status === 'HOAN_THANH' ? 'bi-check-circle' : 'bi-stethoscope'} me-1`}></i>
-                                                {record.status === 'HOAN_THANH' ? 'Xem kết quả' : 'Bắt đầu khám'}
-                                            </Button>
-                                        ) : (
-                                            // Lễ tân: nút xem chi tiết
-                                            <Button
-                                                variant="outline-primary"
-                                                size="sm"
-                                                onClick={() => onViewDetail?.(record.id)}
-                                                className="d-flex align-items-center"
-                                            >
-                                                <i className="bi bi-eye me-1"></i>
-                                                Xem chi tiết
-                                            </Button>
-                                        )}
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </Table>
-
-                {/* Show More/Less Button */}
-                {hasMoreRecords && (
-                    <div className="text-center py-3 border-top">
-                        <Button
-                            variant="outline-primary"
-                            size="sm"
-                            onClick={() => setShowAll(!showAll)}
-                            className="d-flex align-items-center mx-auto"
-                        >
-                            {showAll ? (
-                                <>
-                                    <IconChevronUp size={16} className="me-1" />
-                                    Thu gọn ({medicalRecords.length - INITIAL_DISPLAY_COUNT} bản ghi)
-                                </>
-                            ) : (
-                                <>
-                                    <IconChevronDown size={16} className="me-1" />
-                                    Xem thêm {medicalRecords.length - INITIAL_DISPLAY_COUNT} bản ghi
-                                </>
-                            )}
+        <>
+            <Card>
+                <Card.Header className="d-flex justify-content-between align-items-center">
+                    <h5 className="mb-0">
+                        Danh sách phiếu khám ({medicalRecords.length})
+                    </h5>
+                    {onRefresh && (
+                        <Button variant="outline-primary" size="sm" onClick={onRefresh}>
+                            <IconRefresh size={16} />
                         </Button>
-                    </div>
-                )}
-            </Card.Body>
-        </Card>
+                    )}
+                </Card.Header>
+                <Card.Body className="p-0">
+                    <Table responsive className="mb-0">
+                        <thead className="table-light">
+                            <tr>
+                                <th>Mã phiếu khám</th>
+                                <th>Bệnh nhân</th>
+                                <th>Ngày khám</th>
+                                <th>Triệu chứng</th>
+                                <th>Trạng thái</th>
+                                <th>Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {displayedMedicalRecords.map((record) => (
+                                <tr key={record.id}>
+                                    <td>
+                                        <div className="fw-semibold text-primary">
+                                            {record.code}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div className="fw-semibold">
+                                            {record.patientName || 'Chưa xác định'}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <small>
+                                            {formatDateTime(record.date)}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <small className="text-muted">
+                                            {record.symptoms
+                                                ? (record.symptoms.length > 50
+                                                    ? `${record.symptoms.substring(0, 50)}...`
+                                                    : record.symptoms)
+                                                : 'Không có'
+                                            }
+                                        </small>
+                                    </td>
+                                    <td>{getStatusBadge(record.status)}</td>
+                                    <td>
+                                        <div className="d-flex gap-2">
+                                            {userRole === 'BAC_SI' ? (
+                                                // Bác sĩ: nút khám bệnh + lịch sử khám
+                                                <>
+                                                    <Button
+                                                        variant={record.status === 'HOAN_THANH' ? 'success' : 'primary'}
+                                                        size="sm"
+                                                        onClick={() => router.push(`/bac-si/kham-benh/${record.id}`)}
+                                                        className="d-flex align-items-center"
+                                                    >
+                                                        <i className={`bi ${record.status === 'HOAN_THANH' ? 'bi-check-circle' : 'bi-stethoscope'} me-1`}></i>
+                                                        {record.status === 'HOAN_THANH' ? 'Xem kết quả' : 'Bắt đầu khám'}
+                                                    </Button>
+
+                                                </>
+                                            ) : (
+                                                // Lễ tân: nút xem chi tiết
+                                                <Button
+                                                    variant="outline-primary"
+                                                    size="sm"
+                                                    onClick={() => onViewDetail?.(record.id)}
+                                                    className="d-flex align-items-center"
+                                                >
+                                                    <IconEye size={16} className="me-1" />
+                                                    Xem chi tiết
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </Table>
+
+                    {/* Show More/Less Button */}
+                    {hasMoreRecords && (
+                        <div className="text-center py-3 border-top">
+                            <Button
+                                variant="outline-primary"
+                                size="sm"
+                                onClick={() => setShowAll(!showAll)}
+                                className="d-flex align-items-center mx-auto"
+                            >
+                                {showAll ? (
+                                    <>
+                                        <IconChevronUp size={16} className="me-1" />
+                                        Thu gọn ({medicalRecords.length - INITIAL_DISPLAY_COUNT} bản ghi)
+                                    </>
+                                ) : (
+                                    <>
+                                        <IconChevronDown size={16} className="me-1" />
+                                        Xem thêm {medicalRecords.length - INITIAL_DISPLAY_COUNT} bản ghi
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+                    )}
+                </Card.Body>
+            </Card>
+        </>
     );
 };
 

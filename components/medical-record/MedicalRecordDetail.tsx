@@ -2,8 +2,11 @@
 
 import React, { useState, useEffect } from "react";
 import { Row, Col, Card, Button, Alert, Form, Badge, Table, Tab, Tabs } from "react-bootstrap";
-import { IconArrowLeft, IconStethoscope, IconCash, IconCreditCard, IconUser, IconCalendar, IconClipboard } from "@tabler/icons-react";
+import { IconArrowLeft, IconStethoscope, IconCash, IconCreditCard, IconUser, IconCalendar, IconClipboard, IconHistory } from "@tabler/icons-react";
 import "bootstrap-icons/font/bootstrap-icons.css";
+
+//import components
+import MedicalRecordHistory from "./MedicalRecordHistory";
 
 // CSS tùy chỉnh cho row được chọn
 const customStyles = `
@@ -73,6 +76,7 @@ import QRPaymentModal from "../payment/QRPaymentModal";
 interface MedicalRecordDetailProps {
     medicalRecordId: string;
     onBack: () => void;
+    onViewDetail?: (medicalRecordId: string) => void; // Thêm prop cho navigation từ lịch sử
 }
 
 interface SelectedService {
@@ -90,7 +94,8 @@ interface PaymentData {
 
 const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
     medicalRecordId,
-    onBack
+    onBack,
+    onViewDetail
 }) => {
     // State
     const [medicalRecord, setMedicalRecord] = useState<MedicalRecordDetailType | null>(null);
@@ -107,6 +112,9 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
     const [showPaymentModal, setShowPaymentModal] = useState<boolean>(false);
     const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
 
+    // Medical Record History state
+    const [showHistoryModal, setShowHistoryModal] = useState<boolean>(false);
+
     // Load medical record detail on mount
     useEffect(() => {
         loadMedicalRecordDetail();
@@ -120,6 +128,32 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
             console.log('Loading medical record detail for ID:', medicalRecordId);
 
             const response = await medicalRecordService.getMedicalRecordDetail(medicalRecordId);
+
+            console.log('Medical record detail response:', response);
+
+            if (response && response.data) {
+                setMedicalRecord(response.data);
+                console.log('Lab orders:', response.data.labOrdersResponses);
+            } else {
+                throw new Error('Không thể tải thông tin phiếu khám');
+            }
+        } catch (err: any) {
+            console.error('Error loading medical record detail:', err);
+            setError(err.message || 'Lỗi khi tải thông tin phiếu khám');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Load medical record detail with specific ID
+    const loadMedicalRecordDetailById = async (recordId: string) => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            console.log('Loading medical record detail for ID:', recordId);
+
+            const response = await medicalRecordService.getMedicalRecordDetail(recordId);
 
             console.log('Medical record detail response:', response);
 
@@ -446,10 +480,22 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
                         <IconStethoscope size={20} className="me-2" />
                         <h5 className="mb-0">Chi tiết phiếu khám</h5>
                     </div>
-                    <Button variant="outline-secondary" size="sm" onClick={onBack}>
-                        <IconArrowLeft size={16} className="me-2" />
-                        Quay lại danh sách
-                    </Button>
+                    <div className="d-flex gap-2">
+                        {medicalRecord?.patientId && (
+                            <Button
+                                variant="outline-info"
+                                size="sm"
+                                onClick={() => setShowHistoryModal(true)}
+                            >
+                                <IconHistory size={16} className="me-2" />
+                                Lịch sử khám bệnh
+                            </Button>
+                        )}
+                        <Button variant="outline-secondary" size="sm" onClick={onBack}>
+                            <IconArrowLeft size={16} className="me-2" />
+                            Quay lại danh sách
+                        </Button>
+                    </div>
                 </Card.Header>
 
                 <Card.Body>
@@ -843,6 +889,39 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
                     invoiceId={paymentData.invoiceId}
                     onPaymentSuccess={handlePaymentSuccess}
                     onPaymentError={handlePaymentError}
+                />
+            )}
+
+            {/* Medical Record History Modal */}
+            {medicalRecord?.patientId && (
+                <MedicalRecordHistory
+                    show={showHistoryModal}
+                    onHide={() => setShowHistoryModal(false)}
+                    patientId={medicalRecord.patientId}
+                    patientName={medicalRecord.patientName}
+                    onViewDetail={(recordId) => {
+                        // Nếu có callback từ parent (như MedicalRecordManagement), sử dụng nó
+                        if (onViewDetail) {
+                            onViewDetail(recordId);
+                        } else {
+                            // Logic cho bác sĩ (navigation trong cùng component)
+                            if (recordId !== medicalRecordId) {
+                                // Load chi tiết phiếu khám mới
+                                setMedicalRecord(null);
+                                setLoading(true);
+                                setError(null);
+                                setSuccess(null);
+
+                                // Update URL và load dữ liệu mới
+                                const newUrl = window.location.pathname.replace(/\/[^\/]+$/, `/${recordId}`);
+                                window.history.pushState({}, '', newUrl);
+
+                                // Gọi API để load phiếu khám mới
+                                loadMedicalRecordDetailById(recordId);
+                            }
+                        }
+                        setShowHistoryModal(false);
+                    }}
                 />
             )}
         </>

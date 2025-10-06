@@ -110,6 +110,7 @@ const MedicalRecordManagement: React.FC<MedicalRecordManagementProps> = ({ userR
                             <MedicalRecordDetail
                                 medicalRecordId={selectedRecordId}
                                 onBack={handleBackToList}
+                                onViewDetail={handleViewDetail}
                             />
                         )
                     )}

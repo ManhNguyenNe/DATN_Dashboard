@@ -39,23 +39,25 @@
 **response** 
 {
     "data": {
-        "id": "83",
-        "code": "PK1759497762",
-        "symptoms": "",
-        "clinicalExamination": null,
-        "diagnosis": null,
-        "treatmentPlan": null,
-        "note": null,
+        "id": "85",
+        "code": "PK1759562038",
+        "symptoms": "Ỉa chẻ cấp độ 7",
+        "clinicalExamination": "",
+        "diagnosis": "ỉa chẻ",
+        "treatmentPlan": "thuốc chống ẻ",
+        "note": "Theo dõi nhiệt độ hàng ngày",
         "total": 5000.00,
-        "patientName": "kakaka",
-        "patientPhone": null,
-        "patientAddress": "hà nọi",
+        "patientId": 50,
+        "patientName": "Bùi Việt Quốc",
+        "patientPhone": "0389321548",
+        "patientAddress": "Hà Nội",
         "patientGender": "NAM",
-        "date": "2025-10-03T20:22:43",
+        "date": "2025-10-04T14:13:58",
         "status": "DANG_KHAM",
         "labOrdersResponses": [
             {
-                "id": 124,
+                "id": 136,
+                "code": "XN1759562038334",
                 "recordId": null,
                 "healthPlanId": 1,
                 "healthPlanName": "khám bệnh",
@@ -66,30 +68,34 @@
                 "status": "CHO_THUC_HIEN",
                 "statusPayment": "DA_THANH_TOAN",
                 "price": 0.00,
-                "orderDate": "2025-10-03T20:22:43",
+                "orderDate": "2025-10-04T14:13:58",
                 "diagnosis": null,
                 "expectedResultDate": null,
-                "serviceParent": null
+                "serviceParent": null,
+                "labResultResponse": null
             },
             {
-                "id": 125,
+                "id": 137,
+                "code": "XN1759562038342",
                 "recordId": null,
                 "healthPlanId": 11,
                 "healthPlanName": "Xét nghiệm công thức máu",
                 "room": "Phòng khám Nội tổng quát - 101A",
-                "doctorPerformed": null,
-                "doctorPerformedId": null,
+                "doctorPerformed": "BS. PHAM VAN TIEN",
+                "doctorPerformedId": 3,
                 "doctorOrdered": "tien",
                 "status": "CHO_THUC_HIEN",
                 "statusPayment": "DA_THANH_TOAN",
                 "price": 5000.00,
-                "orderDate": "2025-10-03T20:22:43",
+                "orderDate": "2025-10-04T14:13:58",
                 "diagnosis": null,
                 "expectedResultDate": null,
-                "serviceParent": "GOI DICH VU SIEU CAP VU TRU TAI NHA TAN RANG"
+                "serviceParent": "GOI DICH VU SIEU CAP VU TRU TAI NHA TAN RANG",
+                "labResultResponse": null
             },
             {
-                "id": 126,
+                "id": 138,
+                "code": "XN1759562038347",
                 "recordId": null,
                 "healthPlanId": 12,
                 "healthPlanName": "Nội soi dạ dày",
@@ -100,64 +106,71 @@
                 "status": "CHO_THUC_HIEN",
                 "statusPayment": "DA_THANH_TOAN",
                 "price": 4000.00,
-                "orderDate": "2025-10-03T20:22:43",
+                "orderDate": "2025-10-04T14:13:58",
                 "diagnosis": null,
                 "expectedResultDate": null,
-                "serviceParent": "GOI DICH VU SIEU CAP VU TRU TAI NHA TAN RANG"
+                "serviceParent": "GOI DICH VU SIEU CAP VU TRU TAI NHA TAN RANG",
+                "labResultResponse": null
             },
             {
-                "id": 127,
+                "id": 139,
+                "code": "XN1759562038353",
                 "recordId": null,
                 "healthPlanId": 13,
                 "healthPlanName": "Chụp X-quang ngực",
                 "room": "Phòng khám Nhi khoa - 103A",
-                "doctorPerformed": null,
-                "doctorPerformedId": null,
+                "doctorPerformed": "BS. LE THI CC",
+                "doctorPerformedId": 32,
                 "doctorOrdered": "tien",
-                "status": "CHO_THUC_HIEN",
+                "status": "HOAN_THANH",
                 "statusPayment": "DA_THANH_TOAN",
                 "price": 15000.00,
-                "orderDate": "2025-10-03T20:22:43",
+                "orderDate": "2025-10-04T14:13:58",
                 "diagnosis": null,
                 "expectedResultDate": null,
-                "serviceParent": "GOI DICH VU SIEU CAP VU TRU TAI NHA TAN RANG"
+                "serviceParent": "GOI DICH VU SIEU CAP VU TRU TAI NHA TAN RANG",
+                "labResultResponse": null
             },
             {
-                "id": 128,
+                "id": 140,
+                "code": "XN1759562038358",
                 "recordId": null,
                 "healthPlanId": 14,
                 "healthPlanName": "Siêu âm ổ bụng tổng quát",
                 "room": "Phòng khám Sản phụ khoa - 104A",
-                "doctorPerformed": null,
-                "doctorPerformedId": null,
+                "doctorPerformed": "BS. LE THI CC",
+                "doctorPerformedId": 32,
                 "doctorOrdered": "tien",
                 "status": "CHO_THUC_HIEN",
                 "statusPayment": "DA_THANH_TOAN",
                 "price": 2345.00,
-                "orderDate": "2025-10-03T20:22:43",
+                "orderDate": "2025-10-04T14:13:58",
                 "diagnosis": null,
                 "expectedResultDate": null,
-                "serviceParent": "GOI DICH VU SIEU CAP VU TRU TAI NHA TAN RANG"
+                "serviceParent": "GOI DICH VU SIEU CAP VU TRU TAI NHA TAN RANG",
+                "labResultResponse": null
             },
             {
-                "id": 129,
+                "id": 141,
+                "code": "XN1759562113072",
                 "recordId": null,
                 "healthPlanId": 2,
                 "healthPlanName": "Xét nghiệm máu cơ bản",
                 "room": "Phòng xét nghiệm  - 204A",
-                "doctorPerformed": "BS. NGUYEN THI S",
-                "doctorPerformedId": 22,
+                "doctorPerformed": "BS. LE THI CC",
+                "doctorPerformedId": 32,
                 "doctorOrdered": "tien",
                 "status": "CHO_THUC_HIEN",
                 "statusPayment": "DA_THANH_TOAN",
                 "price": 2000.00,
-                "orderDate": "2025-10-03T20:23:50",
-                "diagnosis": "123",
+                "orderDate": "2025-10-04T14:15:13",
+                "diagnosis": "adfs",
                 "expectedResultDate": null,
-                "serviceParent": null
+                "serviceParent": null,
+                "labResultResponse": null
             }
         ],
-        "invoiceId": 92
+        "invoiceId": 94
     },
     "message": "Get medical record by id successfully"
 }
@@ -167,52 +180,90 @@
 {
     "data": [
         {
-            "id": "36",
-            "code": "PK1759052571",
-            "symptoms": "",
-            "clinicalExamination": null,
-            "diagnosis": null,
-            "treatmentPlan": null,
-            "note": null,
-            "total": 2000.00,
-            "patientName": "Con ông mạnh",
-            "date": "2025-09-28T16:42:51",
+            "id": "85",
+            "code": "PK1759562038",
+            "symptoms": "Ỉa chẻ cấp độ 7",
+            "clinicalExamination": "",
+            "diagnosis": "ỉa chẻ",
+            "treatmentPlan": "thuốc chống ẻ",
+            "note": "Theo dõi nhiệt độ hàng ngày",
+            "total": 5000.00,
+            "patientId": 50,
+            "patientName": "Bùi Việt Quốc",
+            "patientPhone": "0389321548",
+            "patientAddress": "Hà Nội",
+            "patientGender": "NAM",
+            "date": "2025-10-04T14:13:58",
             "status": "DANG_KHAM",
             "labOrdersResponses": [
                 {
-                    "id": 30,
+                    "id": 136,
+                    "code": "XN1759562038334",
                     "recordId": null,
-                    "healthPlanId": 2,
-                    "healthPlanName": "Xét nghiệm máu cơ bản",
-                    "room": "",
-                    "healthPlanResponse": null,
-                    "doctorPerformed": null,
-                    "doctorOrdered": null,
-                    "status": "CHO_THUC_HIEN",
-                    "statusPayment": "CHUA_THANH_TOAN",
-                    "price": 2000.00,
-                    "orderDate": "2025-09-28T16:42:51",
-                    "expectedResultDate": null
-                },
-                {
-                    "id": 31,
-                    "recordId": null,
-                    "healthPlanId": 3,
-                    "healthPlanName": "X-quang phổi",
-                    "room": "",
-                    "healthPlanResponse": null,
-                    "doctorPerformed": null,
-                    "doctorOrdered": null,
+                    "healthPlanId": 1,
+                    "healthPlanName": "khám bệnh",
+                    "room": "Phòng khám Nội tổng quát - 101A",
+                    "doctorPerformed": "tien",
+                    "doctorPerformedId": 1,
+                    "doctorOrdered": "tien",
                     "status": "CHO_THUC_HIEN",
                     "statusPayment": "DA_THANH_TOAN",
-                    "price": 3000.00,
-                    "orderDate": "2025-09-28T12:57:14",
-                    "expectedResultDate": null
+                    "price": 0.00,
+                    "orderDate": "2025-10-04T14:13:58",
+                    "diagnosis": null,
+                    "expectedResultDate": null,
+                    "serviceParent": null,
+                    "labResultResponse": null
                 }
             ]
         }
+    ]
+}
+## GET lấy tất cả phiếu khám theo id bệnh nhân
+**api** /api/medical-record/patient/50
+response
+{
+    "data": [
+        {
+            "id": "84",
+            "code": "PK1759559228",
+            "symptoms": "Không có triệu chứng",
+            "clinicalExamination": "",
+            "diagnosis": "ádf",
+            "treatmentPlan": "",
+            "note": "",
+            "total": 5000.00,
+            "patientId": null,
+            "patientName": null,
+            "patientPhone": null,
+            "patientAddress": null,
+            "patientGender": null,
+            "date": "2025-10-04T13:27:08",
+            "status": "DANG_KHAM",
+            "labOrdersResponses": null,
+            "invoiceId": null
+        },
+        {
+            "id": "85",
+            "code": "PK1759562038",
+            "symptoms": "Ỉa chẻ cấp độ 7",
+            "clinicalExamination": "",
+            "diagnosis": "ỉa chẻ",
+            "treatmentPlan": "thuốc chống ẻ",
+            "note": "Theo dõi nhiệt độ hàng ngày",
+            "total": 5000.00,
+            "patientId": null,
+            "patientName": null,
+            "patientPhone": null,
+            "patientAddress": null,
+            "patientGender": null,
+            "date": "2025-10-04T14:13:58",
+            "status": "DANG_KHAM",
+            "labOrdersResponses": null,
+            "invoiceId": null
+        }
     ],
-    "message": "Get all medical record successfully"
+    "message": "Get medical record by id successfully"
 }
 
 ## POST Thêm phiếu khám
@@ -242,5 +293,9 @@ request
 **api** /api/medical-record/status
 request
 {
-
+  "id": 85,
+    "status": "HOAN_THANH"
 }
+- có 4 trạng thái
+DANG_KHAM, CHO_XET_NGHIEM, HOAN_THANH, HUY
+
