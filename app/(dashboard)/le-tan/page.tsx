@@ -87,7 +87,7 @@ const ReceptionistDashboard = () => {
         <div className="container-fluid">
             <div className="d-flex justify-content-between align-items-center mb-4">
                 <h2>Dashboard Lễ tân</h2>
-                <span className="text-muted">Chào mừng, {user?.name || user?.email}</span>
+                <span className="text-muted">Chào mừng, {user?.email}</span>
             </div>
 
             {/* Thống kê tổng quan */}

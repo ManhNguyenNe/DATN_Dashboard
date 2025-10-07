@@ -313,7 +313,7 @@ const LabTestExecutionPage = () => {
 
                             <div className="mb-3">
                                 <strong>Bác sĩ thực hiện:</strong>
-                                <div className="mt-1">{labOrder.doctorPerformed || user?.name || 'Chưa xác định'}</div>
+                                <div className="mt-1">{labOrder.doctorPerformed || user?.doctor?.fullName || 'Chưa xác định'}</div>
                             </div>
 
                             <div className="mb-3">

@@ -192,7 +192,7 @@ const DoctorReportsPage = () => {
                         </Col>
                         <Col md={6} className="text-end">
                             <span className="text-muted">
-                                BS. {user?.name || user?.email}
+                                BS. {user?.doctor?.fullName || user?.email}
                             </span>
                         </Col>
                     </Row>

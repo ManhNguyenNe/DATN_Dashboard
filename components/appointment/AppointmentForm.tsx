@@ -5,10 +5,10 @@ import { useState, useEffect } from "react";
 import { Row, Col, Form, Button, Card, Alert } from "react-bootstrap";
 
 //import services
-import { 
-  appointmentService, 
-  patientService, 
-  departmentService, 
+import {
+  appointmentService,
+  patientService,
+  departmentService,
   doctorService,
   type AppointmentCreateData,
   type Patient,
@@ -34,7 +34,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, onCancel }
   const [patients, setPatients] = useState<Patient[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
-  
+
   // UI state
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,12 +76,12 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, onCancel }
 
   const searchPatients = async (phone: string) => {
     if (!phone.trim()) return;
-    
+
     setLoading(true);
     try {
       const response = await patientService.getPatientsByPhone(phone);
       setPatients(response.data || []);
-      
+
       if (response.data && response.data.length === 1) {
         setSelectedPatient(response.data[0]);
         setFormData(prev => ({ ...prev, patientId: response.data[0].id }));
@@ -100,9 +100,9 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, onCancel }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.patientId || !formData.doctorId || !formData.departmentId || 
-        !formData.appointmentDate || !formData.appointmentTime) {
+
+    if (!formData.patientId || !formData.doctorId || !formData.departmentId ||
+      !formData.appointmentDate || !formData.appointmentTime) {
       setError("Vui lòng điền đầy đủ thông tin bắt buộc");
       return;
     }
@@ -145,8 +145,8 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, onCancel }
                     onChange={(e) => setSearchPhone(e.target.value)}
                     placeholder="Nhập số điện thoại"
                   />
-                  <Button 
-                    variant="outline-primary" 
+                  <Button
+                    variant="outline-primary"
                     onClick={() => searchPatients(searchPhone)}
                     disabled={loading || !searchPhone.trim()}
                   >
@@ -207,7 +207,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, onCancel }
                 >
                   <option value="">Chọn bác sĩ</option>
                   {doctors.map(doctor => (
-                    <option key={doctor.id} value={doctor.id}>{doctor.name}</option>
+                    <option key={doctor.id} value={doctor.id}>{doctor.fullName}</option>
                   ))}
                 </Form.Select>
               </Form.Group>

@@ -36,12 +36,12 @@ import { useAntdNotification } from 'components/common/AntdNotificationProvider'
 
 //import components
 import ServiceCostDisplay from "./ServiceCostDisplay";
-import QRPaymentModal from "../payment/QRPaymentModal";// Extended interface để handle response structure thực tế
+import QRPaymentModal from "../payment/QRPaymentModal";
+
+// Extended interface để handle response structure thực tế
 interface DoctorResponse extends Doctor {
-  fullName?: string;
-  position?: string;
-  available?: boolean;
-  examinationFee?: number;
+  // Các property bổ sung (không override các property từ Doctor)
+  specialty?: string;
 }
 
 interface MedicalRecordFormData {
@@ -479,7 +479,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
         const doctor = doctors.find(doc => doc.id.toString() === formData.serviceDoctor);
         if (doctor) {
           return {
-            name: doctor.position || doctor.name || 'Khám bác sĩ',
+            name: doctor.position || doctor.fullName || 'Khám bác sĩ',
             price: doctor.examinationFee || 0,
             roomNumber: doctor.roomNumber,
             roomName: doctor.roomName
@@ -966,7 +966,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
       return [
         { value: '', label: 'Chọn bác sĩ trong khoa' },
         ...doctors.map(doctor => {
-          let label = (doctor as any).fullName || (doctor as any).position || doctor.name || `Bác sĩ #${doctor.id}`;
+          let label = (doctor as any).fullName || (doctor as any).position || `Bác sĩ #${doctor.id}`;
           if (doctor.examinationFee) {
             label += ` - ${doctor.examinationFee.toLocaleString()}đ`;
           }
@@ -986,7 +986,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
       return [
         { value: '', label: 'Chọn bác sĩ' },
         ...doctors.map(doctor => {
-          let label = `${(doctor as any).fullName || (doctor as any).position || doctor.name || `Bác sĩ #${doctor.id}`}${doctor.departmentName ? ` - ${doctor.departmentName}` : ''}`;
+          let label = `${(doctor as any).fullName || (doctor as any).position || `Bác sĩ #${doctor.id}`}${doctor.departmentName ? ` - ${doctor.departmentName}` : ''}`;
           if (doctor.examinationFee) {
             label += ` - ${doctor.examinationFee.toLocaleString()}đ`;
           }

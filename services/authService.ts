@@ -1,4 +1,5 @@
 import apiClient, { type ApiResponse } from './api';
+import { DoctorInfo } from './userService';
 
 // Enums cho User Role
 export enum UserRole {
@@ -17,11 +18,10 @@ export enum UserStatus {
 export interface User {
     id: number;
     email: string;
-    phone: string | null;
-    name: string | null;
     role: UserRole;
     status: boolean;
     createdAt: string;
+    doctor?: DoctorInfo; // Chỉ có khi role là BAC_SI
 }
 
 // Interface cho Login Request

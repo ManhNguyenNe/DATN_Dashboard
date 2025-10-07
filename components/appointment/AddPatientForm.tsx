@@ -370,20 +370,6 @@ const AddPatientForm: React.FC<AddPatientFormProps> = ({
                                     />
                                 </Form.Group>
                             </Col>
-
-                            {/* Profile Image URL */}
-                            <Col md={12}>
-                                <Form.Group>
-                                    <Form.Label>URL hình ảnh</Form.Label>
-                                    <Form.Control
-                                        type="url"
-                                        value={formData.profileImage || ''}
-                                        onChange={(e) => handleChange('profileImage', e.target.value || null)}
-                                        placeholder="Nhập URL hình ảnh (tùy chọn)"
-                                        disabled={loading}
-                                    />
-                                </Form.Group>
-                            </Col>
                         </Row>
                     </Modal.Body>
 

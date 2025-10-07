@@ -110,3 +110,13 @@ export type {
   UserMeResponse,
   DoctorInfo
 } from './userService';
+
+// Schedule Service
+export { default as scheduleService } from './scheduleService';
+export {
+  Shift,
+  DateName,
+  type ScheduleDoctorInfo,
+  type DaySchedule,
+  type ScheduleFilterParams
+} from './scheduleService';

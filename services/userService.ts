@@ -7,6 +7,7 @@ export interface DoctorInfo {
     phone: string;
     address: string;
     birth: string; // format: "YYYY-MM-DD"
+    gender: string; // giới tính
     profileImage: string;
     exp: number; // kinh nghiệm (năm)
     position: string; // chức vụ

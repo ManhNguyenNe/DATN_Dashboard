@@ -1,22 +1,15 @@
 import apiClient, { ApiResponse } from './api';
+import { DoctorInfo } from './userService';
 
-// Interfaces cho Doctor data
-export interface Doctor {
-  id: number;
-  name: string;
+// Mở rộng DoctorInfo với các thông tin bổ sung cho quản lý
+export interface Doctor extends DoctorInfo {
   email?: string;
-  phone?: string;
   specialty?: string;
   departmentId?: number;
   departmentName?: string;
-  experience?: number;
-  qualification?: string;
-  schedule?: string;
-  position?: string; // From API response
-  examinationFee?: number; // From API response 
-  available?: boolean; // From API response
-  roomNumber?: string; // From API response
-  roomName?: string; // From API response
+  examinationFee?: number;
+  roomNumber?: string;
+  roomName?: string;
   isActive?: boolean;
   createdAt?: string;
   updatedAt?: string;

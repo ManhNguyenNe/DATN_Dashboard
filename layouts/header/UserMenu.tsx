@@ -61,7 +61,7 @@ const UserMenu = () => {
       <Dropdown.Toggle as={CustomToggle}>
         <Avatar
           type="image"
-          src={getAssetPath("/images/avatar/avatar-1.jpg")}
+          src={user?.doctor?.profileImage || getAssetPath("/images/avatar/avatar-1.jpg")}
           size="sm"
           alt="User Avatar"
           className="rounded-circle"
@@ -70,13 +70,18 @@ const UserMenu = () => {
       <Dropdown.Menu align="end" className="p-0 dropdown-menu-md">
         <div className="d-flex gap-3 align-items-center border-dashed border-bottom px-4 py-4">
           <Image
-            src={getAssetPath("/images/avatar/avatar-1.jpg")}
+            src={user?.doctor?.profileImage || getAssetPath("/images/avatar/avatar-1.jpg")}
             alt=""
             className="avatar avatar-md rounded-circle"
           />
           <div className="flex-grow-1">
-            <h4 className="mb-1 fs-5">{user?.name || user?.email || 'Người dùng'}</h4>
+            <h4 className="mb-1 fs-5">
+              {user?.doctor?.fullName || user?.email || 'Người dùng'}
+            </h4>
             <p className="mb-1 text-muted small">{user?.email}</p>
+            {user?.doctor?.position && (
+              <p className="mb-1 text-muted small">{user?.doctor.position}</p>
+            )}
             {user?.role && (
               <Badge bg={getRoleBadgeVariant(user.role)} className="small">
                 {getRoleDisplayName(user.role)}

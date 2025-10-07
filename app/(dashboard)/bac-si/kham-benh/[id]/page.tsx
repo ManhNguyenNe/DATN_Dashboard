@@ -204,7 +204,7 @@ const ExaminationDetailPage = () => {
                 }
 
                 // Hiển thị modal chi tiết chỉ định
-                setSelectedDoctor(labOrderDetail.doctorOrdered || labOrderDetail.doctorPerformed || user?.name || '');
+                setSelectedDoctor(labOrderDetail.doctorOrdered || labOrderDetail.doctorPerformed || user?.doctor?.fullName || '');
                 setShowEditPrescriptionModal(true);
 
             } else {
@@ -424,7 +424,7 @@ const ExaminationDetailPage = () => {
             setEditingService(service);
             setServiceReason(service.reason || '');
             setServiceNotes(service.notes || '');
-            setServiceDoctor(service.assignedDoctor || user?.name || '');
+            setServiceDoctor(service.assignedDoctor || user?.doctor?.fullName || '');
             setShowEditServiceModal(true);
         }
     };
@@ -685,7 +685,7 @@ const ExaminationDetailPage = () => {
                 </table>
 
                 <div class="footer">
-                    <p>Bác sĩ khám: ${user?.name || 'Chưa xác định'}</p>
+                    <p>Bác sĩ khám: ${user?.doctor?.fullName || 'Chưa xác định'}</p>
                     <p>Ngày in: ${new Date().toLocaleDateString('vi-VN')}</p>
                 </div>
             </body>
@@ -1203,8 +1203,8 @@ const ExaminationDetailPage = () => {
                                 onChange={(e) => setServiceDoctor(e.target.value)}
                             >
                                 <option value="">-- Chọn bác sĩ chỉ định --</option>
-                                <option value={user?.name || ''}>
-                                    {user?.name} (Hiện tại)
+                                <option value={user?.doctor?.fullName || ''}>
+                                    {user?.doctor?.fullName} (Hiện tại)
                                 </option>
                                 {availableDoctors.map(doctor => (
                                     <option key={doctor.id} value={doctor.name}>
@@ -1538,21 +1538,6 @@ const ExaminationDetailPage = () => {
                     </Button>
                 </Modal.Footer>
             </Modal>
-
-            {/* Medical Record History Modal */}
-            {medicalRecord?.patientId && (
-                <MedicalRecordHistory
-                    show={showHistoryModal}
-                    onHide={() => setShowHistoryModal(false)}
-                    patientId={medicalRecord.patientId}
-                    patientName={medicalRecord.patientName}
-                    onViewDetail={(recordId) => {
-                        // Navigate to the selected medical record
-                        setShowHistoryModal(false);
-                        router.push(`/bac-si/kham-benh/${recordId}`);
-                    }}
-                />
-            )}
         </div>
     );
 };

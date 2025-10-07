@@ -86,7 +86,7 @@ const DoctorDashboard = () => {
         <div className="container-fluid">
             <div className="d-flex justify-content-between align-items-center mb-4">
                 <h2>Dashboard Bác sĩ</h2>
-                <span className="text-muted">Chào mừng, BS. {user?.name || user?.email}</span>
+                <span className="text-muted">Chào mừng, BS. {user?.doctor?.fullName || user?.email}</span>
             </div>
 
             {/* Thống kê tổng quan */}

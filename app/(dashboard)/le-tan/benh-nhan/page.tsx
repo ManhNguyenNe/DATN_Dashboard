@@ -6,6 +6,7 @@ import { PersonFill, Search, Eye, Plus, Telephone, PencilSquare, FileEarmarkMedi
 import { useAuth } from "../../../../contexts/AuthContext";
 import patientService, { PatientApiData } from "../../../../services/patientService";
 import Loading from "../../../../components/common/Loading";
+import AddPatientForm from "../../../../components/appointment/AddPatientForm";
 
 interface PatientInfo {
     id: number;
@@ -34,6 +35,7 @@ const ReceptionistPatientsPage = () => {
     const [selectedPatient, setSelectedPatient] = useState<PatientInfo | null>(null);
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
+    const [showAddPatientModal, setShowAddPatientModal] = useState(false);
     const [alert, setAlert] = useState<{ type: 'success' | 'danger'; message: string } | null>(null);
 
     // Form data cho edit patient
@@ -249,12 +251,33 @@ const ReceptionistPatientsPage = () => {
         }
     };
 
+    // Handle add patient functions
+    const handlePatientAdded = async (newPatient: any) => {
+        console.log('New patient added:', newPatient);
+        setAlert({ type: 'success', message: 'Thêm bệnh nhân mới thành công!' });
+        setShowAddPatientModal(false);
+        // Refresh data
+        await fetchPatients();
+    };
+
+    const handleAddPatientSuccess = (message: string) => {
+        setAlert({ type: 'success', message });
+    };
+
     if (loading) return <Loading />;
 
     return (
         <div className="container-fluid">
             <div className="d-flex justify-content-between align-items-center mb-4">
                 <h2>Quản lý bệnh nhân</h2>
+                <Button
+                    variant="success"
+                    onClick={() => setShowAddPatientModal(true)}
+                    className="d-flex align-items-center"
+                >
+                    <Plus size={16} className="me-2" />
+                    Thêm bệnh nhân
+                </Button>
             </div>
 
             {alert && (
@@ -268,9 +291,9 @@ const ReceptionistPatientsPage = () => {
                 </Alert>
             )}
 
-            {/* Search and Statistics */}
+            {/* Search */}
             <Row className="mb-4">
-                <Col md={8}>
+                <Col md={12}>
                     <InputGroup>
                         <InputGroup.Text>
                             <Search />
@@ -282,28 +305,6 @@ const ReceptionistPatientsPage = () => {
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </InputGroup>
-                </Col>
-                <Col md={4}>
-                    <Row>
-                        <Col md={6}>
-                            <Card className="border-0 shadow-sm">
-                                <Card.Body className="text-center">
-                                    <PersonFill size={24} className="text-primary mb-2" />
-                                    <h5 className="mb-0">{patients.length}</h5>
-                                    <small className="text-muted">Tổng bệnh nhân</small>
-                                </Card.Body>
-                            </Card>
-                        </Col>
-                        <Col md={6}>
-                            <Card className="border-0 shadow-sm">
-                                <Card.Body className="text-center">
-                                    <Telephone size={24} className="text-success mb-2" />
-                                    <h5 className="mb-0">{filteredPatients.length}</h5>
-                                    <small className="text-muted">Kết quả tìm kiếm</small>
-                                </Card.Body>
-                            </Card>
-                        </Col>
-                    </Row>
                 </Col>
             </Row>
 
@@ -699,6 +700,14 @@ const ReceptionistPatientsPage = () => {
                     </Button>
                 </Modal.Footer>
             </Modal>
+
+            {/* Add Patient Modal */}
+            <AddPatientForm
+                show={showAddPatientModal}
+                onHide={() => setShowAddPatientModal(false)}
+                onPatientAdded={handlePatientAdded}
+                onSuccess={handleAddPatientSuccess}
+            />
         </div>
     );
 };
