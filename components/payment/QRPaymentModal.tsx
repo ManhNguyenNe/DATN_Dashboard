@@ -10,6 +10,7 @@ interface QRPaymentModalProps {
     onHide: () => void;
     qrCodeData: string;
     invoiceId: number;
+    orderCode: number;
     onPaymentSuccess: () => void;
     onPaymentError: (error: string) => void;
     // Thêm dữ liệu cần thiết để tạo phiếu khám
@@ -26,6 +27,7 @@ const QRPaymentModal: React.FC<QRPaymentModalProps> = ({
     onHide,
     qrCodeData,
     invoiceId,
+    orderCode,
     onPaymentSuccess,
     onPaymentError,
     medicalRecordData
@@ -41,6 +43,7 @@ const QRPaymentModal: React.FC<QRPaymentModalProps> = ({
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const isCheckingRef = useRef<boolean>(false); // Flag để prevent duplicate calls
     const isCompletedRef = useRef<boolean>(false); // Flag để track khi đã hoàn thành (success hoặc failed)
+    const isCreatingRecordRef = useRef<boolean>(false); // Flag để prevent duplicate medical record creation
 
     // Generate QR code khi component mount hoặc qrCodeData thay đổi
     useEffect(() => {
@@ -62,7 +65,7 @@ const QRPaymentModal: React.FC<QRPaymentModalProps> = ({
     }, [show]);
 
     const cleanup = () => {
-        console.log('Cleanup called - clearing all intervals and timeouts');
+        console.log('🧹 Cleanup called - clearing all intervals and timeouts');
 
         if (pollIntervalRef.current) {
             clearInterval(pollIntervalRef.current);
@@ -80,7 +83,7 @@ const QRPaymentModal: React.FC<QRPaymentModalProps> = ({
             console.log('✅ Cleared timeout');
         }
 
-        // Reset flags
+        // Reset checking flag khi cleanup
         isCheckingRef.current = false;
         console.log('✅ All intervals and timeouts cleared successfully');
     };
@@ -129,7 +132,7 @@ const QRPaymentModal: React.FC<QRPaymentModalProps> = ({
         setPaymentStatus('checking');
         setStatusMessage("Đang kiểm tra trạng thái thanh toán...");
 
-        console.log('🚀 Starting payment status polling for invoice:', invoiceId);
+        console.log('🚀 Starting payment status polling for orderCode:', orderCode);
 
         // Bắt đầu polling mỗi 5 giây
         pollIntervalRef.current = setInterval(() => {
@@ -147,6 +150,15 @@ const QRPaymentModal: React.FC<QRPaymentModalProps> = ({
     };
 
     const createMedicalRecord = async () => {
+        // Prevent duplicate calls - QUAN TRỌNG!
+        if (isCreatingRecordRef.current) {
+            console.log('⚠️ Medical record creation already in progress - skipping duplicate call');
+            return;
+        }
+
+        isCreatingRecordRef.current = true;
+        console.log('🏥 Starting medical record creation...');
+
         try {
             if (!medicalRecordData) {
                 throw new Error("Không có dữ liệu phiếu khám");
@@ -169,6 +181,14 @@ const QRPaymentModal: React.FC<QRPaymentModalProps> = ({
             // Kiểm tra response - API có thể trả về message "successfully" khi thành công
             if (response && (response.data || response.message?.toLowerCase().includes('success'))) {
                 console.log('Medical record created successfully');
+
+                // Lưu medical record ID vào localStorage
+                const medicalRecordId = response.data;
+                if (medicalRecordId) {
+                    localStorage.setItem('currentMedicalRecordId', medicalRecordId.toString());
+                    console.log('💾 Đã lưu medical record ID vào localStorage:', medicalRecordId);
+                }
+
                 setStatusMessage("Thanh toán và tạo phiếu khám thành công!");
                 // Gọi callback success để update parent component
                 onPaymentSuccess();
@@ -185,6 +205,14 @@ const QRPaymentModal: React.FC<QRPaymentModalProps> = ({
             // Nếu message có chứa "success" thì có thể đây không phải là lỗi thực sự
             if (errorMessage.toLowerCase().includes('success')) {
                 console.log('API returned success message in error block, treating as success');
+
+                // Thử lấy medical record ID từ error response
+                const medicalRecordId = error.response?.data?.data;
+                if (medicalRecordId) {
+                    localStorage.setItem('currentMedicalRecordId', medicalRecordId.toString());
+                    console.log('💾 Đã lưu medical record ID vào localStorage:', medicalRecordId);
+                }
+
                 setStatusMessage("Thanh toán và tạo phiếu khám thành công!");
                 onPaymentSuccess();
             } else {
@@ -198,20 +226,26 @@ const QRPaymentModal: React.FC<QRPaymentModalProps> = ({
     const checkPaymentStatus = async () => {
         // Prevent duplicate calls và calls sau khi đã completed
         if (isCheckingRef.current || isCompletedRef.current) {
-            console.log('Skipping payment check - already checking or completed');
+            console.log('⏭️ Skipping payment check - already checking or completed');
             return;
         }
 
         isCheckingRef.current = true;
+        console.log('🔍 Checking payment status for orderCode:', orderCode);
 
         try {
-            console.log('Checking payment status for invoice:', invoiceId);
-            const response: PaymentStatusResponse = await paymentService.checkPaymentStatus(invoiceId);
+            const response: PaymentStatusResponse = await paymentService.checkPaymentStatus(orderCode);
+
+            // Check lại một lần nữa SAU KHI có response - tránh race condition
+            if (isCompletedRef.current) {
+                console.log('⚠️ Payment already completed during API call - aborting');
+                return;
+            }
 
             if (response.data === true) {
-                // Thanh toán thành công
-                console.log('Payment successful! Stopping all polling immediately.');
-                isCompletedRef.current = true; // Set completed flag NGAY LẬP TỨC
+                // Thanh toán thành công - SET FLAG NGAY LẬP TỨC TRƯỚC KHI LÀM BẤT CỨ ĐIỀU GÌ
+                console.log('✅ Payment successful! Setting completed flag and stopping all polling.');
+                isCompletedRef.current = true;
 
                 setPaymentStatus('success');
                 setStatusMessage("Thanh toán thành công! Đang tạo phiếu khám...");
@@ -228,11 +262,11 @@ const QRPaymentModal: React.FC<QRPaymentModalProps> = ({
                 }
             } else {
                 // Vẫn chưa thanh toán, tiếp tục chờ
-                console.log('Payment still pending, continuing to poll...');
+                console.log('⏳ Payment still pending, continuing to poll...');
                 setStatusMessage("Đang chờ thanh toán...");
             }
         } catch (error: any) {
-            console.error('Error checking payment status:', error);
+            console.error('❌ Error checking payment status:', error);
             isCompletedRef.current = true; // Set completed flag
             setPaymentStatus('failed');
             setStatusMessage("Lỗi khi kiểm tra trạng thái thanh toán");
@@ -243,7 +277,11 @@ const QRPaymentModal: React.FC<QRPaymentModalProps> = ({
                 onPaymentError("Lỗi khi kiểm tra trạng thái thanh toán");
             }, 2000);
         } finally {
-            isCheckingRef.current = false;
+            // CHỈ reset isCheckingRef nếu chưa completed
+            // Nếu đã completed, giữ nguyên để tránh race condition
+            if (!isCompletedRef.current) {
+                isCheckingRef.current = false;
+            }
         }
     };
 
@@ -263,7 +301,8 @@ const QRPaymentModal: React.FC<QRPaymentModalProps> = ({
         setCheckingStarted(false);
         setQrCodeUrl("");
         isCheckingRef.current = false;
-        isCompletedRef.current = false; // Reset completed flag
+        isCompletedRef.current = false;
+        isCreatingRecordRef.current = false; // Reset medical record creation flag
         onHide();
     };
 

@@ -20,6 +20,7 @@ export interface AppointmentService {
     assignedDoctor?: string; // Bác sĩ được chỉ định thực hiện dịch vụ
     reason?: string; // Lý do chỉ định dịch vụ
     executionStatus?: 'CHO_THUC_HIEN' | 'DANG_THUC_HIEN' | 'HOAN_THANH' | 'HUY'; // Trạng thái thực hiện
+    serviceParent?: string; // Tên gói dịch vụ mà dịch vụ này thuộc về (nếu là dịch vụ con trong gói)
 }
 
 export interface NewPrescription {

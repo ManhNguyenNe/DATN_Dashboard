@@ -76,7 +76,10 @@ export {
   type MedicalRecordFilter,
   type MedicalRecordDetail,
   type MedicalRecordService,
-  type LabOrderResponse
+  type LabOrderResponse,
+  type InvoiceDetailsResponse,
+  type SingleLabResponse,
+  type MultipleLabResponse
 } from './medicalRecordService';
 
 // Medical Service Service
@@ -90,7 +93,8 @@ export type {
   DoctorLabOrder,
   DoctorLabOrderFilter,
   CreateLabOrderRequest,
-  UpdateLabOrderRequest
+  UpdateLabOrderRequest,
+  DeleteLabOrdersRequest
 } from './labOrderService';
 
 // Lab Result Service

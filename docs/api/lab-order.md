@@ -154,3 +154,10 @@ request
     "performingDoctorId": 21
 }
 
+## DELETE - xoas theo yeu cau
+**api**/api/lab-orders
+request
+{
+    "ids": [161, 162],
+    "medicalRecordId": 90
+}

@@ -97,6 +97,100 @@ const ExaminationDetailPage = () => {
         }
     }, [appointmentId]);
 
+    // Hàm riêng để chỉ refresh danh sách dịch vụ mà không ảnh hưởng đến examination data
+    const refreshServicesList = async () => {
+        try {
+            // Gọi API lấy chi tiết phiếu khám
+            const response = await medicalRecordService.getMedicalRecordDetail(appointmentId);
+
+            if (response && response.data) {
+                const record = response.data;
+                console.log('🔄 Refresh danh sách dịch vụ từ API:', record);
+
+                // CHỈ cập nhật danh sách dịch vụ, KHÔNG động đến examination data
+                const services: AppointmentService[] = [];
+
+                if (record.invoiceDetailsResponse) {
+                    record.invoiceDetailsResponse.forEach((invoice) => {
+                        const paymentStatus = invoice.status === 'DA_THANH_TOAN'
+                            ? ServiceStatus.DA_THANH_TOAN
+                            : ServiceStatus.CHO_THANH_TOAN;
+
+                        // Xử lý MULTIPLE services (gói dịch vụ)
+                        if (invoice.typeService === 'MULTIPLE' && invoice.multipleLab) {
+                            invoice.multipleLab.forEach((lab) => {
+                                services.push({
+                                    id: lab.id,
+                                    serviceId: invoice.healthPlanId,
+                                    serviceName: lab.name || invoice.healthPlanName,
+                                    price: invoice.healthPlanPrice / invoice.multipleLab!.length,
+                                    status: paymentStatus,
+                                    paymentDate: invoice.status === 'DA_THANH_TOAN' ? record.date : undefined,
+                                    orderDate: lab.createdAt || undefined,
+                                    room: lab.room || '',
+                                    assignedDoctor: lab.doctorPerforming || 'Chưa phân công',
+                                    reason: '',
+                                    executionStatus: lab.status,
+                                    serviceParent: invoice.healthPlanName
+                                });
+                            });
+                        }
+
+                        // Xử lý SINGLE service (dịch vụ đơn lẻ)
+                        else if (invoice.typeService === 'SINGLE' && invoice.singleLab) {
+                            const lab = invoice.singleLab;
+                            services.push({
+                                id: lab.id,
+                                serviceId: invoice.healthPlanId,
+                                serviceName: lab.name || invoice.healthPlanName,
+                                price: invoice.healthPlanPrice,
+                                status: paymentStatus,
+                                paymentDate: invoice.status === 'DA_THANH_TOAN' ? record.date : undefined,
+                                orderDate: lab.createdAt || undefined,
+                                room: lab.room || '',
+                                assignedDoctor: lab.doctorPerforming || 'Chưa phân công',
+                                reason: '',
+                                executionStatus: lab.status
+                            });
+                        }
+                    });
+                }
+
+                // Fallback: backward compatibility
+                else if (record.labOrdersResponses) {
+                    record.labOrdersResponses.forEach((labOrder) => {
+                        const paymentStatus = labOrder.statusPayment === 'DA_THANH_TOAN'
+                            ? ServiceStatus.DA_THANH_TOAN
+                            : ServiceStatus.CHO_THANH_TOAN;
+
+                        services.push({
+                            id: labOrder.id,
+                            serviceId: labOrder.healthPlanId,
+                            serviceName: labOrder.healthPlanName,
+                            price: labOrder.price,
+                            status: paymentStatus,
+                            paymentDate: labOrder.statusPayment === 'DA_THANH_TOAN' ? record.date : undefined,
+                            orderDate: labOrder.orderDate || undefined,
+                            room: labOrder.room || '',
+                            assignedDoctor: labOrder.doctorPerformed || 'Chưa phân công',
+                            reason: labOrder.diagnosis || '',
+                            executionStatus: labOrder.status
+                        });
+                    });
+                }
+
+                setPaidServices(services);
+
+            } else {
+                throw new Error('Không thể tải danh sách dịch vụ');
+            }
+
+        } catch (error: any) {
+            console.error('❌ Lỗi khi refresh danh sách dịch vụ:', error);
+            setAlert({ type: 'danger', message: error.message || 'Không thể tải danh sách dịch vụ' });
+        }
+    };
+
     const fetchMedicalRecordDetails = async () => {
         try {
             setLoading(true);
@@ -134,24 +228,78 @@ const ExaminationDetailPage = () => {
                     ghiChu: record.note || ''
                 });
 
-                // Chuyển đổi labOrdersResponses thành AppointmentService format
-                // Chỉ lấy các chỉ định đã thanh toán
-                const services: AppointmentService[] = record.labOrdersResponses
-                    .filter(labOrder => labOrder.statusPayment === 'DA_THANH_TOAN') // ✅ Lọc chỉ dịch vụ đã thanh toán
-                    .map((labOrder) => ({
-                        id: labOrder.id,
-                        serviceId: labOrder.healthPlanId,
-                        serviceName: labOrder.healthPlanName,
-                        price: labOrder.price,
-                        status: ServiceStatus.DA_THANH_TOAN, // Đã filter nên luôn đã thanh toán
-                        paymentDate: record.date,
-                        orderDate: labOrder.orderDate || undefined, // ✅ Lấy ngày chỉ định từ labOrder
-                        room: labOrder.room || '', // ✅ Lấy phòng chỉ định từ labOrder
-                        assignedDoctor: labOrder.doctorPerformed || 'Chưa phân công',
-                        reason: labOrder.diagnosis || '', // ✅ Chỉ hiển thị chẩn đoán
-                        // Thêm trạng thái thực hiện để kiểm tra UI
-                        executionStatus: labOrder.status // CHO_THUC_HIEN, DANG_THUC_HIEN, HOAN_THANH, HUY
-                    }));
+                // Chuyển đổi invoiceDetailsResponse thành AppointmentService format
+                // Hiển thị TẤT CẢ chỉ định (cả đã thanh toán và chưa thanh toán)
+                const services: AppointmentService[] = [];
+
+                if (record.invoiceDetailsResponse) {
+                    record.invoiceDetailsResponse.forEach((invoice) => {
+                        const paymentStatus = invoice.status === 'DA_THANH_TOAN'
+                            ? ServiceStatus.DA_THANH_TOAN
+                            : ServiceStatus.CHO_THANH_TOAN;
+
+                        // Xử lý MULTIPLE services (gói dịch vụ)
+                        if (invoice.typeService === 'MULTIPLE' && invoice.multipleLab) {
+                            invoice.multipleLab.forEach((lab) => {
+                                services.push({
+                                    id: lab.id,
+                                    serviceId: invoice.healthPlanId,
+                                    serviceName: lab.name || invoice.healthPlanName,
+                                    price: invoice.healthPlanPrice / invoice.multipleLab!.length, // Chia đều giá cho các dịch vụ con
+                                    status: paymentStatus,
+                                    paymentDate: invoice.status === 'DA_THANH_TOAN' ? record.date : undefined,
+                                    orderDate: lab.createdAt || undefined,
+                                    room: lab.room || '', // ✅ Lấy thông tin phòng từ lab
+                                    assignedDoctor: lab.doctorPerforming || 'Chưa phân công',
+                                    reason: '', // Không có diagnosis riêng cho từng lab
+                                    executionStatus: lab.status,
+                                    serviceParent: invoice.healthPlanName // Tên gói dịch vụ
+                                });
+                            });
+                        }
+
+                        // Xử lý SINGLE service (dịch vụ đơn lẻ)
+                        else if (invoice.typeService === 'SINGLE' && invoice.singleLab) {
+                            const lab = invoice.singleLab;
+                            services.push({
+                                id: lab.id,
+                                serviceId: invoice.healthPlanId,
+                                serviceName: lab.name || invoice.healthPlanName,
+                                price: invoice.healthPlanPrice,
+                                status: paymentStatus,
+                                paymentDate: invoice.status === 'DA_THANH_TOAN' ? record.date : undefined,
+                                orderDate: lab.createdAt || undefined,
+                                room: lab.room || '', // ✅ Lấy thông tin phòng từ lab
+                                assignedDoctor: lab.doctorPerforming || 'Chưa phân công',
+                                reason: '',
+                                executionStatus: lab.status
+                            });
+                        }
+                    });
+                }
+
+                // Fallback: Nếu vẫn còn dùng labOrdersResponses (backward compatibility)
+                else if (record.labOrdersResponses) {
+                    record.labOrdersResponses.forEach((labOrder) => {
+                        const paymentStatus = labOrder.statusPayment === 'DA_THANH_TOAN'
+                            ? ServiceStatus.DA_THANH_TOAN
+                            : ServiceStatus.CHO_THANH_TOAN;
+
+                        services.push({
+                            id: labOrder.id,
+                            serviceId: labOrder.healthPlanId,
+                            serviceName: labOrder.healthPlanName,
+                            price: labOrder.price,
+                            status: paymentStatus,
+                            paymentDate: labOrder.statusPayment === 'DA_THANH_TOAN' ? record.date : undefined,
+                            orderDate: labOrder.orderDate || undefined,
+                            room: labOrder.room || '',
+                            assignedDoctor: labOrder.doctorPerformed || 'Chưa phân công',
+                            reason: labOrder.diagnosis || '',
+                            executionStatus: labOrder.status
+                        });
+                    });
+                }
 
                 setPaidServices(services);
 
@@ -292,8 +440,8 @@ const ExaminationDetailPage = () => {
             // Hiển thị thông báo thành công
             setAlert({ type: 'success', message: 'Đã thêm chỉ định mới thành công' });
 
-            // Refresh danh sách dịch vụ SAU KHI đóng modal
-            await fetchMedicalRecordDetails();
+            // ✅ CHỈ refresh danh sách dịch vụ, KHÔNG load lại toàn bộ phiếu khám
+            await refreshServicesList();
 
         } catch (error: any) {
             console.error('❌ Lỗi khi thêm chỉ định:', error);
@@ -403,8 +551,8 @@ const ExaminationDetailPage = () => {
             setShowEditPrescriptionModal(false);
             setAlert({ type: 'success', message: `Đã cập nhật bác sĩ chỉ định: ${selectedDoctor}` });
 
-            // Refresh danh sách để cập nhật UI
-            await fetchMedicalRecordDetails();
+            // ✅ CHỈ refresh danh sách dịch vụ, KHÔNG load lại toàn bộ phiếu khám
+            await refreshServicesList();
 
         } catch (error: any) {
             console.error('❌ Lỗi khi cập nhật chỉ định:', error);
@@ -875,9 +1023,9 @@ const ExaminationDetailPage = () => {
                                         <div className="d-flex justify-content-between align-items-center mb-3">
                                             <h6 className="mb-0">
                                                 <Activity className="me-2" />
-                                                Dịch vụ đã thanh toán trong lần khám
-                                                <Badge bg="success" className="ms-2">
-                                                    {paidServices.length} dịch vụ
+                                                Danh sách chỉ định trong lần khám
+                                                <Badge bg="primary" className="ms-2">
+                                                    {paidServices.length} chỉ định
                                                 </Badge>
                                             </h6>
                                             {/* Chỉ hiển thị nút thêm chỉ định khi chưa hoàn thành */}
@@ -903,7 +1051,8 @@ const ExaminationDetailPage = () => {
                                                         <th style={{ width: '220px' }}>Tên dịch vụ</th>
                                                         <th style={{ width: '130px' }}>Bác sĩ thực hiện</th>
                                                         <th style={{ width: '150px' }}>Phòng chỉ định</th>
-                                                        <th style={{ width: '110px' }}>Trạng thái chỉ định</th>
+                                                        <th style={{ width: '120px' }}>TT Thanh toán</th>
+                                                        <th style={{ width: '120px' }}>TT Thực hiện</th>
                                                         <th style={{ width: '130px' }}>Ngày chỉ định</th>
                                                         <th style={{ width: '150px' }}>Thao tác</th>
                                                     </tr>
@@ -912,7 +1061,17 @@ const ExaminationDetailPage = () => {
                                                     {paidServices.map((service, index) => (
                                                         <tr key={service.id}>
                                                             <td>{index + 1}</td>
-                                                            <td>{service.serviceName}</td>
+                                                            <td>
+                                                                <div>
+                                                                    <div>{service.serviceName}</div>
+                                                                    {service.serviceParent && (
+                                                                        <small className="text-muted fst-italic">
+                                                                            <i className="bi bi-box-seam me-1"></i>
+                                                                            Thuộc gói: {service.serviceParent}
+                                                                        </small>
+                                                                    )}
+                                                                </div>
+                                                            </td>
                                                             <td>{service.assignedDoctor || 'Chưa có'}</td>
                                                             <td>
                                                                 <span className="text-dark" style={{ fontSize: '0.9em' }}>
@@ -921,6 +1080,11 @@ const ExaminationDetailPage = () => {
                                                                         <span className="text-muted fst-italic">Chưa xác định</span>
                                                                     }
                                                                 </span>
+                                                            </td>
+                                                            <td>
+                                                                <Badge bg={service.status === ServiceStatus.DA_THANH_TOAN ? 'success' : 'warning'}>
+                                                                    {service.status === ServiceStatus.DA_THANH_TOAN ? 'Đã thanh toán' : 'Chờ thanh toán'}
+                                                                </Badge>
                                                             </td>
                                                             <td>
                                                                 <Badge bg={

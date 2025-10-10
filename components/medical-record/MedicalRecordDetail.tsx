@@ -1,61 +1,28 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Row, Col, Card, Button, Alert, Form, Badge, Table, Tab, Tabs } from "react-bootstrap";
+import { Row, Col, Card, Button, Alert, Form, Badge, Table } from "react-bootstrap";
 import { IconArrowLeft, IconStethoscope, IconCash, IconCreditCard, IconUser, IconCalendar, IconClipboard, IconHistory } from "@tabler/icons-react";
 import "bootstrap-icons/font/bootstrap-icons.css";
 
 //import components
 import MedicalRecordHistory from "./MedicalRecordHistory";
 
-// CSS tùy chỉnh cho row được chọn
+// CSS tùy chỉnh - Tương đồng với PatientManagement (Bootstrap standard)
 const customStyles = `
-    .table tbody tr {
-        transition: all 0.2s ease-in-out;
+    /* Tree connector cho xét nghiệm con */
+    .invoice-details-table .ps-5 {
+        position: relative;
     }
     
-    .selected-row {
-        background-color: #e8f4fd !important;
-        border-left: 4px solid #0d6efd !important;
-        box-shadow: 0 2px 4px rgba(13, 110, 253, 0.15) !important;
-        transform: translateX(2px);
-    }
-    
-    .selected-row:hover {
-        background-color: #d1ecf1 !important;
-        box-shadow: 0 4px 8px rgba(13, 110, 253, 0.2) !important;
-    }
-    
-    .selected-row td {
-        border-color: rgba(13, 110, 253, 0.3) !important;
-        font-weight: 500;
-    }
-    
-    .selected-row .fw-bold {
-        color: #0d6efd !important;
-    }
-    
-    .select-all-container {
-        background-color: #f8f9fa;
-        padding: 8px 12px;
-        border-radius: 6px;
-        border: 1px solid #dee2e6;
-    }
-    
-    .select-all-container:hover {
-        background-color: #e9ecef;
-        border-color: #0d6efd;
-    }
-    
-    .select-all-container .form-check-label {
-        font-weight: 600;
-        color: #0d6efd;
-        cursor: pointer;
-    }
-    
-    .select-all-container .form-check-input:checked {
-        background-color: #0d6efd;
-        border-color: #0d6efd;
+    .invoice-details-table .ps-5::before {
+        content: '';
+        position: absolute;
+        left: 2rem;
+        top: 0;
+        bottom: 50%;
+        width: 1px;
+        background: #dee2e6;
     }
 `;
 
@@ -63,11 +30,16 @@ const customStyles = `
 import {
     medicalRecordService,
     paymentService,
+    labOrderService,
     type MedicalRecordDetail as MedicalRecordDetailType,
     type LabOrderResponse,
     type PaymentLinkRequest,
     type PaymentLinkResponse,
-    type CashPaymentRequest
+    type CashPaymentRequest,
+    type DeleteLabOrdersRequest,
+    type InvoiceDetailsResponse,
+    type SingleLabResponse,
+    type MultipleLabResponse
 } from "../../services";
 
 // Import components
@@ -90,6 +62,7 @@ interface SelectedService {
 interface PaymentData {
     invoiceId: number;
     qrCode: string;
+    orderCode: number;
 }
 
 const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
@@ -125,20 +98,14 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
             setLoading(true);
             setError(null);
 
-            console.log('Loading medical record detail for ID:', medicalRecordId);
-
             const response = await medicalRecordService.getMedicalRecordDetail(medicalRecordId);
-
-            console.log('Medical record detail response:', response);
 
             if (response && response.data) {
                 setMedicalRecord(response.data);
-                console.log('Lab orders:', response.data.labOrdersResponses);
             } else {
                 throw new Error('Không thể tải thông tin phiếu khám');
             }
         } catch (err: any) {
-            console.error('Error loading medical record detail:', err);
             setError(err.message || 'Lỗi khi tải thông tin phiếu khám');
         } finally {
             setLoading(false);
@@ -151,20 +118,14 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
             setLoading(true);
             setError(null);
 
-            console.log('Loading medical record detail for ID:', recordId);
-
             const response = await medicalRecordService.getMedicalRecordDetail(recordId);
-
-            console.log('Medical record detail response:', response);
 
             if (response && response.data) {
                 setMedicalRecord(response.data);
-                console.log('Lab orders:', response.data.labOrdersResponses);
             } else {
                 throw new Error('Không thể tải thông tin phiếu khám');
             }
         } catch (err: any) {
-            console.error('Error loading medical record detail:', err);
             setError(err.message || 'Lỗi khi tải thông tin phiếu khám');
         } finally {
             setLoading(false);
@@ -182,27 +143,66 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
         }));
     };
 
-    const getUnpaidServices = (): LabOrderResponse[] => {
-        const unpaid = medicalRecord?.labOrdersResponses?.filter(service => service.statusPayment === 'CHUA_THANH_TOAN') || [];
-        console.log('Unpaid services:', unpaid);
+    // Lấy dịch vụ chưa thanh toán từ invoiceDetailsResponse (sử dụng API mới)
+    const getUnpaidInvoiceDetails = (): InvoiceDetailsResponse[] => {
+        const unpaid = medicalRecord?.invoiceDetailsResponse?.filter(item => item.status === 'CHUA_THANH_TOAN') || [];
         return unpaid;
     };
 
+    // Lấy dịch vụ thanh toán một phần từ invoiceDetailsResponse
+    const getPartiallyPaidInvoiceDetails = (): InvoiceDetailsResponse[] => {
+        const partiallyPaid = medicalRecord?.invoiceDetailsResponse?.filter(item => item.status === 'THANH_TOAN_MOT_PHAN') || [];
+        return partiallyPaid;
+    };
+
+    // Lấy dịch vụ cần thanh toán (bao gồm cả chưa thanh toán và thanh toán một phần)
+    const getPendingPaymentInvoiceDetails = (): InvoiceDetailsResponse[] => {
+        const pending = medicalRecord?.invoiceDetailsResponse?.filter(item =>
+            item.status === 'CHUA_THANH_TOAN' || item.status === 'THANH_TOAN_MOT_PHAN'
+        ) || [];
+        return pending;
+    };
+
+    // Lấy dịch vụ đã thanh toán từ invoiceDetailsResponse (sử dụng API mới)
+    const getPaidInvoiceDetails = (): InvoiceDetailsResponse[] => {
+        return medicalRecord?.invoiceDetailsResponse?.filter(item => item.status === 'DA_THANH_TOAN') || [];
+    };
+
+    // Backward compatibility - lấy dịch vụ chưa thanh toán từ labOrdersResponses (để tương thích với logic cũ)
+    const getUnpaidServices = (): LabOrderResponse[] => {
+        if (medicalRecord?.labOrdersResponses) {
+            const unpaid = medicalRecord.labOrdersResponses.filter(service =>
+                service.statusPayment === 'CHUA_THANH_TOAN' || service.statusPayment === 'THANH_TOAN_MOT_PHAN'
+            ) || [];
+            return unpaid;
+        }
+        return [];
+    };
+
     const getPaidServices = (): LabOrderResponse[] => {
-        return medicalRecord?.labOrdersResponses?.filter(service => service.statusPayment === 'DA_THANH_TOAN') || [];
+        if (medicalRecord?.labOrdersResponses) {
+            return medicalRecord.labOrdersResponses.filter(service => service.statusPayment === 'DA_THANH_TOAN') || [];
+        }
+        return [];
     };
 
     // Lấy tất cả dịch vụ đã thanh toán (bao gồm cả phí khám có id = null)
     const getPaidServicesWithExamFee = (): LabOrderResponse[] => {
-        return medicalRecord?.labOrdersResponses?.filter(service => service.statusPayment === 'DA_THANH_TOAN') || [];
+        if (medicalRecord?.labOrdersResponses) {
+            return medicalRecord.labOrdersResponses.filter(service => service.statusPayment === 'DA_THANH_TOAN') || [];
+        }
+        return [];
     }; const handleSelectAllUnpaid = () => {
         const unpaidServices = getUnpaidServices();
-        if (selectedServices.length === unpaidServices.length) {
+        // Chỉ chọn những dịch vụ có trạng thái CHO_THUC_HIEN (có thể xóa)
+        const deletableServices = unpaidServices.filter(service => service.status === 'CHO_THUC_HIEN');
+
+        if (selectedServices.length === deletableServices.length && deletableServices.length > 0) {
             // Deselect all
             setSelectedServices([]);
         } else {
-            // Select all
-            setSelectedServices(unpaidServices.map(service => ({
+            // Select all deletable services
+            setSelectedServices(deletableServices.map(service => ({
                 id: service.id !== null ? service.id : 0, // Chỉ set 0 nếu thực sự null
                 serviceName: service.healthPlanName,
                 doctorName: service.doctorPerformed || service.doctorOrdered || 'Chưa xác định',
@@ -213,10 +213,7 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
     };
 
     const handleServiceSelection = (service: LabOrderResponse) => {
-        console.log('Service selection triggered for:', service);
         const isSelected = selectedServices.some(s => s.id === service.id);
-        console.log('Is selected:', isSelected);
-        console.log('Current selected services:', selectedServices);
 
         if (isSelected) {
             // Remove from selection
@@ -230,7 +227,6 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
                 price: service.price,
                 room: service.room || 'Chưa xác định'
             };
-            console.log('Adding service:', newService);
             setSelectedServices(prev => [...prev, newService]);
         }
     };
@@ -240,8 +236,12 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
     };
 
     const handlePayment = async () => {
-        if (selectedServices.length === 0) {
-            setError('Vui lòng chọn ít nhất một dịch vụ để thanh toán');
+        // Thanh toán TẤT CẢ dịch vụ cần thanh toán (bao gồm chưa thanh toán và thanh toán một phần)
+        const unpaidServices = getUnpaidServices();
+        const pendingServices = medicalRecord?.invoiceDetailsResponse ? getPendingPaymentInvoiceDetails() : unpaidServices;
+
+        if (pendingServices.length === 0) {
+            setError('Không có dịch vụ nào cần thanh toán');
             return;
         }
 
@@ -259,44 +259,36 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
             setPaymentLoading(true);
             setError(null);
 
-            // Debug: Log selected services
-            console.log('Processing cash payment for services:', selectedServices);
+            // Lấy TẤT CẢ dịch vụ cần thanh toán (bao gồm chưa thanh toán và thanh toán một phần)
+            const pendingServices = getPendingPaymentInvoiceDetails();
 
-            // Lấy danh sách ID của các dịch vụ đã chọn
-            const selectedLabOrderIds = selectedServices
-                .map(service => service.id)
-                .filter(id => id !== null && id !== undefined && id !== 0); // Lọc bỏ null, undefined và 0
-
-            console.log('Selected lab order IDs for cash payment:', selectedLabOrderIds);
+            // Lấy danh sách healthPlanId của TẤT CẢ dịch vụ cần thanh toán
+            const healthPlanIds = pendingServices
+                .map(service => service.healthPlanId)
+                .filter((id): id is number => id !== null && id !== undefined);
 
             // Kiểm tra xem có ID hợp lệ không
-            if (selectedLabOrderIds.length === 0) {
+            if (healthPlanIds.length === 0) {
                 throw new Error('Không có dịch vụ hợp lệ để thanh toán');
             }
 
+            // Tính tổng số tiền cần thanh toán (giá dịch vụ - số tiền đã trả)
+            const totalAmount = pendingServices.reduce((total, service) =>
+                total + (service.healthPlanPrice - service.paid), 0
+            );
+
             const cashPaymentRequest: CashPaymentRequest = {
                 medicalRecordId: parseInt(medicalRecordId),
-                labOrderIds: selectedLabOrderIds
+                healthPlanIds: healthPlanIds,
+                totalAmount: totalAmount
             };
 
-            console.log('Cash payment request:', cashPaymentRequest);
+            await paymentService.payCash(cashPaymentRequest);
 
-            const response = await paymentService.payCash(cashPaymentRequest);
-
-            console.log('Cash payment API response:', response);
-            console.log('Response type:', typeof response);
-            console.log('Response keys:', response ? Object.keys(response) : 'null');
-
-            // Logic xử lý response linh hoạt
-            // Nếu API call thành công (không throw error), coi như thanh toán thành công
             setSuccess('Thanh toán tiền mặt thành công!');
-            // Clear selected services
-            setSelectedServices([]);
             // Reload medical record to get updated payment status
             await loadMedicalRecordDetail();
         } catch (err: any) {
-            console.error('Error processing cash payment:', err);
-            console.error('Error details:', err.response?.data);
             setError(err.response?.data?.message || err.message || 'Lỗi khi xử lý thanh toán tiền mặt');
         } finally {
             setPaymentLoading(false);
@@ -308,53 +300,45 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
             setPaymentLoading(true);
             setError(null);
 
-            // Debug: Log selected services
-            console.log('Selected services:', selectedServices);
+            // Lấy TẤT CẢ dịch vụ cần thanh toán (bao gồm chưa thanh toán và thanh toán một phần)
+            const pendingServices = getPendingPaymentInvoiceDetails();
 
-            // Lấy danh sách ID của các dịch vụ đã chọn
-            const selectedLabOrderIds = selectedServices
-                .map(service => service.id)
-                .filter(id => id !== null && id !== undefined && id !== 0); // Lọc bỏ null, undefined và 0
-
-            console.log('Selected lab order IDs:', selectedLabOrderIds);
+            // Lấy danh sách healthPlanId của TẤT CẢ dịch vụ cần thanh toán
+            const healthPlanIds = pendingServices
+                .map(service => service.healthPlanId)
+                .filter((id): id is number => id !== null && id !== undefined);
 
             // Kiểm tra xem có ID hợp lệ không
-            if (selectedLabOrderIds.length === 0) {
+            if (healthPlanIds.length === 0) {
                 throw new Error('Không có dịch vụ hợp lệ để thanh toán');
             }
 
-            // Tính tổng số tiền
-            const totalAmount = getTotalSelectedAmount();
-            console.log('Total amount:', totalAmount);
+            // Tính tổng số tiền cần thanh toán của TẤT CẢ dịch vụ (giá dịch vụ - số tiền đã trả)
+            const totalAmount = pendingServices.reduce((total, service) =>
+                total + (service.healthPlanPrice - service.paid), 0
+            );
 
             const paymentRequest: PaymentLinkRequest = {
                 medicalRecordId: parseInt(medicalRecordId),
-                labOrderIds: selectedLabOrderIds,
-                healthPlanIds: null,
+                labOrderIds: null,
+                healthPlanIds: healthPlanIds,
                 doctorId: null,
                 totalAmount: totalAmount
             };
 
-            console.log('Payment request:', paymentRequest);
-
             const response = await paymentService.createPaymentLink(paymentRequest);
 
-            console.log('Payment API response:', response);
-
             if (response && response.data) {
-                console.log('Payment data received:', response.data);
                 setPaymentData({
                     invoiceId: response.data.invoiceId,
-                    qrCode: response.data.qrCode
+                    qrCode: response.data.qrCode,
+                    orderCode: response.data.orderCode
                 });
                 setShowPaymentModal(true);
             } else {
-                console.error('Invalid response from payment API:', response);
                 throw new Error('Không thể tạo mã QR thanh toán');
             }
         } catch (err: any) {
-            console.error('Error creating QR payment:', err);
-            console.error('Error details:', err.response?.data);
             setError(err.response?.data?.message || err.message || 'Lỗi khi tạo mã QR thanh toán');
         } finally {
             setPaymentLoading(false);
@@ -363,8 +347,14 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
 
     const handlePaymentSuccess = async () => {
         setSuccess('Thanh toán thành công!');
+
+        // Đóng modal NGAY LẬP TỨC để tránh re-render gây polling lại
+        setShowPaymentModal(false);
+        setPaymentData(null);
+
         // Reload medical record to get updated payment status
         await loadMedicalRecordDetail();
+
         // Clear selected services
         setSelectedServices([]);
     };
@@ -376,6 +366,56 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
     const handlePaymentModalClose = () => {
         setShowPaymentModal(false);
         setPaymentData(null);
+    };
+
+    /**
+     * Xóa các dịch vụ đã chọn
+     */
+    const handleDeleteServices = async () => {
+        if (selectedServices.length === 0) {
+            setError('Vui lòng chọn ít nhất một dịch vụ để xóa');
+            return;
+        }
+
+        // Xác nhận xóa
+        const confirmDelete = window.confirm(
+            `Bạn có chắc chắn muốn xóa ${selectedServices.length} dịch vụ đã chọn không?`
+        );
+
+        if (!confirmDelete) {
+            return;
+        }
+
+        try {
+            setPaymentLoading(true);
+            setError(null);
+
+            // Lấy danh sách ID của các dịch vụ đã chọn
+            const selectedLabOrderIds = selectedServices
+                .map(service => service.id)
+                .filter(id => id !== null && id !== undefined && id !== 0); // Lọc bỏ null, undefined và 0
+
+            if (selectedLabOrderIds.length === 0) {
+                throw new Error('Không có dịch vụ hợp lệ để xóa');
+            }
+
+            const deleteRequest: DeleteLabOrdersRequest = {
+                ids: selectedLabOrderIds,
+                medicalRecordId: parseInt(medicalRecordId)
+            };
+
+            const response = await labOrderService.deleteLabOrders(deleteRequest);
+
+            setSuccess(`Đã xóa thành công ${selectedLabOrderIds.length} dịch vụ`);
+            // Clear selected services
+            setSelectedServices([]);
+            // Reload medical record to get updated data
+            await loadMedicalRecordDetail();
+        } catch (err: any) {
+            setError(err.response?.data?.message || err.message || 'Lỗi khi xóa dịch vụ');
+        } finally {
+            setPaymentLoading(false);
+        }
     };
 
     const getStatusBadgeVariant = (status: string) => {
@@ -438,6 +478,32 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
         }
     };
 
+    const getPaymentStatusBadgeVariant = (status: string) => {
+        switch (status) {
+            case 'DA_THANH_TOAN':
+                return 'success';
+            case 'CHUA_THANH_TOAN':
+                return 'warning';
+            case 'THANH_TOAN_MOT_PHAN':
+                return 'info';
+            default:
+                return 'secondary';
+        }
+    };
+
+    const getPaymentStatusText = (status: string) => {
+        switch (status) {
+            case 'DA_THANH_TOAN':
+                return 'Đã đóng';
+            case 'CHUA_THANH_TOAN':
+                return 'Còn lại';
+            case 'THANH_TOAN_MOT_PHAN':
+                return 'Một phần';
+            default:
+                return status;
+        }
+    };
+
     if (loading) {
         return (
             <Card>
@@ -467,136 +533,437 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
         );
     }
 
-    const unpaidServices = getUnpaidServices();
-    const paidServices = getPaidServices();
-    const paidServicesWithExamFee = getPaidServicesWithExamFee();
+    // Component hiển thị tất cả Invoice Details trong một table duy nhất
+    const renderAllInvoiceDetailsTable = (items: InvoiceDetailsResponse[]) => {
+        if (items.length === 0) {
+            return (
+                <Alert variant="info" className="text-center">
+                    <i className="bi bi-info-circle me-2"></i>
+                    Chưa có dịch vụ nào
+                </Alert>
+            );
+        }
+
+        const tableRows: React.ReactElement[] = [];
+
+        items.forEach((item, itemIndex) => {
+            if (item.typeService === 'SINGLE' && item.singleLab) {
+                // Dịch vụ đơn - hiển thị trực tiếp
+                tableRows.push(
+                    <tr key={`single-${item.id}`} className="border-bottom">
+                        <td className="ps-3">
+                            <code className="text-primary fw-medium">{item.singleLab.code}</code>
+                        </td>
+                        <td>
+                            <div className="fw-medium">{item.name || item.healthPlanName}</div>
+                            <small className="text-muted">{item.description}</small>
+                        </td>
+                        <td>
+                            <Badge bg={getLabOrderStatusBadgeVariant(item.singleLab.status)} className="fw-normal">
+                                {getLabOrderStatusText(item.singleLab.status)}
+                            </Badge>
+                        </td>
+                        <td>
+                            <Badge bg={getPaymentStatusBadgeVariant(item.status)} className="fw-normal">
+                                {getPaymentStatusText(item.status)}
+                            </Badge>
+                        </td>
+                        <td className="text-end fw-medium">
+                            {item.healthPlanPrice.toLocaleString('vi-VN')}đ
+                        </td>
+                        <td className="text-end fw-medium text-success">
+                            {item.paid.toLocaleString('vi-VN')}đ
+                        </td>
+                        <td className="text-end fw-medium text-warning">
+                            {(item.healthPlanPrice - item.paid).toLocaleString('vi-VN')}đ
+                        </td>
+                    </tr>
+                );
+            } else if (item.typeService === 'MULTIPLE' && item.multipleLab) {
+                // Dịch vụ gói - hiển thị header của gói
+                tableRows.push(
+                    <tr key={`multiple-header-${item.id}`} className=" border-bottom">
+                        <td className="ps-2 fw-bold">
+                            <i className="bi bi-collection me-2 text-primary"></i>
+                            <span className="text-uppercase">gói khám </span>
+                        </td>
+                        <td>
+                            <div className="fw-bold text-dark">{item.name || item.healthPlanName}</div>
+                            <small className="text-muted fst-italic">{item.description}</small>
+                        </td>
+                        <td>
+                            <Badge bg="info" className="fw-normal">Gói dịch vụ</Badge>
+                        </td>
+                        <td>
+                            <Badge bg={getPaymentStatusBadgeVariant(item.status)} className="fw-normal">
+                                {getPaymentStatusText(item.status)}
+                            </Badge>
+                        </td>
+                        <td className="text-end fw-bold text-primary">
+                            {item.healthPlanPrice.toLocaleString('vi-VN')}đ
+                        </td>
+                        <td className="text-end fw-bold text-success">
+                            {item.paid.toLocaleString('vi-VN')}đ
+                        </td>
+                        <td className="text-end fw-bold text-warning">
+                            {(item.healthPlanPrice - item.paid).toLocaleString('vi-VN')}đ
+                        </td>
+                    </tr>
+                );
+
+                // Hiển thị các xét nghiệm con với indent và tree structure
+                item.multipleLab.forEach((lab, labIndex) => {
+                    const isLast = labIndex === item.multipleLab!.length - 1;
+                    tableRows.push(
+                        <tr key={`multiple-lab-${item.id}-${lab.id}`} className="border-bottom">
+                            <td className="ps-5">
+                                <div className="d-flex align-items-center position-relative">
+                                    <span className="text-muted me-2" style={{ fontSize: '14px' }}>
+                                        {isLast ? '└─' : '├─'}
+                                    </span>
+                                    <code className="text-primary fw-medium">{lab.code}</code>
+                                </div>
+                            </td>
+                            <td>
+                                <div className="fw-medium">{lab.name || `Xét nghiệm ${labIndex + 1}`}</div>
+                                <small className="text-muted">
+                                    {lab.doctorPerforming ? `BS: ${lab.doctorPerforming}` : 'Chưa phân công BS'}
+                                </small>
+                            </td>
+                            <td>
+                                <Badge bg={getLabOrderStatusBadgeVariant(lab.status)} className="fw-normal">
+                                    {getLabOrderStatusText(lab.status)}
+                                </Badge>
+                            </td>
+                            <td>
+                                <Badge bg={getPaymentStatusBadgeVariant(item.status)} className="fw-normal">
+                                    {getPaymentStatusText(item.status)}
+                                </Badge>
+                            </td>
+                            <td className="text-end">
+                                <small className="text-muted fst-italic">Đã bao gồm trong gói</small>
+                            </td>
+                            <td className="text-end">
+                                <small className="text-muted">-</small>
+                            </td>
+                            <td className="text-end">
+                                <small className="text-muted">-</small>
+                            </td>
+                        </tr>
+                    );
+                });
+            }
+        });
+
+        // Tính tổng số liệu
+        const totalPrice = items.reduce((total, item) => total + item.healthPlanPrice, 0);
+        const totalPaid = items.reduce((total, item) => total + item.paid, 0);
+        const unpaidItems = items.filter(item => item.status === 'CHUA_THANH_TOAN');
+        const paidItems = items.filter(item => item.status === 'DA_THANH_TOAN');
+        const partiallyPaidItems = items.filter(item => item.status === 'THANH_TOAN_MOT_PHAN');
+        const pendingPaymentItems = items.filter(item =>
+            item.status === 'CHUA_THANH_TOAN' || item.status === 'THANH_TOAN_MOT_PHAN'
+        );
+
+        return (
+            <div className="invoice-details-table">
+                <Table responsive hover className="mb-3">
+                    <thead className="table-light">
+                        <tr>
+                            <th style={{ width: '140px' }}>Mã chỉ định XN</th>
+                            <th style={{ width: '280px' }}>Tên chỉ định</th>
+                            <th style={{ width: '110px' }}>Trạng thái</th>
+                            <th style={{ width: '100px' }}>Thanh toán</th>
+                            <th style={{ width: '110px' }} className="text-end">Giá dịch vụ</th>
+                            <th style={{ width: '110px' }} className="text-end">Đã trả</th>
+                            <th style={{ width: '110px' }} className="text-end">Còn lại</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {tableRows}
+                    </tbody>
+                    <tfoot className="table-light">
+                        <tr>
+                            <td colSpan={4} className="text-end fw-bold">
+                                Tổng cộng:
+                            </td>
+                            <td className="text-end fw-bold text-primary">
+                                {totalPrice.toLocaleString('vi-VN')}đ
+                            </td>
+                            <td className="text-end fw-bold text-success">
+                                {totalPaid.toLocaleString('vi-VN')}đ
+                            </td>
+                            <td className="text-end fw-bold text-warning">
+                                {(totalPrice - totalPaid).toLocaleString('vi-VN')}đ
+                            </td>
+                        </tr>
+
+                        {(unpaidItems.length > 0 || partiallyPaidItems.length > 0) && (
+                            <>
+
+                                <tr className="table-light">
+                                    <td colSpan={12} className="px-3 py-3">
+                                        <div className="d-flex align-items-center">
+                                            <i className="bi bi-info-circle text-info me-2"></i>
+                                            <div>
+                                                <strong>Tổng cộng {pendingPaymentItems.length} dịch vụ cần thanh toán</strong>
+                                                <br />
+                                                <small className="text-muted">Chọn phương thức thanh toán để tiếp tục</small>
+                                            </div>
+                                        </div>
+                                    </td>
+
+                                </tr>
+                                <tr className="table-light">
+                                    <td colSpan={7} className="px-3 pb-3">
+                                        <div className="row align-items-center">
+                                            <div className="col-md-6">
+                                                <div className="d-flex gap-3">
+                                                    <div className="form-check">
+                                                        <input
+                                                            className="form-check-input"
+                                                            type="radio"
+                                                            name="paymentMethod"
+                                                            id="cash"
+                                                            value="cash"
+                                                            checked={paymentMethod === 'cash'}
+                                                            onChange={(e) => setPaymentMethod(e.target.value as 'cash' | 'bank_transfer')}
+                                                        />
+                                                        <label className="form-check-label fw-medium" htmlFor="cash">
+                                                            <i className="bi bi-cash me-1"></i> Tiền mặt
+                                                        </label>
+                                                    </div>
+                                                    <div className="form-check">
+                                                        <input
+                                                            className="form-check-input"
+                                                            type="radio"
+                                                            name="paymentMethod"
+                                                            id="bank_transfer"
+                                                            value="bank_transfer"
+                                                            checked={paymentMethod === 'bank_transfer'}
+                                                            onChange={(e) => setPaymentMethod(e.target.value as 'cash' | 'bank_transfer')}
+                                                        />
+                                                        <label className="form-check-label fw-medium" htmlFor="bank_transfer">
+                                                            <i className="bi bi-qr-code me-1"></i> Chuyển khoản
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="col-md-6 text-end">
+                                                <div className="d-flex gap-2 justify-content-end">
+                                                    {paymentMethod === 'bank_transfer' ? (
+                                                        <button
+                                                            className="btn btn-success"
+                                                            onClick={handlePayment}
+                                                            disabled={paymentLoading}
+                                                        >
+                                                            {paymentLoading ? (
+                                                                <>
+                                                                    <span className="spinner-border spinner-border-sm me-2"></span>
+                                                                    Đang tạo...
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <i className="bi bi-qr-code me-2"></i>
+                                                                    Tạo mã QR
+                                                                </>
+                                                            )}
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            className="btn btn-warning"
+                                                            onClick={handlePayment}
+                                                            disabled={paymentLoading}
+                                                        >
+                                                            <i className="bi bi-cash me-2"></i>
+                                                            Xác nhận thanh toán
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        className="btn btn-outline-primary"
+                                                        onClick={() => window.print()}
+                                                    >
+                                                        <i className="bi bi-printer me-2"></i>
+                                                        In hóa đơn
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </>
+                        )}
+                    </tfoot>
+                </Table>
+            </div>
+        );
+    };
+
+    // Lấy dữ liệu cho hiển thị (ưu tiên invoiceDetailsResponse, fallback về labOrdersResponses)
+    const allInvoiceDetails = medicalRecord?.invoiceDetailsResponse || [];
+    const unpaidInvoiceDetails = getUnpaidInvoiceDetails();
+    const partiallyPaidInvoiceDetails = getPartiallyPaidInvoiceDetails();
+    const pendingPaymentInvoiceDetails = getPendingPaymentInvoiceDetails();
+    const paidInvoiceDetails = getPaidInvoiceDetails();
+    const unpaidServices = getUnpaidServices(); // Backward compatibility
+    const paidServices = getPaidServices(); // Backward compatibility
+    const paidServicesWithExamFee = getPaidServicesWithExamFee(); // Backward compatibility
 
     return (
         <>
             <style>{customStyles}</style>
-            <Card>
-                <Card.Header className="d-flex justify-content-between align-items-center">
-                    <div className="d-flex align-items-center">
-                        <IconStethoscope size={20} className="me-2" />
-                        <h5 className="mb-0">Chi tiết phiếu khám</h5>
-                    </div>
-                    <div className="d-flex gap-2">
-                        {medicalRecord?.patientId && (
-                            <Button
-                                variant="outline-info"
-                                size="sm"
-                                onClick={() => setShowHistoryModal(true)}
-                            >
-                                <IconHistory size={16} className="me-2" />
-                                Lịch sử khám bệnh
-                            </Button>
-                        )}
-                        <Button variant="outline-secondary" size="sm" onClick={onBack}>
-                            <IconArrowLeft size={16} className="me-2" />
-                            Quay lại danh sách
-                        </Button>
-                    </div>
-                </Card.Header>
-
-                <Card.Body>
-                    {error && (
-                        <Alert variant="danger" dismissible onClose={() => setError(null)}>
-                            <strong>Lỗi:</strong> {error}
-                        </Alert>
-                    )}
-
-                    {success && (
-                        <Alert variant="success" dismissible onClose={() => setSuccess(null)}>
-                            <strong>Thành công:</strong> {success}
-                        </Alert>
-                    )}
-
-                    {/* Medical Record Info */}
-                    <Row className="mb-4">
-                        <Col md={6}>
-                            <Card className="border-0 bg-light">
-                                <Card.Body>
-                                    <h6 className="mb-3">
-                                        <IconUser size={16} className="me-2" />
-                                        Thông tin bệnh nhân
-                                    </h6>
-                                    <div className="mb-2">
-                                        <strong>Mã phiếu khám:</strong> {medicalRecord.code}
-                                    </div>
-                                    <div className="mb-2">
-                                        <strong>Bệnh nhân:</strong> {medicalRecord.patientName}
-                                    </div>
-                                    <div className="mb-2">
-                                        <strong>Số điện thoại:</strong> {medicalRecord.patientPhone || 'Không có'}
-                                    </div>
-                                    <div className="mb-2">
-                                        <strong>Giới tính:</strong> {medicalRecord.patientGender === 'NAM' ? 'Nam' : medicalRecord.patientGender === 'NU' ? 'Nữ' : 'Không xác định'}
-                                    </div>
-                                    <div className="mb-2">
-                                        <strong>Địa chỉ:</strong> {medicalRecord.patientAddress || 'Không có'}
-                                    </div>
-                                    <div className="mb-2">
-                                        <strong>Ngày khám:</strong> {new Date(medicalRecord.date).toLocaleString('vi-VN')}
-                                    </div>
-                                    <div className="mb-2">
-                                        <strong>Trạng thái:</strong>{' '}
-                                        <Badge bg={getStatusBadgeVariant(medicalRecord.status)}>
-                                            {getStatusText(medicalRecord.status)}
-                                        </Badge>
-                                    </div>
-                                </Card.Body>
-                            </Card>
-                        </Col>
-                        <Col md={6}>
-                            <Card className="border-0 bg-light">
-                                <Card.Body>
-                                    <h6 className="mb-3">
-                                        <IconClipboard size={16} className="me-2" />
-                                        Thông tin khám bệnh
-                                    </h6>
-                                    <div className="mb-2">
-                                        <strong>Triệu chứng:</strong> {medicalRecord.symptoms || 'Chưa có thông tin'}
-                                    </div>
-                                    <div className="mb-2">
-                                        <strong>Khám lâm sàng:</strong> {medicalRecord.clinicalExamination || 'Chưa có thông tin'}
-                                    </div>
-                                    <div className="mb-2">
-                                        <strong>Chẩn đoán:</strong> {medicalRecord.diagnosis || 'Chưa có thông tin'}
-                                    </div>
-                                    <div className="mb-2">
-                                        <strong>Tổng chi phí:</strong>{' '}
-                                        <span className="fw-bold text-primary">
-                                            {medicalRecord.total.toLocaleString('vi-VN')}đ
-                                        </span>
-                                    </div>
-                                </Card.Body>
-                            </Card>
-                        </Col>
-                    </Row>
-
-                    {/* Services Section - Using Tabs */}
-                    <Card className="mb-4">
-                        <Card.Header>
-                            <h6 className="mb-0">
-                                <i className="bi bi-list-ul me-2"></i>
-                                Danh sách dịch vụ
-                            </h6>
-                        </Card.Header>
-                        <Card.Body>
-                            <Tabs defaultActiveKey="paid" id="services-tabs" className="mb-3">
-                                {/* Tab Dịch vụ đã thanh toán */}
-                                <Tab
-                                    eventKey="paid"
-                                    title={
-                                        <span>
-                                            <i className="bi bi-check-circle me-2 text-success"></i>
-                                            Đã thanh toán ({paidServicesWithExamFee.length})
-                                        </span>
-                                    }
+            <div className="medical-record-detail">
+                <Card>
+                    <Card.Header className="d-flex justify-content-between align-items-center">
+                        <div className="d-flex align-items-center">
+                            <IconStethoscope size={20} className="me-2" />
+                            <h5 className="mb-0">Chi tiết phiếu khám</h5>
+                        </div>
+                        <div className="d-flex gap-2">
+                            {medicalRecord?.patientId && (
+                                <Button
+                                    variant="outline-primary"
+                                    size="sm"
+                                    onClick={() => setShowHistoryModal(true)}
                                 >
-                                    {paidServicesWithExamFee.length > 0 ? (
+                                    <IconHistory size={16} className="me-2" />
+                                    Lịch sử khám bệnh
+                                </Button>
+                            )}
+                            <Button variant="outline-primary" size="sm" onClick={onBack}>
+                                <IconArrowLeft size={16} className="me-2" />
+                                Quay lại danh sách
+                            </Button>
+                        </div>
+                    </Card.Header>
+
+                    <Card.Body>
+                        {error && (
+                            <Alert variant="danger" dismissible onClose={() => setError(null)}>
+                                <strong>Lỗi:</strong> {error}
+                            </Alert>
+                        )}
+
+                        {success && (
+                            <Alert variant="success" dismissible onClose={() => setSuccess(null)}>
+                                <strong>Thành công:</strong> {success}
+                            </Alert>
+                        )}
+
+                        {/* Medical Record Info */}
+                        <Row className="mb-4">
+                            <Col md={6}>
+                                <Card>
+                                    <Card.Body>
+                                        <h6>
+                                            <IconUser size={16} className="me-2" />
+                                            Thông tin bệnh nhân
+                                        </h6>
+                                        <div className="info-item">
+                                            <span className="info-label">Mã phiếu khám:</span>
+                                            <span className="info-value">{medicalRecord.code}</span>
+                                        </div>
+                                        <div className="info-item">
+                                            <span className="info-label">Bệnh nhân:</span>
+                                            <span className="info-value">{medicalRecord.patientName}</span>
+                                        </div>
+                                        <div className="info-item">
+                                            <span className="info-label">Số điện thoại:</span>
+                                            <span className="info-value">{medicalRecord.patientPhone || 'Không có'}</span>
+                                        </div>
+                                        <div className="info-item">
+                                            <span className="info-label">Giới tính:</span>
+                                            <span className="info-value">{medicalRecord.patientGender === 'NAM' ? 'Nam' : medicalRecord.patientGender === 'NU' ? 'Nữ' : 'Không xác định'}</span>
+                                        </div>
+                                        <div className="info-item">
+                                            <span className="info-label">Địa chỉ:</span>
+                                            <span className="info-value">{medicalRecord.patientAddress || 'Không có'}</span>
+                                        </div>
+                                        <div className="info-item">
+                                            <span className="info-label">Ngày khám:</span>
+                                            <span className="info-value">{new Date(medicalRecord.date).toLocaleString('vi-VN')}</span>
+                                        </div>
+                                        <div className="info-item">
+                                            <span className="info-label">Trạng thái:</span>
+                                            <Badge bg={getStatusBadgeVariant(medicalRecord.status)}>
+                                                {getStatusText(medicalRecord.status)}
+                                            </Badge>
+                                        </div>
+                                    </Card.Body>
+                                </Card>
+                            </Col>
+                            <Col md={6}>
+                                <Card>
+                                    <Card.Body>
+                                        <h6>
+                                            <IconClipboard size={16} className="me-2" />
+                                            Thông tin khám bệnh
+                                        </h6>
+                                        <div className="info-item">
+                                            <span className="info-label">Triệu chứng:</span>
+                                            <span className="info-value">{medicalRecord.symptoms || 'Chưa có thông tin'}</span>
+                                        </div>
+                                        <div className="info-item">
+                                            <span className="info-label">Khám lâm sàng:</span>
+                                            <span className="info-value">{medicalRecord.clinicalExamination || 'Chưa có thông tin'}</span>
+                                        </div>
+                                        <div className="info-item">
+                                            <span className="info-label">Chẩn đoán:</span>
+                                            <span className="info-value">{medicalRecord.diagnosis || 'Chưa có thông tin'}</span>
+                                        </div>
+                                        <div className="info-item">
+                                            <span className="info-label">Kế hoạch điều trị:</span>
+                                            <span className="info-value">{medicalRecord.treatmentPlan || 'Chưa có thông tin'}</span>
+                                        </div>
+                                        <div className="info-item">
+                                            <span className="info-label">Ghi chú:</span>
+                                            <span className="info-value">{medicalRecord.note || 'Không có'}</span>
+                                        </div>
+                                        <div className="info-item">
+                                            <span className="info-label">Tổng chi phí:</span>
+                                            <span className="badge bg-primary fs-6">
+                                                {medicalRecord.total.toLocaleString('vi-VN')}đ
+                                            </span>
+                                        </div>
+                                    </Card.Body>
+                                </Card>
+                            </Col>
+                        </Row>
+
+                        {/* Services Section - Single Table */}
+                        <Card>
+                            <Card.Header>
+                                <h6 className="mb-0">
+                                    <i className="bi bi-list-ul me-2"></i>
+                                    Danh sách dịch vụ
+                                    {medicalRecord.invoiceDetailsResponse && (
+                                        <span className="ms-2">
+                                            <Badge bg="secondary" className="me-1">
+                                                {allInvoiceDetails.length} dịch vụ
+                                            </Badge>
+                                            {paidInvoiceDetails.length > 0 && (
+                                                <Badge bg="success" className="me-1">
+                                                    {paidInvoiceDetails.length} đã thanh toán
+                                                </Badge>
+                                            )}
+                                            {pendingPaymentInvoiceDetails.length > 0 && (
+                                                <Badge bg="warning">
+                                                    {pendingPaymentInvoiceDetails.length} cần thanh toán
+                                                </Badge>
+                                            )}
+                                        </span>
+                                    )}
+                                </h6>
+                            </Card.Header>
+                            <Card.Body>
+                                {/* Hiển thị theo cấu trúc mới nếu có invoiceDetailsResponse */}
+                                {medicalRecord.invoiceDetailsResponse ? (
+                                    renderAllInvoiceDetailsTable(allInvoiceDetails)
+                                ) : (
+                                    /* Fallback để tương thích với cấu trúc cũ */
+                                    paidServicesWithExamFee.length > 0 ? (
                                         <Table responsive striped hover>
-                                            <thead className="table-success">
+                                            <thead className="table-light">
                                                 <tr>
                                                     <th>Dịch vụ</th>
                                                     <th>Gói dịch vụ</th>
@@ -670,215 +1037,15 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
                                     ) : (
                                         <Alert variant="info" className="text-center">
                                             <i className="bi bi-info-circle me-2"></i>
-                                            Chưa có dịch vụ nào đã thanh toán
+                                            Chưa có dịch vụ nào
                                         </Alert>
-                                    )}
-                                </Tab>
-
-                                {/* Tab Dịch vụ chưa thanh toán */}
-                                <Tab
-                                    eventKey="unpaid"
-                                    title={
-                                        <span>
-                                            <i className="bi bi-exclamation-circle me-2 text-warning"></i>
-                                            Chưa thanh toán ({unpaidServices.length})
-                                        </span>
-                                    }
-                                >
-                                    {unpaidServices.length > 0 ? (
-                                        <>
-                                            <div className="d-flex justify-content-between align-items-center mb-3">
-                                                <div>
-                                                    {selectedServices.length > 0 && (
-                                                        <Alert variant="info" className="mb-0 py-2">
-                                                            <strong>Đã chọn {selectedServices.length} dịch vụ</strong> -
-                                                            Tổng tiền: <strong>{getTotalSelectedAmount().toLocaleString('vi-VN')}đ</strong>
-                                                        </Alert>
-                                                    )}
-                                                </div>
-                                                <div className="select-all-container">
-                                                    <Form.Check
-                                                        type="checkbox"
-                                                        label="Chọn tất cả"
-                                                        checked={selectedServices.length === unpaidServices.length && unpaidServices.length > 0}
-                                                        onChange={handleSelectAllUnpaid}
-                                                        className="fw-semibold text-primary"
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            <Table responsive striped hover>
-                                                <thead className="table-warning">
-                                                    <tr>
-                                                        <th style={{ width: '50px' }}>Chọn</th>
-                                                        <th>Dịch vụ</th>
-                                                        <th>Gói dịch vụ</th>
-                                                        <th>Bác sĩ</th>
-                                                        <th>Phòng</th>
-                                                        <th>Trạng thái</th>
-                                                        <th>Ngày chỉ định</th>
-                                                        <th className="text-end">Giá</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {unpaidServices.map((service, index) => {
-                                                        const isSelected = selectedServices.some(s => s.id === service.id);
-                                                        return (
-                                                            <tr key={index} className={isSelected ? 'selected-row' : ''}>
-                                                                <td>
-                                                                    <Form.Check
-                                                                        type="checkbox"
-                                                                        checked={isSelected}
-                                                                        onChange={() => handleServiceSelection(service)}
-                                                                    />
-                                                                </td>
-                                                                <td>{service.healthPlanName}</td>
-                                                                <td>
-                                                                    {service.serviceParent ? (
-                                                                        <span className="text-muted">
-                                                                            <i className="bi bi-box me-1"></i>
-                                                                            {service.serviceParent}
-                                                                        </span>
-                                                                    ) : (
-                                                                        <span className="text-muted">Dịch vụ lẻ</span>
-                                                                    )}
-                                                                </td>
-                                                                <td>{service.doctorPerformed || service.doctorOrdered || 'Chưa xác định'}</td>
-                                                                <td>{service.room || 'Chưa xác định'}</td>
-                                                                <td>
-                                                                    <Badge bg={getLabOrderStatusBadgeVariant(service.status)}>
-                                                                        {getLabOrderStatusText(service.status)}
-                                                                    </Badge>
-                                                                </td>
-                                                                <td>
-                                                                    {service.orderDate ? new Date(service.orderDate).toLocaleDateString('vi-VN') : 'N/A'}
-                                                                    {service.expectedResultDate && (
-                                                                        <div className="text-muted small">
-                                                                            Dự kiến: {new Date(service.expectedResultDate).toLocaleDateString('vi-VN')}
-                                                                        </div>
-                                                                    )}
-                                                                </td>
-                                                                <td className="text-end fw-bold text-warning">
-                                                                    {service.price.toLocaleString('vi-VN')}đ
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    })}
-                                                </tbody>
-                                                <tfoot className="table-light">
-                                                    <tr>
-                                                        <td colSpan={7} className="text-end fw-bold">Tổng tiền chưa thanh toán:</td>
-                                                        <td className="text-end fw-bold text-warning">
-                                                            {unpaidServices.reduce((total, service) => total + service.price, 0).toLocaleString('vi-VN')}đ
-                                                        </td>
-                                                    </tr>
-                                                </tfoot>
-                                            </Table>
-                                        </>
-                                    ) : (
-                                        <Alert variant="success" className="text-center">
-                                            <i className="bi bi-check-circle me-2"></i>
-                                            Tất cả dịch vụ đã được thanh toán
-                                        </Alert>
-                                    )}
-                                </Tab>
-                            </Tabs>
-                        </Card.Body>
-                    </Card>
-
-                    {/* Payment Section */}
-                    {unpaidServices.length > 0 && (
-                        <Card className="mt-4">
-                            <Card.Header>
-                                <h6 className="mb-0">
-                                    <IconCash size={16} className="me-2" />
-                                    Thanh toán dịch vụ
-                                </h6>
-                            </Card.Header>
-                            <Card.Body>
-                                {selectedServices.length > 0 && (
-                                    <Alert variant="info" className="mb-3">
-                                        <strong>Đã chọn {selectedServices.length} dịch vụ</strong><br />
-                                        Tổng tiền: <strong>{getTotalSelectedAmount().toLocaleString('vi-VN')}đ</strong>
-                                    </Alert>
+                                    )
                                 )}
-
-                                {/* Payment Method Selection */}
-                                <Row className="mb-3">
-                                    <Col md={6}>
-                                        <Form.Group>
-                                            <Form.Label className="fw-semibold">Phương thức thanh toán</Form.Label>
-                                            <div className="d-flex gap-4 mt-2">
-                                                <Form.Check
-                                                    type="radio"
-                                                    name="paymentMethod"
-                                                    id="cash"
-                                                    label="Tiền mặt"
-                                                    value="cash"
-                                                    checked={paymentMethod === 'cash'}
-                                                    onChange={(e) => setPaymentMethod(e.target.value as 'cash' | 'bank_transfer')}
-                                                />
-                                                <Form.Check
-                                                    type="radio"
-                                                    name="paymentMethod"
-                                                    id="bank_transfer"
-                                                    label="Chuyển khoản"
-                                                    value="bank_transfer"
-                                                    checked={paymentMethod === 'bank_transfer'}
-                                                    onChange={(e) => setPaymentMethod(e.target.value as 'cash' | 'bank_transfer')}
-                                                />
-                                            </div>
-                                        </Form.Group>
-                                    </Col>
-                                </Row>
-
-                                {/* Action Buttons */}
-                                <div className="d-flex gap-2">
-                                    {paymentMethod === 'bank_transfer' ? (
-                                        <Button
-                                            variant="success"
-                                            onClick={handlePayment}
-                                            disabled={paymentLoading || selectedServices.length === 0}
-                                            className="d-flex align-items-center"
-                                        >
-                                            {paymentLoading ? (
-                                                <>
-                                                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                                    Đang tạo...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <i className="bi bi-qr-code me-2"></i>
-                                                    Tạo mã QR thanh toán
-                                                </>
-                                            )}
-                                        </Button>
-                                    ) : (
-                                        <Button
-                                            variant="warning"
-                                            onClick={handlePayment}
-                                            disabled={paymentLoading || selectedServices.length === 0}
-                                            className="d-flex align-items-center"
-                                        >
-                                            <IconCash size={16} className="me-2" />
-                                            Xác nhận thanh toán tiền mặt
-                                        </Button>
-                                    )}
-
-                                    <Button
-                                        variant="primary"
-                                        onClick={() => window.print()}
-                                        className="d-flex align-items-center"
-                                    >
-                                        <i className="bi bi-printer me-2"></i>
-                                        In hóa đơn
-                                    </Button>
-                                </div>
                             </Card.Body>
                         </Card>
-                    )}
-                </Card.Body>
-            </Card>
+                    </Card.Body>
+                </Card>
+            </div>
 
             {/* QR Payment Modal */}
             {paymentData && (
@@ -887,6 +1054,7 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
                     onHide={handlePaymentModalClose}
                     qrCodeData={paymentData.qrCode}
                     invoiceId={paymentData.invoiceId}
+                    orderCode={paymentData.orderCode}
                     onPaymentSuccess={handlePaymentSuccess}
                     onPaymentError={handlePaymentError}
                 />

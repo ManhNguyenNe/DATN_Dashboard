@@ -111,6 +111,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
   const [paymentData, setPaymentData] = useState<{
     invoiceId: number;
     qrCode: string;
+    orderCode: number;
   } | null>(null);
 
 
@@ -685,7 +686,8 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
         // Show QR payment modal
         setPaymentData({
           invoiceId: response.data.invoiceId,
-          qrCode: response.data.qrCode
+          qrCode: response.data.qrCode,
+          orderCode: response.data.orderCode
         });
         setShowPaymentModal(true);
       } else {
@@ -747,8 +749,15 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
         showSuccess("Thanh toán thành công!", "Thanh toán tiền mặt thành công! Phiếu khám đã được tạo.");
         setPaymentCompleted(true);
 
+        // Lưu medical record ID vào localStorage
+        const medicalRecordId = response.data;
+        if (medicalRecordId) {
+          localStorage.setItem('currentMedicalRecordId', medicalRecordId.toString());
+          console.log('💾 Đã lưu medical record ID vào localStorage:', medicalRecordId);
+        }
+
         // Call medical record created callback if provided (but not onSuccess to avoid unwanted actions)
-        onMedicalRecordCreated?.(response.data?.medicalRecordId); // Pass medical record ID if available
+        onMedicalRecordCreated?.(medicalRecordId); // Pass medical record ID if available
       } else {
         console.error('API Error Response:', response);
         showError("Lỗi tạo phiếu khám", response?.message || "Lỗi khi tạo phiếu khám bệnh");
@@ -798,6 +807,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
       setPaymentCompleted(false);
 
       // Clear all localStorage related to medical record
+      localStorage.removeItem('currentMedicalRecordId');
       if (typeof window !== 'undefined') {
         localStorage.removeItem('selectedAppointment');
         localStorage.removeItem('selectedPatientForMedicalRecord');
@@ -1402,13 +1412,29 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
                   <IconTrash size={16} className="me-2" />
                   Làm mới
                 </Button>
-                <Button
-                  variant="outline-secondary"
-                  onClick={onCancel}
-                  disabled={loading}
-                >
-                  Hủy bỏ
-                </Button>
+
+                {!paymentCompleted && (
+                  <Button
+                    variant="outline-secondary"
+                    onClick={onCancel}
+                    disabled={loading}
+                  >
+                    Hủy bỏ
+                  </Button>
+                )}
+
+                {paymentCompleted && (
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={handlePrintInvoice}
+                    disabled={loading}
+                    className="d-flex align-items-center"
+                  >
+                    <i className="bi bi-printer me-2"></i>
+                    In hóa đơn
+                  </Button>
+                )}
               </div>
             ) : (
               // Payment completed view
@@ -1454,6 +1480,7 @@ const MedicalRecordForm: React.FC<MedicalRecordFormProps> = ({ onSuccess, onCanc
           onHide={handlePaymentModalClose}
           qrCodeData={paymentData.qrCode}
           invoiceId={paymentData.invoiceId}
+          orderCode={paymentData.orderCode}
           onPaymentSuccess={handlePaymentSuccess}
           onPaymentError={handlePaymentError}
           medicalRecordData={{

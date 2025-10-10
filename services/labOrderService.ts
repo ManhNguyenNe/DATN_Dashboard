@@ -147,6 +147,22 @@ const labOrderService = {
             console.error('Error updating lab order:', error);
             throw error;
         }
+    },
+
+    /**
+     * Xóa các chỉ định đã chọn
+     * @param data - Dữ liệu xóa chỉ định (danh sách IDs và medical record ID)
+     * @returns Promise với response từ API
+     */
+    deleteLabOrders: async (data: DeleteLabOrdersRequest): Promise<ApiResponse<any>> => {
+        try {
+            const response = await apiClient.delete<ApiResponse<any>>('/api/lab-orders', { data });
+            console.log('Deleted lab orders:', response.data);
+            return response.data;
+        } catch (error) {
+            console.error('Error deleting lab orders:', error);
+            throw error;
+        }
     }
 };
 
@@ -162,6 +178,12 @@ export interface CreateLabOrderRequest {
 export interface UpdateLabOrderRequest {
     id: number;                     // ID chỉ định cần cập nhật
     performingDoctorId: number;     // ID bác sĩ thực hiện mới
+}
+
+// Interface cho request xóa chỉ định
+export interface DeleteLabOrdersRequest {
+    ids: number[];                  // Danh sách ID chỉ định cần xóa
+    medicalRecordId: number;        // ID phiếu khám
 }
 
 export default labOrderService;

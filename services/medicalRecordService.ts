@@ -93,7 +93,45 @@ export interface MedicalRecordFilter {
   status?: MedicalRecordStatus | string;
 }
 
-// Interface cho Lab Order Response trong Medical Record Detail
+// Interface cho Single Lab trong Invoice Details
+export interface SingleLabResponse {
+  id: number;
+  code: string;
+  name?: string; // Tên dịch vụ
+  doctorPerforming: string | null;
+  room?: string; // Phòng thực hiện dịch vụ
+  createdAt: string;
+  status: 'CHO_THUC_HIEN' | 'DANG_THUC_HIEN' | 'HOAN_THANH' | 'HUY';
+}
+
+// Interface cho Multiple Lab trong Invoice Details
+export interface MultipleLabResponse {
+  id: number;
+  code: string;
+  name?: string; // Tên dịch vụ
+  doctorPerforming: string | null;
+  room?: string; // Phòng thực hiện dịch vụ
+  createdAt: string;
+  status: 'CHO_THUC_HIEN' | 'DANG_THUC_HIEN' | 'HOAN_THANH' | 'HUY';
+}
+
+// Interface cho Invoice Details Response trong API mới
+export interface InvoiceDetailsResponse {
+  id: number;
+  healthPlanId: number;
+  healthPlanName: string;
+  name?: string; // Tên chỉ định - field mới
+  healthPlanPrice: number;
+  paid: number;
+  paymentMethod: string | null;
+  description: string;
+  status: 'DA_THANH_TOAN' | 'CHUA_THANH_TOAN' | 'THANH_TOAN_MOT_PHAN';
+  multipleLab: MultipleLabResponse[] | null;
+  singleLab: SingleLabResponse | null;
+  typeService: 'SINGLE' | 'MULTIPLE';
+}
+
+// Interface cho Lab Order Response trong Medical Record Detail (để backward compatibility)
 export interface LabOrderResponse {
   id: number | null;  // Có thể null cho phí khám
   recordId: number | null;
@@ -105,7 +143,7 @@ export interface LabOrderResponse {
   doctorPerformedId?: number | null;  // Thêm ID bác sĩ thực hiện
   doctorOrdered: string | null;
   status: 'CHO_THUC_HIEN' | 'DANG_THUC_HIEN' | 'HOAN_THANH' | 'HUY';
-  statusPayment: 'DA_THANH_TOAN' | 'CHUA_THANH_TOAN' | null;
+  statusPayment: 'DA_THANH_TOAN' | 'CHUA_THANH_TOAN' | 'THANH_TOAN_MOT_PHAN' | null;
   price: number;
   createdAt?: string | null;  // Optional - không phải tất cả response đều có
   orderDate?: string | null;  // Optional - chỉ có trong GET all, không có trong GET detail
@@ -120,12 +158,12 @@ export interface MedicalRecordService {
   doctorName: string;
   price: number;
   room: string;
-  status: 'DA_THANH_TOAN' | 'CHUA_THANH_TOAN';
+  status: 'DA_THANH_TOAN' | 'CHUA_THANH_TOAN' | 'THANH_TOAN_MOT_PHAN';
   orderDate?: string;
   expectedResultDate?: string;
 }
 
-// Interface cho Medical Record Detail
+// Interface cho Medical Record Detail với cấu trúc API mới
 export interface MedicalRecordDetail {
   id: string;
   code: string;
@@ -135,6 +173,7 @@ export interface MedicalRecordDetail {
   treatmentPlan: string | null;
   note: string | null;
   total: number;
+  paid: number;
   patientId?: number; // Thêm trường patientId
   patientName: string;
   patientPhone: string | null;
@@ -142,7 +181,8 @@ export interface MedicalRecordDetail {
   patientGender: string;
   date: string;
   status: MedicalRecordStatus | string;
-  labOrdersResponses: LabOrderResponse[];
+  invoiceDetailsResponse: InvoiceDetailsResponse[]; // Thay thế labOrdersResponses bằng invoiceDetailsResponse
+  labOrdersResponses?: LabOrderResponse[]; // Giữ lại để backward compatibility
   invoiceId?: number; // Thêm trường invoiceId từ API response
   // Computed field để backward compatibility
   services?: MedicalRecordService[];
@@ -162,7 +202,6 @@ const medicalRecordService = {
       const response = await apiClient.post<ApiResponse<MedicalRecord>>('/api/medical-record', medicalRequest);
       return response.data;
     } catch (error) {
-      console.error('Error creating medical record:', error);
       throw error;
     }
   },
@@ -177,7 +216,6 @@ const medicalRecordService = {
       const response = await apiClient.put<ApiResponse<MedicalRecord>>('/api/medical-record', medicalRequest);
       return response.data;
     } catch (error) {
-      console.error('Error updating medical record:', error);
       throw error;
     }
   },
@@ -190,10 +228,8 @@ const medicalRecordService = {
   getMedicalRecordById: async (id: number): Promise<ApiResponse<MedicalRecord>> => {
     try {
       const response = await apiClient.get<ApiResponse<MedicalRecord>>(`/api/medical-record/${id}`);
-      console.log('Fetched medical record:', response.data);
       return response.data;
     } catch (error) {
-      console.error('Error fetching medical record:', error);
       throw error;
     }
   },
@@ -205,19 +241,9 @@ const medicalRecordService = {
    */
   createSimpleMedicalRecord: async (medicalRequest: SimpleMedicalRecordCreateData): Promise<SimpleApiResponse<MedicalRecord>> => {
     try {
-      console.log('Creating medical record with data:', medicalRequest);
       const response = await apiClient.post<SimpleApiResponse<MedicalRecord>>('/api/medical-record', medicalRequest);
-      console.log('Medical record service response:', response.data);
       return response.data;
     } catch (error: any) {
-      console.error('Error creating simple medical record:', error);
-
-      // Log chi tiết error để debug
-      if (error.response) {
-        console.error('Response data:', error.response.data);
-        console.error('Response status:', error.response.status);
-      }
-
       throw error;
     }
   },
@@ -247,7 +273,6 @@ const medicalRecordService = {
       const response = await apiClient.get<ApiResponse<MedicalRecordListItem[]>>(url);
       return response.data;
     } catch (error) {
-      console.error('Error fetching medical records:', error);
       throw error;
     }
   },
@@ -262,7 +287,6 @@ const medicalRecordService = {
       const response = await apiClient.get<ApiResponse<MedicalRecordDetail>>(`/api/medical-record/${id}`);
       return response.data;
     } catch (error) {
-      console.error('Error fetching medical record detail:', error);
       throw error;
     }
   },
@@ -274,20 +298,9 @@ const medicalRecordService = {
    */
   updateMedicalRecordFields: async (updateData: MedicalRecordUpdateFields): Promise<ApiResponse<any>> => {
     try {
-      console.log('Updating medical record with data:', updateData);
       const response = await apiClient.put<ApiResponse<any>>('/api/medical-record', updateData);
-      console.log('Medical record update response:', response.data);
       return response.data;
     } catch (error: any) {
-      console.error('Error updating medical record fields:', error);
-
-      // Log chi tiết error để debug
-      if (error.response) {
-        console.error('Response data:', error.response.data);
-        console.error('Response status:', error.response.status);
-      }
-
-
       throw error;
     }
   },
@@ -302,7 +315,6 @@ const medicalRecordService = {
       const response = await apiClient.get<ApiResponse<MedicalRecordListItem[]>>(`/api/medical-record/patient/${patientId}`);
       return response.data;
     } catch (error) {
-      console.error('Error fetching medical records by patient ID:', error);
       throw error;
     }
   },
@@ -314,19 +326,9 @@ const medicalRecordService = {
    */
   updateMedicalRecordStatus: async (statusData: MedicalRecordStatusUpdate): Promise<ApiResponse<any>> => {
     try {
-      console.log('Updating medical record status with data:', statusData);
       const response = await apiClient.put<ApiResponse<any>>('/api/medical-record/status', statusData);
-      console.log('Medical record status update response:', response.data);
       return response.data;
     } catch (error: any) {
-      console.error('Error updating medical record status:', error);
-
-      // Log chi tiết error để debug
-      if (error.response) {
-        console.error('Response data:', error.response.data);
-        console.error('Response status:', error.response.status);
-      }
-
       throw error;
     }
   }

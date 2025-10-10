@@ -28,13 +28,15 @@ export interface PaymentLinkRequest {
 // Interface cho cash payment request
 export interface CashPaymentRequest {
   medicalRecordId: number;
-  labOrderIds: number[];
+  healthPlanIds: number[];
+  totalAmount: number;
 }
 
 // Interface cho payment response
 export interface PaymentLinkResponse {
   invoiceId: number;
   qrCode: string;
+  orderCode: number;
 }
 
 // Interface cho payment status response
@@ -132,9 +134,9 @@ export const paymentService = {
   },
 
   // Kiểm tra trạng thái thanh toán
-  checkPaymentStatus: async (invoiceId: number): Promise<PaymentStatusResponse> => {
+  checkPaymentStatus: async (orderCode: number): Promise<PaymentStatusResponse> => {
     try {
-      const response = await apiClient.get<PaymentStatusResponse>(`/api/payments/status/${invoiceId}`);
+      const response = await apiClient.get<PaymentStatusResponse>(`/api/payments/status/${orderCode}`);
       return response.data;
     } catch (error: any) {
       console.error('Error checking payment status:', error);
