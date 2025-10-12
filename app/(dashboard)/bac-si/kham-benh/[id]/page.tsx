@@ -1,18 +1,20 @@
 "use client";
 import { Card, Col, Row, Form, Button, Alert, Tab, Tabs, Table, Badge, Modal } from "react-bootstrap";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { PersonFill, ClipboardData, Save, Plus, Check, X, Activity, FileText, Printer, Receipt, InfoCircle, Gear } from "react-bootstrap-icons";
+import { PersonFill, ClipboardData, Save, Plus, Check, X, Activity, FileText, Receipt, InfoCircle, Gear, Capsule } from "react-bootstrap-icons";
 import { IconHistory } from "@tabler/icons-react";
 import { useAuth } from "../../../../../contexts/AuthContext";
+import { useMessage } from "../../../../../components/common/MessageProvider";
 import { Appointment } from "../../../../../services/appointmentService";
 import Loading from "../../../../../components/common/Loading";
-import { AppointmentService, NewPrescription, MedicalService, ServiceStatus, PrescriptionStatus } from "../../../../../types/MedicalServiceType";
-import { medicalRecordService, type MedicalRecordDetail, type LabOrderResponse, type MedicalRecordUpdateFields, type MedicalRecordStatusUpdate, MedicalRecordStatus } from "../../../../../services";
+import { AppointmentService, ServiceStatus } from "../../../../../types/MedicalServiceType";
+import { medicalRecordService, type MedicalRecordDetail, type MedicalRecordUpdateFields, type MedicalRecordStatusUpdate, MedicalRecordStatus } from "../../../../../services";
 import labOrderService, { LabOrderDetail, CreateLabOrderRequest, UpdateLabOrderRequest } from "../../../../../services/labOrderService";
 import medicalServiceService, { ServiceDetailResponse, AssignedDoctor, ServiceSearchResult } from "../../../../../services/medicalServiceService";
 import ServiceSearchInput from "../../../../../components/common/ServiceSearchInput";
 import MedicalRecordHistory from "../../../../../components/medical-record/MedicalRecordHistory";
+import PrescriptionManagement from "../../../../../components/prescription/PrescriptionManagement";
 
 // CSS cho print
 const printStyles = `
@@ -34,22 +36,50 @@ interface ExaminationData {
     ghiChu: string;
 }
 
+interface ApiErrorLike {
+    response?: {
+        data?: {
+            message?: string;
+        };
+    };
+    message?: string;
+}
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+    if (typeof error === 'string') {
+        return error;
+    }
+
+    if (typeof error === 'object' && error !== null) {
+        const apiError = error as ApiErrorLike;
+        if (apiError.response?.data?.message) {
+            return apiError.response.data.message;
+        }
+
+        if (apiError.message) {
+            return apiError.message;
+        }
+    }
+
+    return fallback;
+};
+
 const ExaminationDetailPage = () => {
     const { user } = useAuth();
     const router = useRouter();
     const params = useParams();
     const appointmentId = params.id as string;
+    const message = useMessage();
 
     const [appointment, setAppointment] = useState<Appointment | null>(null);
     const [medicalRecord, setMedicalRecord] = useState<MedicalRecordDetail | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [alert, setAlert] = useState<{ type: 'success' | 'danger'; message: string } | null>(null);
-    const [activeTab, setActiveTab] = useState('examination');
+    const [activeTab, setActiveTab] = useState('patient-info');
 
     // States cho dịch vụ và chỉ định
     const [paidServices, setPaidServices] = useState<AppointmentService[]>([]);
-    const [availableServices, setAvailableServices] = useState<MedicalService[]>([]);
     const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: number, name: string, specialty: string }>>([]);
     const [showAddPrescriptionModal, setShowAddPrescriptionModal] = useState(false);
     const [selectedService, setSelectedService] = useState<ServiceSearchResult | null>(null);
@@ -59,7 +89,6 @@ const ExaminationDetailPage = () => {
     const [loadingServiceDetail, setLoadingServiceDetail] = useState(false);
 
     // States cho edit chỉ định
-    const [editingPrescription, setEditingPrescription] = useState<NewPrescription | null>(null);
     const [showEditPrescriptionModal, setShowEditPrescriptionModal] = useState(false);
     const [selectedDoctor, setSelectedDoctor] = useState<string>('');
     const [labOrderDetail, setLabOrderDetail] = useState<LabOrderDetail | null>(null);
@@ -88,14 +117,6 @@ const ExaminationDetailPage = () => {
         huongDieuTri: '',
         ghiChu: ''
     });
-
-    useEffect(() => {
-        if (appointmentId) {
-            fetchMedicalRecordDetails();
-            fetchAvailableServices();
-            fetchAvailableDoctors();
-        }
-    }, [appointmentId]);
 
     // Hàm riêng để chỉ refresh danh sách dịch vụ mà không ảnh hưởng đến examination data
     const refreshServicesList = async () => {
@@ -185,13 +206,14 @@ const ExaminationDetailPage = () => {
                 throw new Error('Không thể tải danh sách dịch vụ');
             }
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('❌ Lỗi khi refresh danh sách dịch vụ:', error);
-            setAlert({ type: 'danger', message: error.message || 'Không thể tải danh sách dịch vụ' });
+            const messageText = getErrorMessage(error, 'Không thể tải danh sách dịch vụ');
+            setAlert({ type: 'danger', message: messageText });
         }
     };
 
-    const fetchMedicalRecordDetails = async () => {
+    const fetchMedicalRecordDetails = useCallback(async () => {
         try {
             setLoading(true);
 
@@ -307,13 +329,14 @@ const ExaminationDetailPage = () => {
                 throw new Error('Không thể tải thông tin phiếu khám');
             }
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Lỗi khi tải chi tiết phiếu khám:', error);
-            setAlert({ type: 'danger', message: error.message || 'Không thể tải thông tin phiếu khám' });
+            const messageText = getErrorMessage(error, 'Không thể tải thông tin phiếu khám');
+            setAlert({ type: 'danger', message: messageText });
         } finally {
             setLoading(false);
         }
-    };
+    }, [appointmentId]);
 
     const handleEditPrescription = async (labOrderId: number | null) => {
         // Không thể xem chi tiết nếu không có ID (như tiền khám)
@@ -345,7 +368,7 @@ const ExaminationDetailPage = () => {
 
                     setServiceDetail(serviceDetailResponse);
                     setAvailableDoctorsForAssignment(serviceDetailResponse.doctorsAssigned || []);
-                } catch (serviceError) {
+                } catch (serviceError: unknown) {
                     console.warn('⚠️ Không thể tải chi tiết dịch vụ:', serviceError);
                     setServiceDetail(null);
                     setAvailableDoctorsForAssignment([]);
@@ -359,33 +382,19 @@ const ExaminationDetailPage = () => {
                 throw new Error('Không thể tải chi tiết chỉ định');
             }
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Lỗi khi lấy chi tiết chỉ định:', error);
+            const messageText = getErrorMessage(error, 'Không thể tải chi tiết chỉ định');
             setAlert({
                 type: 'danger',
-                message: error.message || 'Không thể tải chi tiết chỉ định'
+                message: messageText
             });
         } finally {
             setLoadingLabOrderDetail(false);
         }
     };
 
-    const fetchAvailableServices = async () => {
-        try {
-            // Tạm thời dùng dữ liệu mẫu
-            const sampleServices: MedicalService[] = [
-                { id: 3, name: 'Chụp X-quang ngực', price: 300000, category: 'Chẩn đoán hình ảnh' },
-                { id: 4, name: 'Siêu âm bụng tổng quát', price: 250000, category: 'Chẩn đoán hình ảnh' },
-                { id: 5, name: 'Xét nghiệm nước tiểu', price: 80000, category: 'Xét nghiệm' },
-                { id: 6, name: 'Điện tim', price: 100000, category: 'Thăm dò chức năng' }
-            ];
-            setAvailableServices(sampleServices);
-        } catch (error) {
-            console.error('Lỗi khi tải danh sách dịch vụ:', error);
-        }
-    };
-
-    const fetchAvailableDoctors = async () => {
+    const fetchAvailableDoctors = useCallback(async () => {
         try {
             // Tạm thời dùng dữ liệu mẫu
             const sampleDoctors = [
@@ -398,7 +407,14 @@ const ExaminationDetailPage = () => {
         } catch (error) {
             console.error('Lỗi khi tải danh sách bác sĩ:', error);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        if (appointmentId) {
+            fetchMedicalRecordDetails();
+            fetchAvailableDoctors();
+        }
+    }, [appointmentId, fetchAvailableDoctors, fetchMedicalRecordDetails]);
 
     const handleAddPrescription = async () => {
         if (!selectedService || !prescriptionReason.trim() || !selectedDoctorId) {
@@ -443,9 +459,10 @@ const ExaminationDetailPage = () => {
             // ✅ CHỈ refresh danh sách dịch vụ, KHÔNG load lại toàn bộ phiếu khám
             await refreshServicesList();
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('❌ Lỗi khi thêm chỉ định:', error);
-            setAlert({ type: 'danger', message: error.response?.data?.message || 'Có lỗi xảy ra khi thêm chỉ định' });
+            const messageText = getErrorMessage(error, 'Có lỗi xảy ra khi thêm chỉ định');
+            setAlert({ type: 'danger', message: messageText });
         } finally {
             setSaving(false);
         }
@@ -496,11 +513,12 @@ const ExaminationDetailPage = () => {
                 setShowResultModal(false);
             }
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('❌ Lỗi khi lấy kết quả xét nghiệm:', error);
+            const messageText = getErrorMessage(error, 'Có lỗi xảy ra khi lấy kết quả xét nghiệm');
             setAlert({
                 type: 'danger',
-                message: error.response?.data?.message || 'Có lỗi xảy ra khi lấy kết quả xét nghiệm'
+                message: messageText
             });
             setShowResultModal(false);
         } finally {
@@ -554,26 +572,15 @@ const ExaminationDetailPage = () => {
             // ✅ CHỈ refresh danh sách dịch vụ, KHÔNG load lại toàn bộ phiếu khám
             await refreshServicesList();
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('❌ Lỗi khi cập nhật chỉ định:', error);
+            const messageText = getErrorMessage(error, 'Có lỗi xảy ra khi cập nhật bác sĩ chỉ định');
             setAlert({
                 type: 'danger',
-                message: error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật bác sĩ chỉ định'
+                message: messageText
             });
         } finally {
             setSaving(false);
-        }
-    };
-
-    const handleEditService = (serviceId: number) => {
-        const service = paidServices.find(s => s.id === serviceId);
-        console.log('handleEditService called with serviceId:', service);
-        if (service) {
-            setEditingService(service);
-            setServiceReason(service.reason || '');
-            setServiceNotes(service.notes || '');
-            setServiceDoctor(service.assignedDoctor || user?.doctor?.fullName || '');
-            setShowEditServiceModal(true);
         }
     };
 
@@ -602,9 +609,10 @@ const ExaminationDetailPage = () => {
             setServiceDoctor('');
             setAlert({ type: 'success', message: 'Đã cập nhật thông tin dịch vụ thành công' });
 
-        } catch (error) {
+        } catch (error: unknown) {
             console.error('Lỗi khi cập nhật dịch vụ:', error);
-            setAlert({ type: 'danger', message: 'Có lỗi xảy ra khi cập nhật dịch vụ' });
+            const messageText = getErrorMessage(error, 'Có lỗi xảy ra khi cập nhật dịch vụ');
+            setAlert({ type: 'danger', message: messageText });
         }
     };
 
@@ -668,7 +676,7 @@ const ExaminationDetailPage = () => {
                     } else {
                         throw new Error('Không thể cập nhật trạng thái phiếu khám');
                     }
-                } catch (statusError: any) {
+                } catch (statusError: unknown) {
                     console.error('❌ Lỗi khi cập nhật trạng thái:', statusError);
                     setAlert({ type: 'danger', message: 'Đã lưu tạm thành công nhưng không thể cập nhật trạng thái. Vui lòng thử lại.' });
                 }
@@ -678,10 +686,10 @@ const ExaminationDetailPage = () => {
                 throw new Error('Không có phản hồi từ server');
             }
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('❌ Lỗi khi lưu kết quả khám:', error);
 
-            const errorMessage = error.response?.data?.message || error.message || 'Có lỗi xảy ra khi lưu kết quả khám';
+            const errorMessage = getErrorMessage(error, 'Có lỗi xảy ra khi lưu kết quả khám');
             setAlert({ type: 'danger', message: errorMessage });
         } finally {
             setSaving(false);
@@ -751,10 +759,10 @@ const ExaminationDetailPage = () => {
                 throw new Error('Không có phản hồi từ server');
             }
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('❌ Lỗi khi hoàn thành khám:', error);
 
-            const errorMessage = error.response?.data?.message || error.message || 'Có lỗi xảy ra khi hoàn thành khám';
+            const errorMessage = getErrorMessage(error, 'Có lỗi xảy ra khi hoàn thành khám');
             setAlert({ type: 'danger', message: errorMessage });
         } finally {
             setSaving(false);
@@ -771,83 +779,18 @@ const ExaminationDetailPage = () => {
         );
     }
 
-    const handlePrintInvoice = () => {
-        const printContent = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Hóa đơn khám bệnh</title>
-                <style>
-                    body { font-family: Arial, sans-serif; margin: 20px; }
-                    .header { text-align: center; margin-bottom: 30px; }
-                    .patient-info { margin-bottom: 20px; }
-                    .services-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-                    .services-table th, .services-table td { border: 1px solid #000; padding: 8px; text-align: left; }
-                    .services-table th { background-color: #f0f0f0; }
-                    .total { font-weight: bold; font-size: 16px; }
-                    .footer { margin-top: 40px; text-align: right; }
-                </style>
-            </head>
-            <body>
-                <div class="header">
-                    <h2>PHÒNG KHÁM ĐA KHOA</h2>
-                    <h3>HÓA ĐƠN KHÁM BỆNH</h3>
-                </div>
-                
-                <div class="patient-info">
-                    <p><strong>Mã phiếu khám:</strong> ${medicalRecord?.code || 'N/A'}</p>
-                    <p><strong>Bệnh nhân:</strong> ${medicalRecord?.patientName || appointment.fullName}</p>
-                    <p><strong>Số điện thoại:</strong> ${medicalRecord?.patientPhone || appointment.phone || 'Không có'}</p>
-                    <p><strong>Ngày sinh:</strong> ${appointment.birth || 'Không có'}</p>
-                    <p><strong>Giới tính:</strong> ${medicalRecord?.patientGender === 'NAM' ? 'Nam' : medicalRecord?.patientGender === 'NU' ? 'Nữ' : appointment.gender || 'Không xác định'}</p>
-                    <p><strong>Địa chỉ:</strong> ${medicalRecord?.patientAddress || appointment.address || 'Không có'}</p>
-                    <p><strong>Ngày khám:</strong> ${medicalRecord?.date ? new Date(medicalRecord.date).toLocaleString('vi-VN') : `${appointment.date} ${appointment.time}`}</p>
-                </div>
-
-                <table class="services-table">
-                    <thead>
-                        <tr>
-                            <th>STT</th>
-                            <th>Tên dịch vụ</th>
-                            <th>Đơn giá</th>
-                            <th>Ghi chú</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${paidServices.map((service, index) => `
-                            <tr>
-                                <td>${index + 1}</td>
-                                <td>${service.serviceName}</td>
-                                <td>${service.price.toLocaleString()} đ</td>
-                                <td>${service.notes || '-'}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                    <tfoot>
-                        <tr class="total">
-                            <td colspan="2">Tổng cộng</td>
-                            <td>${paidServices.reduce((total, service) => total + service.price, 0).toLocaleString()} đ</td>
-                            <td></td>
-                        </tr>
-                    </tfoot>
-                </table>
-
-                <div class="footer">
-                    <p>Bác sĩ khám: ${user?.doctor?.fullName || 'Chưa xác định'}</p>
-                    <p>Ngày in: ${new Date().toLocaleDateString('vi-VN')}</p>
-                </div>
-            </body>
-            </html>
-        `;
-
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-            printWindow.document.write(printContent);
-            printWindow.document.close();
-            printWindow.focus();
-            printWindow.print();
-            printWindow.close();
+    const handleViewHistoryDetail = (medicalRecordId: string) => {
+        if (!medicalRecordId) {
+            return;
         }
+
+        if (medicalRecordId === appointmentId) {
+            setShowHistoryModal(false);
+            message.info('Bạn đang xem phiếu khám này.');
+            return;
+        }
+
+        router.push(`/bac-si/kham-benh/${medicalRecordId}`);
     };
 
     return (
@@ -886,62 +829,6 @@ const ExaminationDetailPage = () => {
             )}
 
             <Row>
-                {/* Thông tin bệnh nhân - Toàn chiều rộng */}
-                <Col lg={12}>
-                    <Card className="shadow-sm mb-4">
-                        <Card.Header className="bg-primary text-white">
-                            <PersonFill className="me-2" />
-                            Thông tin bệnh nhân
-                        </Card.Header>
-                        <Card.Body>
-                            <Row>
-                                <Col md={3}>
-                                    <div className="mb-3">
-                                        <strong>Họ tên:</strong><br />
-                                        {medicalRecord?.patientName || appointment.fullName}
-                                    </div>
-                                    <div className="mb-3">
-                                        <strong>Số điện thoại:</strong><br />
-                                        {medicalRecord?.patientPhone || appointment.phone || 'Không có'}
-                                    </div>
-                                </Col>
-                                <Col md={3}>
-                                    <div className="mb-3">
-                                        <strong>Ngày sinh:</strong><br />
-                                        {appointment.birth || 'Không có'}
-                                    </div>
-                                    <div className="mb-3">
-                                        <strong>Giới tính:</strong><br />
-                                        {medicalRecord?.patientGender === 'NAM' ? 'Nam' : medicalRecord?.patientGender === 'NU' ? 'Nữ' : appointment.gender || 'Không xác định'}
-                                    </div>
-                                </Col>
-                                <Col md={3}>
-                                    <div className="mb-3">
-                                        <strong>Địa chỉ:</strong><br />
-                                        {medicalRecord?.patientAddress || appointment.address || 'Không có'}
-                                    </div>
-                                    <div className="mb-3">
-                                        <strong>Mã phiếu khám:</strong><br />
-                                        {medicalRecord?.code || 'Đang tạo...'}
-                                    </div>
-                                </Col>
-                                <Col md={3}>
-                                    <div className="mb-3">
-                                        <strong>Thời gian khám:</strong><br />
-                                        {medicalRecord?.date ? new Date(medicalRecord.date).toLocaleString('vi-VN') : (appointment.time && appointment.date ? `${appointment.time} - ${appointment.date}` : 'Không có')}
-                                    </div>
-                                    <div className="mb-3">
-                                        <strong>Triệu chứng ban đầu:</strong><br />
-                                        <span className="text-muted">{medicalRecord?.symptoms || appointment.symptoms || 'Không có'}</span>
-                                    </div>
-                                </Col>
-                            </Row>
-                        </Card.Body>
-                    </Card>
-                </Col>
-            </Row>
-
-            <Row>
                 {/* Form khám bệnh - Toàn chiều rộng */}
                 <Col lg={12}>
                     <Card className="shadow-sm">
@@ -952,10 +839,65 @@ const ExaminationDetailPage = () => {
                         <Card.Body>
                             <Tabs
                                 activeKey={activeTab}
-                                onSelect={(k) => setActiveTab(k || 'examination')}
+                                onSelect={(k) => setActiveTab(k || 'patient-info')}
                                 className="mb-4"
                             >
-                                <Tab eventKey="examination" title="Khám bệnh">
+                                <Tab eventKey="patient-info" title={
+                                    <span>
+                                        <PersonFill className="me-1" />
+                                        Thông tin bệnh nhân
+                                    </span>
+                                }>
+                                    <Row>
+                                        <Col md={3}>
+                                            <div className="mb-3">
+                                                <strong>Họ tên:</strong><br />
+                                                {medicalRecord?.patientName || appointment.fullName}
+                                            </div>
+                                            <div className="mb-3">
+                                                <strong>Số điện thoại:</strong><br />
+                                                {medicalRecord?.patientPhone || appointment.phone || 'Không có'}
+                                            </div>
+                                        </Col>
+                                        <Col md={3}>
+                                            <div className="mb-3">
+                                                <strong>Ngày sinh:</strong><br />
+                                                {appointment.birth || 'Không có'}
+                                            </div>
+                                            <div className="mb-3">
+                                                <strong>Giới tính:</strong><br />
+                                                {medicalRecord?.patientGender === 'NAM' ? 'Nam' : medicalRecord?.patientGender === 'NU' ? 'Nữ' : appointment.gender || 'Không xác định'}
+                                            </div>
+                                        </Col>
+                                        <Col md={3}>
+                                            <div className="mb-3">
+                                                <strong>Địa chỉ:</strong><br />
+                                                {medicalRecord?.patientAddress || appointment.address || 'Không có'}
+                                            </div>
+                                            <div className="mb-3">
+                                                <strong>Mã phiếu khám:</strong><br />
+                                                {medicalRecord?.code || 'Đang tạo...'}
+                                            </div>
+                                        </Col>
+                                        <Col md={3}>
+                                            <div className="mb-3">
+                                                <strong>Thời gian khám:</strong><br />
+                                                {medicalRecord?.date ? new Date(medicalRecord.date).toLocaleString('vi-VN') : (appointment.time && appointment.date ? `${appointment.time} - ${appointment.date}` : 'Không có')}
+                                            </div>
+                                            <div className="mb-3">
+                                                <strong>Triệu chứng ban đầu:</strong><br />
+                                                <span className="text-muted">{medicalRecord?.symptoms || appointment.symptoms || 'Không có'}</span>
+                                            </div>
+                                        </Col>
+                                    </Row>
+                                </Tab>
+
+                                <Tab eventKey="examination" title={
+                                    <span>
+                                        <ClipboardData className="me-1" />
+                                        Khám bệnh
+                                    </span>
+                                }>
                                     <Form>
                                         <Row>
                                             <Col md={6}>
@@ -1153,6 +1095,20 @@ const ExaminationDetailPage = () => {
                                             </Alert>
                                         )}
                                     </div>
+                                </Tab>
+
+                                <Tab eventKey="prescription" title={
+                                    <span>
+                                        <Capsule className="me-1" />
+                                        Đơn thuốc
+                                    </span>
+                                }>
+                                    {medicalRecord?.id && (
+                                        <PrescriptionManagement
+                                            medicalRecordId={parseInt(medicalRecord.id.toString())}
+                                            readonly={medicalRecord.status === MedicalRecordStatus.HOAN_THANH}
+                                        />
+                                    )}
                                 </Tab>
                             </Tabs>
 
@@ -1582,6 +1538,17 @@ const ExaminationDetailPage = () => {
                     )}
                 </Modal.Footer>
             </Modal>
+
+            {typeof medicalRecord?.patientId === 'number' && medicalRecord && (
+                <MedicalRecordHistory
+                    show={showHistoryModal}
+                    onHide={() => setShowHistoryModal(false)}
+                    patientId={medicalRecord.patientId}
+                    patientName={medicalRecord.patientName}
+                    currentMedicalRecordId={medicalRecord.id}
+                    onViewDetail={handleViewHistoryDetail}
+                />
+            )}
 
             {/* Modal xem kết quả xét nghiệm */}
             <Modal

@@ -2,8 +2,11 @@
 
 //import node module libraries
 import React, { useState } from "react";
-import { Modal, Form, Button, Row, Col, Alert } from "react-bootstrap";
+import { Modal, Form, Button, Row, Col } from "react-bootstrap";
 import { IconUser, IconPhone, IconMail, IconMapPin, IconCreditCard, IconCalendar } from "@tabler/icons-react";
+
+//import custom components
+import { useMessage } from '../common/MessageProvider';
 
 //import services
 import { patientService, type NewPatientCreateData } from "../../services";
@@ -23,6 +26,7 @@ const AddPatientForm: React.FC<AddPatientFormProps> = ({
     onLoadingChange,
     onSuccess
 }) => {
+    const message = useMessage();
     const [formData, setFormData] = useState<NewPatientCreateData>({
         phone: null,
         email: null,
@@ -43,18 +47,13 @@ const AddPatientForm: React.FC<AddPatientFormProps> = ({
     const [heightInput, setHeightInput] = useState<string>('');
 
     const [loading, setLoading] = useState<boolean>(false);
-    const [error, setError] = useState<string | null>(null);
-    const [success, setSuccess] = useState<string | null>(null);
 
     // Handle form field changes
     const handleChange = (field: keyof NewPatientCreateData, value: any) => {
-        setFormData((prev: NewPatientCreateData) => ({
+        setFormData(prev => ({
             ...prev,
             [field]: value
         }));
-        // Clear messages when user types
-        if (error) setError(null);
-        if (success) setSuccess(null);
     };
 
     // Validate form data
@@ -89,19 +88,20 @@ const AddPatientForm: React.FC<AddPatientFormProps> = ({
 
         const validationError = validateForm();
         if (validationError) {
-            setError(validationError);
+            message.error(validationError);
             return;
         }
 
         setLoading(true);
         if (onLoadingChange) onLoadingChange(true);
-        setError(null);
-        setSuccess(null);
 
         try {
             const response = await patientService.createNewPatient(formData);
 
-            // Show toast notification via parent
+            // Show success message
+            message.success("Thêm bệnh nhân thành công!");
+
+            // Show toast notification via parent (for backward compatibility)
             if (onSuccess) {
                 onSuccess("Thêm bệnh nhân thành công!");
             }
@@ -116,7 +116,7 @@ const AddPatientForm: React.FC<AddPatientFormProps> = ({
 
         } catch (err: any) {
             console.error('Error creating patient:', err);
-            setError(err.message || "Lỗi khi thêm bệnh nhân");
+            message.error(err.message || "Lỗi khi thêm bệnh nhân");
         } finally {
             setLoading(false);
             if (onLoadingChange) onLoadingChange(false);
@@ -142,8 +142,6 @@ const AddPatientForm: React.FC<AddPatientFormProps> = ({
         // Reset the input states
         setWeightInput('');
         setHeightInput('');
-        setError(null);
-        setSuccess(null);
         setLoading(false);
         onHide();
     };
@@ -160,18 +158,6 @@ const AddPatientForm: React.FC<AddPatientFormProps> = ({
 
                 <Form onSubmit={handleSubmit}>
                     <Modal.Body>
-                        {error && (
-                            <Alert variant="danger" className="mb-3">
-                                {error}
-                            </Alert>
-                        )}
-
-                        {success && (
-                            <Alert variant="success" className="mb-3">
-                                {success}
-                            </Alert>
-                        )}
-
                         <Row className="g-3">
                             {/* Full Name */}
                             <Col md={6}>

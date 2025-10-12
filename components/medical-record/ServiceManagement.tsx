@@ -3,13 +3,14 @@ import { useState, useEffect } from "react";
 import { Table, Badge, Alert, Button, Modal, Form } from "react-bootstrap";
 import { Plus, X, Activity, FileText } from "react-bootstrap-icons";
 import { AppointmentService, NewPrescription, MedicalService, ServiceStatus, PrescriptionStatus } from "../../types/MedicalServiceType";
+import { useMessage } from '../common/MessageProvider';
 
 interface ServiceManagementProps {
     appointmentId: string;
-    onAlert: (alert: { type: 'success' | 'danger'; message: string }) => void;
 }
 
-const ServiceManagement: React.FC<ServiceManagementProps> = ({ appointmentId, onAlert }) => {
+const ServiceManagement: React.FC<ServiceManagementProps> = ({ appointmentId }) => {
+    const message = useMessage();
     const [paidServices, setPaidServices] = useState<AppointmentService[]>([]);
     const [newPrescriptions, setNewPrescriptions] = useState<NewPrescription[]>([]);
     const [availableServices, setAvailableServices] = useState<MedicalService[]>([]);
@@ -82,7 +83,7 @@ const ServiceManagement: React.FC<ServiceManagementProps> = ({ appointmentId, on
 
     const handleAddPrescription = async () => {
         if (!selectedService || !prescriptionReason.trim()) {
-            onAlert({ type: 'danger', message: 'Vui lòng chọn dịch vụ và nhập lý do chỉ định' });
+            message.error('Vui lòng chọn dịch vụ và nhập lý do chỉ định');
             return;
         }
 
@@ -105,17 +106,17 @@ const ServiceManagement: React.FC<ServiceManagementProps> = ({ appointmentId, on
             setSelectedService(null);
             setPrescriptionReason('');
             setPrescriptionNotes('');
-            onAlert({ type: 'success', message: 'Đã thêm chỉ định mới thành công' });
+            message.success('Đã thêm chỉ định mới thành công');
 
         } catch (error) {
             console.error('Lỗi khi thêm chỉ định:', error);
-            onAlert({ type: 'danger', message: 'Có lỗi xảy ra khi thêm chỉ định' });
+            message.error('Có lỗi xảy ra khi thêm chỉ định');
         }
     };
 
     const handleDeletePrescription = (prescriptionId: number) => {
         setNewPrescriptions(newPrescriptions.filter(p => p.id !== prescriptionId));
-        onAlert({ type: 'success', message: 'Đã xóa chỉ định' });
+        message.success('Đã xóa chỉ định');
     };
 
     return (

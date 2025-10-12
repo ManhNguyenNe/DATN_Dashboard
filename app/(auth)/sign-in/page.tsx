@@ -9,7 +9,6 @@ import {
   Card,
   Form,
   Button,
-  Alert,
   Spinner,
 } from "react-bootstrap";
 import Link from "next/link";
@@ -21,11 +20,13 @@ import {
 
 import { getAssetPath } from "../../../helper/assetPath";
 import { useAuth } from "../../../contexts/AuthContext";
+import { useMessage } from "../../../components/common/MessageProvider";
 import { type LoginRequest } from "../../../services";
 
 const SignIn = () => {
   const router = useRouter();
   const { login, isAuthenticated, isLoading } = useAuth();
+  const message = useMessage();
 
   const [formData, setFormData] = useState<LoginRequest>({
     username: "",
@@ -34,7 +35,6 @@ const SignIn = () => {
 
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [loginLoading, setLoginLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<{
     username?: string;
     password?: string;
@@ -76,8 +76,6 @@ const SignIn = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    setError(null);
-
     if (!validateForm()) {
       return;
     }
@@ -90,7 +88,7 @@ const SignIn = () => {
         err.response?.data?.message ||
         err.message ||
         "Đăng nhập thất bại. Vui lòng thử lại.";
-      setError(errorMessage);
+      message.error(errorMessage);
     } finally {
       setLoginLoading(false);
     }
@@ -128,12 +126,6 @@ const SignIn = () => {
         <Col xl={5} lg={6} md={8}>
           <Card className="card-lg mb-6">
             <Card.Body className="p-6">
-              {error && (
-                <Alert variant="danger" className="mb-4" dismissible onClose={() => setError(null)}>
-                  <strong>Lỗi đăng nhập:</strong> {error}
-                </Alert>
-              )}
-
               <Form onSubmit={handleSubmit} className="mb-4">
                 <div className="mb-3">
                   <Form.Label htmlFor="username">

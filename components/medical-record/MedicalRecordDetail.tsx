@@ -7,6 +7,7 @@ import "bootstrap-icons/font/bootstrap-icons.css";
 
 //import components
 import MedicalRecordHistory from "./MedicalRecordHistory";
+import { useMessage } from '../common/MessageProvider';
 
 // CSS tùy chỉnh - Tương đồng với PatientManagement (Bootstrap standard)
 const customStyles = `
@@ -70,6 +71,7 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
     onBack,
     onViewDetail
 }) => {
+    const message = useMessage();
     // State
     const [medicalRecord, setMedicalRecord] = useState<MedicalRecordDetailType | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
@@ -285,11 +287,11 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
 
             await paymentService.payCash(cashPaymentRequest);
 
-            setSuccess('Thanh toán tiền mặt thành công!');
+            message.success('Thanh toán tiền mặt thành công!');
             // Reload medical record to get updated payment status
             await loadMedicalRecordDetail();
         } catch (err: any) {
-            setError(err.response?.data?.message || err.message || 'Lỗi khi xử lý thanh toán tiền mặt');
+            message.error(err.response?.data?.message || err.message || 'Lỗi khi xử lý thanh toán tiền mặt');
         } finally {
             setPaymentLoading(false);
         }
@@ -346,7 +348,7 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
     };
 
     const handlePaymentSuccess = async () => {
-        setSuccess('Thanh toán thành công!');
+        message.success('Thanh toán thành công!');
 
         // Đóng modal NGAY LẬP TỨC để tránh re-render gây polling lại
         setShowPaymentModal(false);
@@ -360,7 +362,7 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
     };
 
     const handlePaymentError = (errorMessage: string) => {
-        setError(`Lỗi thanh toán: ${errorMessage}`);
+        message.error(`Lỗi thanh toán: ${errorMessage}`);
     };
 
     const handlePaymentModalClose = () => {
@@ -406,7 +408,7 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
 
             const response = await labOrderService.deleteLabOrders(deleteRequest);
 
-            setSuccess(`Đã xóa thành công ${selectedLabOrderIds.length} dịch vụ`);
+            message.success(`Đã xóa thành công ${selectedLabOrderIds.length} dịch vụ`);
             // Clear selected services
             setSelectedServices([]);
             // Reload medical record to get updated data
@@ -838,18 +840,6 @@ const MedicalRecordDetail: React.FC<MedicalRecordDetailProps> = ({
                     </Card.Header>
 
                     <Card.Body>
-                        {error && (
-                            <Alert variant="danger" dismissible onClose={() => setError(null)}>
-                                <strong>Lỗi:</strong> {error}
-                            </Alert>
-                        )}
-
-                        {success && (
-                            <Alert variant="success" dismissible onClose={() => setSuccess(null)}>
-                                <strong>Thành công:</strong> {success}
-                            </Alert>
-                        )}
-
                         {/* Medical Record Info */}
                         <Row className="mb-4">
                             <Col md={6}>

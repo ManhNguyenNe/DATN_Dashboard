@@ -2,12 +2,13 @@
 
 //import node module libraries
 import { useState, useEffect } from "react";
-import { Row, Col, Card, Tab, Tabs, Alert } from "react-bootstrap";
+import { Row, Col, Card, Tab, Tabs } from "react-bootstrap";
 
 //import custom components
 import AppointmentList from "./AppointmentList";
 import AppointmentSearch from "./AppointmentSearch";
 import MedicalRecordForm from "./MedicalRecordForm";
+import { useMessage } from "../common/MessageProvider";
 
 //import services
 import { appointmentService, AppointmentStatus, type Appointment, type AppointmentFilter, type PatientSearchResult } from "../../services";
@@ -23,11 +24,11 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
   activeTab: externalActiveTab,
   onTabChange
 }) => {
+  const message = useMessage();
   const [internalActiveTab, setInternalActiveTab] = useState<string>("list");
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [searchLoading, setSearchLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
   const [currentFilters, setCurrentFilters] = useState<AppointmentFilter>({});
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(() => {
     // Restore from localStorage on component mount
@@ -91,7 +92,6 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
   // Load appointments with filters
   const handleSearch = async (filters: AppointmentFilter) => {
     setSearchLoading(true);
-    setError(null);
 
     try {
       const response = await appointmentService.getAppointments(filters);
@@ -117,7 +117,7 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
       onSearch?.(filters);
     } catch (err: any) {
       console.error('Error fetching appointments:', err);
-      setError(err.message || "Lỗi khi tải danh sách lịch khám");
+      message.error(err.message || "Lỗi khi tải danh sách lịch khám");
       setAppointments([]);
     } finally {
       setSearchLoading(false);
@@ -140,9 +140,11 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
   const handleConfirmAppointment = async (appointmentId: number, status: AppointmentStatus) => {
     // Chỉ set loading cho appointment cụ thể
     setUpdatingAppointments(prev => new Set(prev).add(appointmentId));
-    setError(null);
 
     try {
+      // Hiển thị loading message
+      message.loading(`Đang cập nhật trạng thái lịch khám...`);
+
       await appointmentService.confirmAppointment(appointmentId, status);
 
       // Tìm appointment hiện tại trước khi cập nhật
@@ -162,15 +164,16 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
 
       // Chỉ chuyển sang medical record form khi trạng thái là DA_DEN (đã đến)
       if (status === AppointmentStatus.DA_DEN && updatedAppointment) {
-        console.log('Switching to medical record form with appointment:', updatedAppointment);
         setSelectedAppointment(updatedAppointment);
         setActiveTab("medical-record");
+        message.success("Đã cập nhật trạng thái và chuyển sang phiếu khám bệnh");
+      } else {
+        // Hiển thị message thành công với thông tin cụ thể
+        const statusMessage = getStatusMessage(status);
+        message.success(`Đã cập nhật trạng thái thành: ${statusMessage}`);
       }
-
-      // Show success message (you can add toast here)
-      console.log("Appointment status updated successfully, status:", status);
     } catch (err: any) {
-      setError(err.message || "Lỗi khi cập nhật trạng thái lịch khám");
+      message.error(err.message || "Lỗi khi cập nhật trạng thái lịch khám");
       // Chỉ khi có lỗi mới reload để đảm bảo data đúng
       await handleSearch(currentFilters);
     } finally {
@@ -183,8 +186,25 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
     }
   };
 
+  // Helper function để lấy text trạng thái
+  const getStatusMessage = (status: AppointmentStatus): string => {
+    switch (status) {
+      case AppointmentStatus.CHO_XAC_NHAN:
+        return "Chờ xác nhận";
+      case AppointmentStatus.DA_XAC_NHAN:
+        return "Đã xác nhận";
+      case AppointmentStatus.DA_DEN:
+        return "Đã đến";
+      case AppointmentStatus.KHONG_DEN:
+        return "Không đến";
+      default:
+        return "Không xác định";
+    }
+  };
+
   // Handle medical record created successfully
   const handleMedicalRecordCreated = async () => {
+    message.success("Đã tạo hồ sơ bệnh án thành công!");
     setSelectedAppointment(null); // Clear selected appointment
     setSelectedPatient(null); // Clear selected patient
     // Clear localStorage
@@ -194,11 +214,13 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
       localStorage.removeItem('medicalRecordActiveTab');
     }
     setActiveTab("list");
-    // Optionally refresh data or show success message
+    // Refresh appointments để cập nhật trạng thái mới nhất
+    await handleSearch(currentFilters);
   };
 
   // Handle medical record cancelled
   const handleMedicalRecordCancelled = () => {
+    message.info("Đã hủy tạo hồ sơ bệnh án");
     setSelectedAppointment(null); // Clear selected appointment
     setSelectedPatient(null); // Clear selected patient
     // Clear localStorage
@@ -212,6 +234,7 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
 
   // Handle fill patient to medical record
   const handleFillPatientToMedicalRecord = (patient: PatientSearchResult) => {
+    message.info("Đã chọn bệnh nhân để tạo hồ sơ khám bệnh");
     setSelectedPatient(patient);
     setSelectedAppointment(null); // Clear any appointment data
     setActiveTab("medical-record");
@@ -219,6 +242,7 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
 
   // Handle fill appointment to medical record
   const handleFillAppointmentToMedicalRecord = (appointment: Appointment) => {
+    message.info("Đã chọn lịch khám để tạo hồ sơ khám bệnh");
     setSelectedAppointment(appointment);
     // Save to localStorage for persistence across page refreshes
     if (typeof window !== 'undefined') {
@@ -240,12 +264,6 @@ const AppointmentManagement: React.FC<AppointmentManagementProps> = ({
             >
               <Tab eventKey="list" title="Danh sách lịch khám">
                 <div className="pt-4">
-                  {error && (
-                    <Alert variant="danger" dismissible onClose={() => setError(null)}>
-                      {error}
-                    </Alert>
-                  )}
-
                   <AppointmentSearch
                     onSearch={handleSearch}
                     loading={false}

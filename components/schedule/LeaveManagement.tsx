@@ -10,7 +10,6 @@ import {
     Col,
     Modal,
     Form,
-    Alert,
     Spinner,
     FormCheck,
     Pagination
@@ -20,9 +19,9 @@ import {
     IconEdit,
     IconTrash,
     IconCalendarOff,
-    IconAlertCircle,
     IconFilter
 } from '@tabler/icons-react';
+import { useMessage } from '../common/MessageProvider';
 import { useAuth } from '../../contexts/AuthContext';
 import {
     LeaveRequest,
@@ -39,9 +38,9 @@ interface LeaveManagementProps {
 
 const LeaveManagement: React.FC<LeaveManagementProps> = ({ className = '' }) => {
     const { user } = useAuth();
+    const message = useMessage();
     const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const [showModal, setShowModal] = useState(false);
     const [editingRequest, setEditingRequest] = useState<LeaveRequest | null>(null);
 
@@ -66,13 +65,12 @@ const LeaveManagement: React.FC<LeaveManagementProps> = ({ className = '' }) => 
         if (!user?.doctor?.id) return;
 
         setLoading(true);
-        setError(null);
 
         try {
             const response = await scheduleService.getMyLeaves(filters);
             setLeaveRequests(response.data || []);
         } catch (err: any) {
-            setError(err?.response?.data?.message || 'Không thể tải dữ liệu nghỉ phép. Vui lòng thử lại.');
+            message.error(err?.response?.data?.message || 'Không thể tải dữ liệu nghỉ phép. Vui lòng thử lại.');
         } finally {
             setLoading(false);
         }
@@ -146,12 +144,11 @@ const LeaveManagement: React.FC<LeaveManagementProps> = ({ className = '' }) => 
         e.preventDefault();
 
         if (!formData.day || formData.shifts.length === 0 || !formData.reason.trim()) {
-            setError('Vui lòng điền đầy đủ thông tin và chọn ít nhất một ca làm việc.');
+            message.error('Vui lòng điền đầy đủ thông tin và chọn ít nhất một ca làm việc.');
             return;
         }
 
         setLoading(true);
-        setError(null);
 
         try {
             const requestData: LeaveRequestData = {
@@ -168,11 +165,12 @@ const LeaveManagement: React.FC<LeaveManagementProps> = ({ className = '' }) => 
             } else {
                 await scheduleService.createLeave(requestData);
             }
+            message.success(editingRequest ? 'Cập nhật yêu cầu nghỉ phép thành công.' : 'Tạo yêu cầu nghỉ phép thành công.');
 
             handleCloseModal();
             fetchLeaveRequests();
         } catch (err: any) {
-            setError(err?.response?.data?.message || 'Không thể lưu yêu cầu nghỉ phép. Vui lòng thử lại.');
+            message.error(err?.response?.data?.message || 'Không thể lưu yêu cầu nghỉ phép. Vui lòng thử lại.');
         } finally {
             setLoading(false);
         }
@@ -184,13 +182,13 @@ const LeaveManagement: React.FC<LeaveManagementProps> = ({ className = '' }) => 
         }
 
         setLoading(true);
-        setError(null);
 
         try {
             await scheduleService.deleteLeave(requestId);
             fetchLeaveRequests();
+            message.success('Xóa yêu cầu nghỉ phép thành công.');
         } catch (err: any) {
-            setError(err?.response?.data?.message || 'Không thể xóa yêu cầu nghỉ phép. Vui lòng thử lại.');
+            message.error(err?.response?.data?.message || 'Không thể xóa yêu cầu nghỉ phép. Vui lòng thử lại.');
         } finally {
             setLoading(false);
         }
@@ -264,10 +262,12 @@ const LeaveManagement: React.FC<LeaveManagementProps> = ({ className = '' }) => 
 
     if (!user?.doctor) {
         return (
-            <Alert variant="warning">
-                <IconCalendarOff size={20} className="me-2" />
-                Chỉ có bác sĩ mới có thể quản lý nghỉ phép.
-            </Alert>
+            <Card className={className}>
+                <Card.Body className="text-center text-warning">
+                    <IconCalendarOff size={48} className="mb-2" />
+                    <p className="mb-0">Chỉ có bác sĩ mới có thể quản lý nghỉ phép.</p>
+                </Card.Body>
+            </Card>
         );
     }
 
@@ -361,22 +361,15 @@ const LeaveManagement: React.FC<LeaveManagementProps> = ({ className = '' }) => 
                 </Card.Header>
 
                 <Card.Body>
-                    {error && (
-                        <Alert variant="danger" className="mb-3" dismissible onClose={() => setError(null)}>
-                            <IconAlertCircle size={16} className="me-2" />
-                            {error}
-                        </Alert>
-                    )}
-
                     {loading && leaveRequests.length === 0 ? (
                         <div className="text-center py-4">
                             <Spinner animation="border" variant="primary" />
                             <div className="mt-2">Đang tải dữ liệu...</div>
                         </div>
                     ) : leaveRequests.length === 0 ? (
-                        <Alert variant="info">
-                            Chưa có yêu cầu nghỉ phép nào.
-                        </Alert>
+                        <div className="text-center py-4 text-muted">
+                            <p className="mb-0">Chưa có yêu cầu nghỉ phép nào.</p>
+                        </div>
                     ) : (
                         <>
                             <div className="table-responsive">
@@ -596,10 +589,10 @@ const LeaveManagement: React.FC<LeaveManagementProps> = ({ className = '' }) => 
                         </Form.Group>
 
                         {formData.shifts.length > 0 && (
-                            <Alert variant="info">
+                            <div className="alert alert-info">
                                 <strong>Ca nghỉ đã chọn:</strong> {' '}
                                 {formData.shifts.map(s => scheduleService.getVietnameseShiftName(s)).join(', ')}
-                            </Alert>
+                            </div>
                         )}
                     </Modal.Body>
 

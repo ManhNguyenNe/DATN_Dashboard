@@ -7,6 +7,7 @@ import ClientWrapper from "components/common/ClientWrapper";
 import { AuthProvider } from "contexts/AuthContext";
 import { APIProvider } from "contexts/APIContext";
 import { AntdNotificationProvider } from "components/common/AntdNotificationProvider";
+import { MessageProvider } from "components/common/MessageProvider";
 
 // Import Swiper styles
 import "swiper/css";
@@ -42,7 +43,9 @@ export default function RootLayout({
           <APIProvider>
             <AuthProvider>
               <AntdNotificationProvider>
-                {children}
+                <MessageProvider>
+                  {children}
+                </MessageProvider>
               </AntdNotificationProvider>
             </AuthProvider>
           </APIProvider>

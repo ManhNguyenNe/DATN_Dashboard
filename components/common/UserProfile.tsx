@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Card, Row, Col, Form, Button, Alert, Tab, Tabs, Badge, Modal, Image } from "react-bootstrap";
+import { Card, Row, Col, Form, Button, Tab, Tabs, Badge, Modal, Image } from "react-bootstrap";
 import {
     PersonFill,
     TelephoneFill,
@@ -21,6 +21,7 @@ import {
 } from "react-bootstrap-icons";
 import { useAuth } from "../../contexts/AuthContext";
 import { userService, type UserProfile, type UserProfileUpdateData, type ChangePasswordData } from "../../services";
+import { useMessage } from './MessageProvider';
 
 interface UserProfileComponentProps {
     userRole: 'DOCTOR' | 'RECEPTIONIST';
@@ -28,10 +29,10 @@ interface UserProfileComponentProps {
 
 const UserProfileComponent: React.FC<UserProfileComponentProps> = ({ userRole }) => {
     const { user } = useAuth();
+    const message = useMessage();
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [alert, setAlert] = useState<{ type: 'success' | 'danger' | 'warning'; message: string } | null>(null);
 
     // Form states
     const [isEditing, setIsEditing] = useState(false);
@@ -77,10 +78,7 @@ const UserProfileComponent: React.FC<UserProfileComponentProps> = ({ userRole })
                 });
             }
         } catch (error: any) {
-            setAlert({
-                type: 'danger',
-                message: error.message || 'Không thể tải thông tin người dùng'
-            });
+            message.error(error.message || 'Không thể tải thông tin người dùng');
         } finally {
             setLoading(false);
         }
@@ -100,16 +98,10 @@ const UserProfileComponent: React.FC<UserProfileComponentProps> = ({ userRole })
             if (response.data) {
                 setProfile(response.data);
                 setIsEditing(false);
-                setAlert({
-                    type: 'success',
-                    message: 'Cập nhật thông tin thành công!'
-                });
+                message.success('Cập nhật thông tin thành công!');
             }
         } catch (error: any) {
-            setAlert({
-                type: 'danger',
-                message: error.message || 'Không thể cập nhật thông tin'
-            });
+            message.error(error.message || 'Không thể cập nhật thông tin');
         } finally {
             setSaving(false);
         }
@@ -117,28 +109,19 @@ const UserProfileComponent: React.FC<UserProfileComponentProps> = ({ userRole })
 
     const handleChangePassword = async () => {
         if (passwordData.newPassword !== passwordData.confirmPassword) {
-            setAlert({
-                type: 'danger',
-                message: 'Mật khẩu mới và xác nhận mật khẩu không khớp!'
-            });
+            message.error('Mật khẩu mới và xác nhận mật khẩu không khớp!');
             return;
         }
 
         if (passwordData.newPassword.length < 6) {
-            setAlert({
-                type: 'danger',
-                message: 'Mật khẩu mới phải có ít nhất 6 ký tự!'
-            });
+            message.error('Mật khẩu mới phải có ít nhất 6 ký tự!');
             return;
         }
 
         try {
             setSaving(true);
             await userService.changePassword(passwordData);
-            setAlert({
-                type: 'success',
-                message: 'Đổi mật khẩu thành công!'
-            });
+            message.success('Đổi mật khẩu thành công!');
             setShowPasswordModal(false);
             setPasswordData({
                 currentPassword: '',
@@ -146,10 +129,7 @@ const UserProfileComponent: React.FC<UserProfileComponentProps> = ({ userRole })
                 confirmPassword: ''
             });
         } catch (error: any) {
-            setAlert({
-                type: 'danger',
-                message: error.message || 'Không thể đổi mật khẩu'
-            });
+            message.error(error.message || 'Không thể đổi mật khẩu');
         } finally {
             setSaving(false);
         }
@@ -163,19 +143,13 @@ const UserProfileComponent: React.FC<UserProfileComponentProps> = ({ userRole })
             const response = await userService.uploadAvatar(selectedFile);
             if (response.data) {
                 await fetchProfile(); // Refresh profile data
-                setAlert({
-                    type: 'success',
-                    message: 'Cập nhật ảnh đại diện thành công!'
-                });
+                message.success('Cập nhật ảnh đại diện thành công!');
                 setShowAvatarModal(false);
                 setSelectedFile(null);
                 setPreviewUrl('');
             }
         } catch (error: any) {
-            setAlert({
-                type: 'danger',
-                message: error.message || 'Không thể cập nhật ảnh đại diện'
-            });
+            message.error(error.message || 'Không thể cập nhật ảnh đại diện');
         } finally {
             setSaving(false);
         }
@@ -220,9 +194,9 @@ const UserProfileComponent: React.FC<UserProfileComponentProps> = ({ userRole })
 
     if (!profile) {
         return (
-            <Alert variant="danger">
+            <div className="alert alert-danger">
                 Không thể tải thông tin người dùng. Vui lòng thử lại sau.
-            </Alert>
+            </div>
         );
     }
 
@@ -249,17 +223,6 @@ const UserProfileComponent: React.FC<UserProfileComponentProps> = ({ userRole })
                     </Button>
                 </div>
             </div>
-
-            {alert && (
-                <Alert
-                    variant={alert.type}
-                    dismissible
-                    onClose={() => setAlert(null)}
-                    className="mb-4"
-                >
-                    {alert.message}
-                </Alert>
-            )}
 
             <Row>
                 {/* Profile Card */}

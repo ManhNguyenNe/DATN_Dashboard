@@ -2,7 +2,10 @@
 
 //import node module libraries
 import { useState, useEffect } from "react";
-import { Row, Col, Form, Button, Card, Alert } from "react-bootstrap";
+import { Row, Col, Form, Button, Card } from "react-bootstrap";
+
+//import custom components
+import { useMessage } from "../common/MessageProvider";
 
 //import services
 import {
@@ -22,6 +25,8 @@ interface AppointmentFormProps {
 }
 
 const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, onCancel }) => {
+  const message = useMessage();
+
   // Form state
   const [formData, setFormData] = useState<Partial<AppointmentCreateData>>({
     appointmentDate: '',
@@ -37,7 +42,6 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, onCancel }
 
   // UI state
   const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
   const [searchPhone, setSearchPhone] = useState<string>("");
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
 
@@ -61,7 +65,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, onCancel }
       const response = await departmentService.getAllDepartments();
       setDepartments(response.data || []);
     } catch (err: any) {
-      setError("Lỗi khi tải danh sách khoa");
+      message.error("Lỗi khi tải danh sách khoa");
     }
   };
 
@@ -70,7 +74,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, onCancel }
       const response = await doctorService.getDoctorsByDepartment(departmentId);
       setDoctors(response.data || []);
     } catch (err: any) {
-      setError("Lỗi khi tải danh sách bác sĩ");
+      message.error("Lỗi khi tải danh sách bác sĩ");
     }
   };
 
@@ -78,6 +82,8 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, onCancel }
     if (!phone.trim()) return;
 
     setLoading(true);
+    message.loading("Đang tìm kiếm bệnh nhân...");
+
     try {
       const response = await patientService.getPatientsByPhone(phone);
       setPatients(response.data || []);
@@ -85,9 +91,14 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, onCancel }
       if (response.data && response.data.length === 1) {
         setSelectedPatient(response.data[0]);
         setFormData(prev => ({ ...prev, patientId: response.data[0].id }));
+        message.success("Đã tìm thấy bệnh nhân");
+      } else if (response.data && response.data.length > 1) {
+        message.info(`Tìm thấy ${response.data.length} bệnh nhân`);
+      } else {
+        message.warning("Không tìm thấy bệnh nhân với số điện thoại này");
       }
     } catch (err: any) {
-      setError("Không tìm thấy bệnh nhân với số điện thoại này");
+      message.error("Không tìm thấy bệnh nhân với số điện thoại này");
       setPatients([]);
     } finally {
       setLoading(false);
@@ -103,18 +114,31 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, onCancel }
 
     if (!formData.patientId || !formData.doctorId || !formData.departmentId ||
       !formData.appointmentDate || !formData.appointmentTime) {
-      setError("Vui lòng điền đầy đủ thông tin bắt buộc");
+      message.warning("Vui lòng điền đầy đủ thông tin bắt buộc");
       return;
     }
 
     setLoading(true);
-    setError(null);
+    message.loading("Đang tạo lịch khám...");
 
     try {
       await appointmentService.createAppointment(formData as AppointmentCreateData);
+      message.success("Đã tạo lịch khám thành công!");
+
+      // Reset form sau khi tạo thành công
+      setFormData({
+        appointmentDate: '',
+        appointmentTime: '',
+        symptoms: '',
+        notes: ''
+      });
+      setSelectedPatient(null);
+      setPatients([]);
+      setSearchPhone("");
+
       onSuccess?.();
     } catch (err: any) {
-      setError(err.message || "Lỗi khi tạo lịch khám");
+      message.error(err.message || "Lỗi khi tạo lịch khám");
     } finally {
       setLoading(false);
     }
@@ -126,12 +150,6 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, onCancel }
         <h5 className="mb-0">Đặt lịch khám mới</h5>
       </Card.Header>
       <Card.Body>
-        {error && (
-          <Alert variant="danger" dismissible onClose={() => setError(null)}>
-            {error}
-          </Alert>
-        )}
-
         <Form onSubmit={handleSubmit}>
           {/* Patient Search */}
           <Row className="mb-3">

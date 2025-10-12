@@ -3,6 +3,7 @@ import { Card, Col, Row, Form, Button, Badge, Tab, Tabs } from "react-bootstrap"
 import { useState, useEffect } from "react";
 import { BarChart, Calendar, PersonCheck, GraphUp, Download, Printer } from "react-bootstrap-icons";
 import { useAuth } from "../../../../contexts/AuthContext";
+import { useMessage } from "../../../../components/common/MessageProvider";
 import appointmentService, { Appointment } from "../../../../services/appointmentService";
 import Loading from "../../../../components/common/Loading";
 

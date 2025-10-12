@@ -2,13 +2,12 @@
 
 //import node module libraries
 import { useState } from "react";
-import { Alert } from "react-bootstrap";
 
 //import custom components
 import PatientSearch from "./PatientSearch";
 import PatientList from "./PatientList";
-import { useAntdNotification } from "components/common/AntdNotificationProvider";
 import AddPatientForm from "./AddPatientForm";
+import { useMessage } from '../common/MessageProvider';
 
 //import services
 import { patientService, type PatientSearchResult, type PatientUpdateData } from "../../services";
@@ -20,11 +19,10 @@ interface PatientManagementProps {
 const PatientManagement: React.FC<PatientManagementProps> = ({
     onFillToMedicalRecord
 }) => {
-    const { showSuccess } = useAntdNotification();
+    const message = useMessage();
     const [patients, setPatients] = useState<PatientSearchResult[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [searchLoading, setSearchLoading] = useState<boolean>(false);
-    const [error, setError] = useState<string | null>(null);
     const [searchPerformed, setSearchPerformed] = useState<boolean>(false);
     const [showAddPatientForm, setShowAddPatientForm] = useState<boolean>(false);
     const [formLoading, setFormLoading] = useState<boolean>(false);
@@ -42,7 +40,6 @@ const PatientManagement: React.FC<PatientManagementProps> = ({
         }
 
         setSearchLoading(true);
-        setError(null);
         setSearchPerformed(true);
 
         try {
@@ -54,7 +51,7 @@ const PatientManagement: React.FC<PatientManagementProps> = ({
             }
         } catch (err: any) {
             console.error('Error searching patients:', err);
-            setError(err.message || "Lỗi khi tìm kiếm bệnh nhân");
+            message.error(err.message || "Lỗi khi tìm kiếm bệnh nhân");
             setPatients([]);
         } finally {
             setSearchLoading(false);
@@ -65,7 +62,6 @@ const PatientManagement: React.FC<PatientManagementProps> = ({
     const handleEditPatient = async (patient: PatientSearchResult) => {
         try {
             setLoading(true);
-            setError(null);
 
             // Prepare data for update API
             const updateData: PatientUpdateData = {
@@ -112,7 +108,7 @@ const PatientManagement: React.FC<PatientManagementProps> = ({
 
         } catch (err: any) {
             console.error('Error updating patient:', err);
-            setError(err.message || "Lỗi khi cập nhật thông tin bệnh nhân");
+            message.error(err.message || "Lỗi khi cập nhật thông tin bệnh nhân");
         } finally {
             setLoading(false);
         }
@@ -139,7 +135,6 @@ const PatientManagement: React.FC<PatientManagementProps> = ({
     const handlePatientAdded = (newPatient: any) => {
         console.log('New patient added:', newPatient);
         // Optionally refresh the search or add to current list
-        setError(null);
         // You might want to refresh the search here or show a success message
     };
 
@@ -149,18 +144,12 @@ const PatientManagement: React.FC<PatientManagementProps> = ({
     };
 
     // Handle success message from form
-    const handleSuccess = (message: string) => {
-        showSuccess('Thành công!', message);
+    const handleSuccess = (successMessage: string) => {
+        message.success(successMessage);
     };
 
     return (
         <div>
-            {error && (
-                <Alert variant="danger" dismissible onClose={() => setError(null)}>
-                    {error}
-                </Alert>
-            )}
-
             <PatientSearch
                 onSearch={handleSearch}
                 onKeywordChange={setDisplayKeyword}

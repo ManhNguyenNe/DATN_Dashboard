@@ -124,3 +124,18 @@ export {
   type DaySchedule,
   type ScheduleFilterParams
 } from './scheduleService';
+
+// Prescription Service
+export { prescriptionService, medicineService } from './prescriptionService';
+export type {
+  MedicineResponse,
+  PrescriptionDetailResponse,
+  PrescriptionResponse,
+  CreatePrescriptionRequest,
+  UpdatePrescriptionRequest,
+  CreatePrescriptionDetailRequest,
+  UpdatePrescriptionDetailRequest,
+  PrescriptionFormData,
+  PrescriptionDetailFormData,
+  PrescriptionFlexibleResponse
+} from '../types/PrescriptionTypes';

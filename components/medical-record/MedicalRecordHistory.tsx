@@ -1,7 +1,7 @@
 "use client";
 
 //import node module libraries
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Modal, Button, Table, Badge, Alert, Spinner } from "react-bootstrap";
 import { IconEye, IconCalendar, IconUser, IconFileText } from "@tabler/icons-react";
 
@@ -14,27 +14,50 @@ interface MedicalRecordHistoryProps {
     patientId: number;
     patientName?: string;
     onViewDetail?: (medicalRecordId: string) => void;
+    currentMedicalRecordId?: string;
 }
+
+interface ApiErrorLike {
+    response?: {
+        data?: {
+            message?: string;
+        };
+    };
+    message?: string;
+}
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+    if (typeof error === 'string') {
+        return error;
+    }
+
+    if (typeof error === 'object' && error !== null) {
+        const apiError = error as ApiErrorLike;
+        if (apiError.response?.data?.message) {
+            return apiError.response.data.message;
+        }
+
+        if (apiError.message) {
+            return apiError.message;
+        }
+    }
+
+    return fallback;
+};
 
 const MedicalRecordHistory: React.FC<MedicalRecordHistoryProps> = ({
     show,
     onHide,
     patientId,
     patientName,
-    onViewDetail
+    onViewDetail,
+    currentMedicalRecordId
 }) => {
     const [medicalRecords, setMedicalRecords] = useState<MedicalRecordListItem[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Fetch medical records when modal opens
-    useEffect(() => {
-        if (show && patientId) {
-            fetchMedicalRecords();
-        }
-    }, [show, patientId]);
-
-    const fetchMedicalRecords = async () => {
+    const fetchMedicalRecords = useCallback(async () => {
         if (!patientId) return;
 
         setLoading(true);
@@ -42,13 +65,29 @@ const MedicalRecordHistory: React.FC<MedicalRecordHistoryProps> = ({
 
         try {
             const response = await medicalRecordService.getMedicalRecordByPatientId(patientId);
-            setMedicalRecords(response.data || []);
-        } catch (error: any) {
-            setError(error.response?.data?.message || 'Có lỗi xảy ra khi tải lịch sử khám bệnh');
+            const records = Array.isArray(response.data) ? response.data : [];
+
+            const sortedRecords = [...records].sort((a, b) => {
+                const dateA = a.date ? new Date(a.date).getTime() : 0;
+                const dateB = b.date ? new Date(b.date).getTime() : 0;
+                return dateB - dateA;
+            });
+
+            setMedicalRecords(sortedRecords);
+        } catch (fetchError: unknown) {
+            const messageText = getErrorMessage(fetchError, 'Có lỗi xảy ra khi tải lịch sử khám bệnh');
+            setError(messageText);
         } finally {
             setLoading(false);
         }
-    };
+    }, [patientId]);
+
+    // Fetch medical records when modal opens
+    useEffect(() => {
+        if (show && patientId) {
+            fetchMedicalRecords();
+        }
+    }, [show, patientId, fetchMedicalRecords]);
 
     const getStatusBadge = (status: MedicalRecordStatus | string | undefined) => {
         switch (status) {
@@ -79,12 +118,10 @@ const MedicalRecordHistory: React.FC<MedicalRecordHistoryProps> = ({
         }
     };
 
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('vi-VN', {
-            style: 'currency',
-            currency: 'VND'
-        }).format(amount);
-    };
+    const highlightedRecordId = useMemo(() => {
+        const ongoingRecord = medicalRecords.find(record => record.status === MedicalRecordStatus.DANG_KHAM);
+        return ongoingRecord?.id || medicalRecords[0]?.id;
+    }, [medicalRecords]);
 
     const handleViewDetail = (medicalRecordId: string) => {
         if (onViewDetail) {
@@ -139,50 +176,59 @@ const MedicalRecordHistory: React.FC<MedicalRecordHistoryProps> = ({
                                     </th>
                                     <th>Triệu chứng</th>
                                     <th>Chẩn đoán</th>
-                                    <th style={{ width: '120px' }}>Tổng tiền</th>
                                     <th style={{ width: '120px' }}>Trạng thái</th>
                                     <th style={{ width: '100px' }}>Thao tác</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {medicalRecords.map((record) => (
-                                    <tr key={record.id}>
-                                        <td>
-                                            <code className="text-primary">{record.code}</code>
-                                        </td>
-                                        <td className="text-muted">
-                                            {formatDate(record.date)}
-                                        </td>
-                                        <td>
-                                            <div className="text-truncate" style={{ maxWidth: '200px' }}>
-                                                {record.symptoms || 'Không có thông tin'}
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div className="text-truncate" style={{ maxWidth: '200px' }}>
-                                                {record.diagnosis || 'Chưa có chẩn đoán'}
-                                            </div>
-                                        </td>
-                                        <td className="fw-semibold">
-                                            {formatCurrency(record.total)}
-                                        </td>
-                                        <td>
-                                            {getStatusBadge(record.status)}
-                                        </td>
-                                        <td>
-                                            <Button
-                                                variant="outline-primary"
-                                                size="sm"
-                                                onClick={() => handleViewDetail(record.id)}
-                                                title="Xem chi tiết phiếu khám này"
-                                                className="d-flex align-items-center"
-                                            >
-                                                <IconEye size={16} className="me-1" />
-                                                <span className="d-none d-md-inline">Chi tiết</span>
-                                            </Button>
-                                        </td>
-                                    </tr>
-                                ))}
+                                {medicalRecords.map((record) => {
+                                    const isCurrent = currentMedicalRecordId === record.id;
+                                    const isHighlighted = highlightedRecordId === record.id;
+                                    const highlightLabel = record.status === MedicalRecordStatus.DANG_KHAM ? 'Đang khám' : 'Phiếu gần nhất';
+
+                                    return (
+                                        <tr key={record.id} className={isHighlighted ? 'table-active' : undefined}>
+                                            <td>
+                                                <code className="text-primary">{record.code}</code>
+                                                {isHighlighted && (
+                                                    <Badge bg="info" className="ms-2">
+                                                        {highlightLabel}
+                                                    </Badge>
+                                                )}
+                                            </td>
+                                            <td className="text-muted">
+                                                {formatDate(record.date)}
+                                            </td>
+                                            <td>
+                                                <div className="text-truncate" style={{ maxWidth: '200px' }}>
+                                                    {record.symptoms || 'Không có thông tin'}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div className="text-truncate" style={{ maxWidth: '200px' }}>
+                                                    {record.diagnosis || 'Chưa có chẩn đoán'}
+                                                </div>
+                                            </td>
+
+                                            <td>
+                                                {getStatusBadge(record.status)}
+                                            </td>
+                                            <td>
+                                                <Button
+                                                    variant={isCurrent ? 'secondary' : 'outline-primary'}
+                                                    size="sm"
+                                                    onClick={() => handleViewDetail(record.id)}
+                                                    title={isCurrent ? 'Phiếu khám đang được mở' : 'Xem chi tiết phiếu khám này'}
+                                                    className="d-flex align-items-center"
+                                                    disabled={isCurrent}
+                                                >
+                                                    <IconEye size={16} className="me-1" />
+                                                    <span className="d-none d-md-inline">{isCurrent ? 'Đang xem' : 'Chi tiết'}</span>
+                                                </Button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </Table>
                     </div>

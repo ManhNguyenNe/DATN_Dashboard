@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Card, Table, Badge, Button, Row, Col, Spinner, Alert } from 'react-bootstrap';
+import { Card, Table, Badge, Button, Row, Col, Spinner } from 'react-bootstrap';
 import { IconChevronLeft, IconChevronRight, IconCalendar, IconRefresh } from '@tabler/icons-react';
 import { Skeleton } from 'antd';
+import { useMessage } from '../common/MessageProvider';
 import scheduleService from '../../services/scheduleService';
 import {
     DaySchedule,
@@ -86,11 +87,11 @@ DateHeaderCell.displayName = 'DateHeaderCell';
 
 const WorkSchedule: React.FC<WorkScheduleProps> = ({ className = '' }) => {
     const { user } = useAuth();
+    const message = useMessage();
     const [weekSchedules, setWeekSchedules] = useState<DaySchedule[]>([]);
     const [currentWeek, setCurrentWeek] = useState<Date>(new Date());
     const [loading, setLoading] = useState(false);
     const [skeletonLoading, setSkeletonLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
 
     // Tính toán tuần hiện tại - chỉ thay đổi khi currentWeek thay đổi
     const weekRange = useMemo(() => {
@@ -122,7 +123,6 @@ const WorkSchedule: React.FC<WorkScheduleProps> = ({ className = '' }) => {
         if (!user?.doctor?.id) return;
 
         setLoading(true);
-        setError(null);
 
         // Nếu có delay, hiển thị skeleton
         if (withDelay) {
@@ -148,7 +148,7 @@ const WorkSchedule: React.FC<WorkScheduleProps> = ({ className = '' }) => {
                 setWeekSchedules(response.data);
             }
         } catch (err: any) {
-            setError('Không thể tải dữ liệu lịch làm việc. Vui lòng thử lại.');
+            message.error('Không thể tải dữ liệu lịch làm việc. Vui lòng thử lại.');
         } finally {
             setLoading(false);
             setSkeletonLoading(false);
@@ -198,10 +198,12 @@ const WorkSchedule: React.FC<WorkScheduleProps> = ({ className = '' }) => {
 
     if (!user?.doctor) {
         return (
-            <Alert variant="warning">
-                <IconCalendar size={20} className="me-2" />
-                Chỉ có bác sĩ mới có thể xem lịch làm việc.
-            </Alert>
+            <Card className={className}>
+                <Card.Body className="text-center text-warning">
+                    <IconCalendar size={48} className="mb-2" />
+                    <p className="mb-0">Chỉ có bác sĩ mới có thể xem lịch làm việc.</p>
+                </Card.Body>
+            </Card>
         );
     }
 
@@ -265,12 +267,6 @@ const WorkSchedule: React.FC<WorkScheduleProps> = ({ className = '' }) => {
             </Card.Header>
 
             <Card.Body className="p-0">
-                {error && (
-                    <Alert variant="danger" className="m-3 mb-0">
-                        {error}
-                    </Alert>
-                )}
-
                 {/* Hiển thị skeleton khi đang loading */}
                 {skeletonLoading ? (
                     <div className="p-4">

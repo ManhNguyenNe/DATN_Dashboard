@@ -131,3 +131,6 @@ export type JustifyContentType =
 
 // Export MedicalServiceType
 export * from './MedicalServiceType';
+
+// Export PrescriptionTypes
+export * from './PrescriptionTypes';

@@ -1,7 +1,7 @@
 "use client";
 
 //import node module libraries
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Table, Badge, Button, Card, Alert } from "react-bootstrap";
 import { IconRefresh, IconChevronDown, IconChevronUp, IconEye } from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
@@ -28,12 +28,28 @@ const MedicalRecordList: React.FC<MedicalRecordListProps> = ({
     const [showAll, setShowAll] = useState<boolean>(false);
     const INITIAL_DISPLAY_COUNT = 10;
 
-    // Determine which medical records to display
-    const displayedMedicalRecords = showAll
-        ? medicalRecords
-        : medicalRecords.slice(0, INITIAL_DISPLAY_COUNT);
+    const sortedMedicalRecords = useMemo(() => {
+        if (!Array.isArray(medicalRecords)) {
+            return [] as MedicalRecordListItem[];
+        }
 
-    const hasMoreRecords = medicalRecords.length > INITIAL_DISPLAY_COUNT;
+        return [...medicalRecords].sort((a, b) => {
+            const dateA = a.date ? new Date(a.date).getTime() : 0;
+            const dateB = b.date ? new Date(b.date).getTime() : 0;
+            return dateB - dateA;
+        });
+    }, [medicalRecords]);
+
+    const highlightedRecordId = useMemo(() => {
+        const ongoingRecord = sortedMedicalRecords.find(record => record.status === MedicalRecordStatus.DANG_KHAM || record.status === 'DANG_KHAM');
+        return ongoingRecord?.id || sortedMedicalRecords[0]?.id;
+    }, [sortedMedicalRecords]);
+
+    const displayedMedicalRecords = showAll
+        ? sortedMedicalRecords
+        : sortedMedicalRecords.slice(0, INITIAL_DISPLAY_COUNT);
+
+    const hasMoreRecords = sortedMedicalRecords.length > INITIAL_DISPLAY_COUNT;
 
     const getStatusBadge = (status: MedicalRecordStatus | string | undefined) => {
         const statusStr = status as string;
@@ -70,14 +86,7 @@ const MedicalRecordList: React.FC<MedicalRecordListProps> = ({
         }
     };
 
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('vi-VN', {
-            style: 'currency',
-            currency: 'VND'
-        }).format(amount);
-    };
-
-    if (medicalRecords.length === 0) {
+    if (sortedMedicalRecords.length === 0) {
         return (
             <Card>
                 <Card.Body className="text-center py-5">
@@ -95,7 +104,7 @@ const MedicalRecordList: React.FC<MedicalRecordListProps> = ({
             <Card>
                 <Card.Header className="d-flex justify-content-between align-items-center">
                     <h5 className="mb-0">
-                        Danh sách phiếu khám ({medicalRecords.length})
+                        Danh sách phiếu khám ({sortedMedicalRecords.length})
                     </h5>
                     {onRefresh && (
                         <Button variant="outline-primary" size="sm" onClick={onRefresh}>
@@ -116,66 +125,78 @@ const MedicalRecordList: React.FC<MedicalRecordListProps> = ({
                             </tr>
                         </thead>
                         <tbody>
-                            {displayedMedicalRecords.map((record) => (
-                                <tr key={record.id}>
-                                    <td>
-                                        <div className="fw-semibold text-primary">
-                                            {record.code}
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div className="fw-semibold">
-                                            {record.patientName || 'Chưa xác định'}
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <small>
-                                            {formatDateTime(record.date)}
-                                        </small>
-                                    </td>
-                                    <td>
-                                        <small className="text-muted">
-                                            {record.symptoms
-                                                ? (record.symptoms.length > 50
-                                                    ? `${record.symptoms.substring(0, 50)}...`
-                                                    : record.symptoms)
-                                                : 'Không có'
-                                            }
-                                        </small>
-                                    </td>
-                                    <td>{getStatusBadge(record.status)}</td>
-                                    <td>
-                                        <div className="d-flex gap-2">
-                                            {userRole === 'BAC_SI' ? (
-                                                // Bác sĩ: nút khám bệnh + lịch sử khám
-                                                <>
+                            {displayedMedicalRecords.map((record) => {
+                                const isHighlighted = highlightedRecordId === record.id;
+                                const highlightLabel = record.status === MedicalRecordStatus.DANG_KHAM || record.status === 'DANG_KHAM'
+                                    ? 'Đang khám'
+                                    : 'Phiếu gần nhất';
+
+                                return (
+                                    <tr key={record.id} className={isHighlighted ? 'table-active' : undefined}>
+                                        <td>
+                                            <div className="fw-semibold text-primary">
+                                                {record.code}
+                                                {/* {isHighlighted && (
+                                                    <Badge bg="info" className="ms-2">
+                                                        {highlightLabel}
+                                                    </Badge>
+                                                )} */}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div className="fw-semibold">
+                                                {record.patientName || 'Chưa xác định'}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <small>
+                                                {formatDateTime(record.date)}
+                                            </small>
+                                        </td>
+                                        <td>
+                                            <small className="text-muted">
+                                                {record.symptoms
+                                                    ? (record.symptoms.length > 50
+                                                        ? `${record.symptoms.substring(0, 50)}...`
+                                                        : record.symptoms)
+                                                    : 'Không có'
+                                                }
+                                            </small>
+                                        </td>
+                                        <td>{getStatusBadge(record.status)}</td>
+                                        <td>
+                                            <div className="d-flex gap-2">
+                                                {userRole === 'BAC_SI' ? (
+                                                    // Bác sĩ: nút khám bệnh + lịch sử khám
+                                                    <>
+                                                        <Button
+                                                            variant={record.status === 'HOAN_THANH' ? 'success' : 'primary'}
+                                                            size="sm"
+                                                            onClick={() => router.push(`/bac-si/kham-benh/${record.id}`)}
+                                                            className="d-flex align-items-center"
+                                                        >
+                                                            <i className={`bi ${record.status === 'HOAN_THANH' ? 'bi-check-circle' : 'bi-stethoscope'} me-1`}></i>
+                                                            {record.status === 'HOAN_THANH' ? 'Xem kết quả' : 'Bắt đầu khám'}
+                                                        </Button>
+
+                                                    </>
+                                                ) : (
+                                                    // Lễ tân: nút xem chi tiết
                                                     <Button
-                                                        variant={record.status === 'HOAN_THANH' ? 'success' : 'primary'}
+                                                        variant="outline-primary"
                                                         size="sm"
-                                                        onClick={() => router.push(`/bac-si/kham-benh/${record.id}`)}
+                                                        onClick={() => onViewDetail?.(record.id)}
                                                         className="d-flex align-items-center"
                                                     >
-                                                        <i className={`bi ${record.status === 'HOAN_THANH' ? 'bi-check-circle' : 'bi-stethoscope'} me-1`}></i>
-                                                        {record.status === 'HOAN_THANH' ? 'Xem kết quả' : 'Bắt đầu khám'}
+                                                        <IconEye size={16} className="me-1" />
+                                                        Xem chi tiết
                                                     </Button>
-
-                                                </>
-                                            ) : (
-                                                // Lễ tân: nút xem chi tiết
-                                                <Button
-                                                    variant="outline-primary"
-                                                    size="sm"
-                                                    onClick={() => onViewDetail?.(record.id)}
-                                                    className="d-flex align-items-center"
-                                                >
-                                                    <IconEye size={16} className="me-1" />
-                                                    Xem chi tiết
-                                                </Button>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </Table>
 
@@ -191,12 +212,12 @@ const MedicalRecordList: React.FC<MedicalRecordListProps> = ({
                                 {showAll ? (
                                     <>
                                         <IconChevronUp size={16} className="me-1" />
-                                        Thu gọn ({medicalRecords.length - INITIAL_DISPLAY_COUNT} bản ghi)
+                                        Thu gọn ({sortedMedicalRecords.length - INITIAL_DISPLAY_COUNT} bản ghi)
                                     </>
                                 ) : (
                                     <>
                                         <IconChevronDown size={16} className="me-1" />
-                                        Xem thêm {medicalRecords.length - INITIAL_DISPLAY_COUNT} bản ghi
+                                        Xem thêm {sortedMedicalRecords.length - INITIAL_DISPLAY_COUNT} bản ghi
                                     </>
                                 )}
                             </Button>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, Col, Row, Form, Button, Alert, Table, Badge, InputGroup } from 'react-bootstrap';
 import { Search, Calendar, Filter, ArrowClockwise, FileText } from 'react-bootstrap-icons';
 import { useAuth } from '../../../../contexts/AuthContext';
+import { useMessage } from '../../../../components/common/MessageProvider';
 import labOrderService, { DoctorLabOrder, DoctorLabOrderFilter } from '../../../../services/labOrderService';
 import labResultService from '../../../../services/labResultService';
 
@@ -19,6 +20,7 @@ const getTodayDate = (): string => {
 
 const ChiDinhXetNghiemPage = () => {
     const { user } = useAuth();
+    const message = useMessage();
     const router = useRouter();
     const [labOrders, setLabOrders] = useState<DoctorLabOrder[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
@@ -88,9 +90,11 @@ const ChiDinhXetNghiemPage = () => {
             }
         } catch (error: any) {
             console.error('Error fetching lab orders:', error);
+            const errorMessage = error.message || 'Không thể tải danh sách chỉ định';
+            message.error(errorMessage);
             setAlert({
                 type: 'danger',
-                message: error.message || 'Không thể tải danh sách chỉ định'
+                message: errorMessage
             });
             setLabOrders([]);
         } finally {
@@ -155,27 +159,35 @@ const ChiDinhXetNghiemPage = () => {
 
         try {
             setAlert(null);
+            message.loading(`Đang hủy xét nghiệm "${labOrder.healthPlanName}"...`);
+
             await labResultService.updateLabOrderStatus({
                 id: labOrder.id,
                 status: 'HUY_BO'
             });
 
+            const successMessage = `Đã hủy xét nghiệm "${labOrder.healthPlanName}" thành công`;
+            message.success(successMessage);
             setAlert({
                 type: 'success',
-                message: `Đã hủy xét nghiệm "${labOrder.healthPlanName}" thành công`
+                message: successMessage
             });
 
-            // Refresh danh sách sau khi hủy
-            const currentFilters: DoctorLabOrderFilter = {};
-            if (keyword.trim()) currentFilters.keyword = keyword.trim();
-            if (date) currentFilters.date = date;
-            if (status) currentFilters.status = status as any;
-            fetchLabOrders(currentFilters);
+            // Cập nhật state local ngay lập tức để tránh reload
+            setLabOrders(prevOrders =>
+                prevOrders.map(order =>
+                    order.id === labOrder.id
+                        ? { ...order, status: 'HUY_BO' as const }
+                        : order
+                )
+            );
 
         } catch (error: any) {
+            const errorMessage = error.response?.data?.message || 'Có lỗi xảy ra khi hủy xét nghiệm';
+            message.error(errorMessage);
             setAlert({
                 type: 'danger',
-                message: error.response?.data?.message || 'Có lỗi xảy ra khi hủy xét nghiệm'
+                message: errorMessage
             });
         }
     };
